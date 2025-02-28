@@ -1,0 +1,26 @@
+[package]
+name = "window_manager"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[build-dependencies]
+anyhow = "1.0.95"
+
+cef-ui-util = { git = "https://github.com/hulylabs/cef-ui.git", branch = "build" }
+
+[dependencies]
+anyhow = "1.0.95"
+tracing = "0.1.41"
+tracing-log = "0.2.0"
+tracing-subscriber = "0.3.19"
+image = "0.25.5"
+serde = { version = "1.0.218", features = ["derive"] }
+serde_json = "1.0.139"
+
+cef-ui = { git = "https://github.com/hulylabs/cef-ui.git", branch = "cef-task-fixed" }
+chrono = "0.4.39"
+crossbeam = "0.8.4"
+crossbeam-channel = "0.5.14"
+tungstenite = "0.26.2"
+futures = "0.3.31"
