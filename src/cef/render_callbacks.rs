@@ -81,6 +81,7 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
         _width: usize,
         _height: usize,
     ) {
+        println!("on_paint");
         let now = std::time::Instant::now();
         let state = self.browser_state.lock().unwrap();
         let buffer = crate::cef::Buffer {

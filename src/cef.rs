@@ -5,6 +5,7 @@ use cef_ui::{
     MainArgs, RenderHandler, Settings, WindowInfo,
 };
 use crossbeam_channel::Sender;
+use tokio::sync::mpsc::UnboundedSender;
 
 use core::panic;
 use std::{
@@ -28,7 +29,7 @@ pub type CefContext = cef_ui::Context;
 pub struct BrowserState {
     pub width: u32,
     pub height: u32,
-    pub tx: Sender<Buffer>,
+    pub tx: UnboundedSender<Buffer>,
 }
 
 pub struct Buffer {
@@ -71,10 +72,10 @@ fn create_browser_in_ui_thread(
     width: u32,
     height: u32,
     url: &str,
-    tx: Sender<Buffer>,
+    tx: UnboundedSender<Buffer>,
 ) -> cef_ui::Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-    let browser_settings = BrowserSettings::new().windowless_frame_rate(30);
+    let browser_settings = BrowserSettings::new().windowless_frame_rate(50);
 
     let browser_state = Arc::new(Mutex::new(BrowserState {
         //browser: None,
@@ -99,7 +100,7 @@ struct CreateBrowserTaskCallback {
     width: u32,
     height: u32,
     url: String,
-    sender: Sender<Buffer>,
+    sender: UnboundedSender<Buffer>,
 }
 
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
@@ -114,7 +115,7 @@ pub fn create_browser(
     width: u32,
     height: u32,
     url: &str,
-    sender: Sender<Buffer>,
+    sender: UnboundedSender<Buffer>,
 ) -> cef_ui::Browser {
     let (tx, rx) = crossbeam_channel::unbounded::<cef_ui::Browser>();
     let result = cef_ui::post_task(
