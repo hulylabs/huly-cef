@@ -83,7 +83,11 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
     ) {
         let now = std::time::Instant::now();
         let state = self.browser_state.lock().unwrap();
-        state.tx.send(buffer.to_vec()).unwrap();
+        let buffer = crate::cef::Buffer {
+            data: buffer.to_vec(),
+            timestamp: std::time::Instant::now(),
+        };
+        state.tx.send(buffer).expect("failed to send buffer");
         println!("on_paint: {:?}", now.elapsed());
     }
 

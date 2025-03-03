@@ -1,15 +1,14 @@
 use std::{
-    iter,
     net::{TcpListener, TcpStream},
     sync::{Arc, Condvar, Mutex},
 };
 
 use anyhow::Result;
-use cef_ui::{Browser, CefTask, CefTaskCallbacks};
+use cef_ui::{CefTask, CefTaskCallbacks};
 use crossbeam_channel::Sender;
-use futures::lock;
+use image::codecs::webp;
 use serde::{Deserialize, Serialize};
-use tungstenite::{accept, Message};
+use tungstenite::Message;
 
 mod cef;
 
@@ -49,107 +48,32 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-struct MyTaskCallback {
-    shared_state: Arc<(Mutex<Option<cef_ui::Browser>>, Condvar)>,
-    width: u32,
-    height: u32,
-    url: String,
-    sender: Sender<Vec<u8>>,
-}
-
-impl CefTaskCallbacks for MyTaskCallback {
-    fn execute(&mut self) {
-        let (lock, cvar) = &*self.shared_state;
-        let mut browser = lock.lock().unwrap();
-
-        *browser = Some(cef::create_browser(
-            self.width,
-            self.height,
-            &self.url,
-            self.sender.clone(),
-        ));
-
-        println!("execute_task: {:?}", std::thread::current().id());
-
-        cvar.notify_one();
-    }
-}
-
-fn create_browser_task(
-    width: u32,
-    height: u32,
-    url: &str,
-    sender: Sender<Vec<u8>>,
-) -> cef_ui::Browser {
-    let shared_state: Arc<(Mutex<Option<cef_ui::Browser>>, Condvar)> =
-        Arc::new((Mutex::new(None), Condvar::new()));
-
-    let d = MyTaskCallback {
-        shared_state: shared_state.clone(),
-        width: width,
-        height: height,
-        url: url.to_string(),
-        sender,
-    };
-
-    let task = CefTask::new(d);
-
-    cef_ui::post_task(cef_ui::ThreadId::UI, task);
-
-    let (lock, cvar) = &*shared_state;
-    let mut browser_ready = lock.lock().unwrap();
-
-    while browser_ready.is_none() {
-        println!("Consumer: Waiting for producer...");
-        browser_ready = cvar.wait(browser_ready).unwrap();
-    }
-
-    browser_ready.take().unwrap()
-}
-
 fn run_server() {
-    let server = TcpListener::bind("127.0.0.1:8080").expect("failed to bind");
-    server.set_nonblocking(true).unwrap();
+    let server = TcpListener::bind("127.0.0.1:8080").expect("failed to start a tcp linstener");
+    for stream in server.incoming() {
+        let stream = stream.expect("failed to accept a tcp stream");
+        let websocket = tungstenite::accept(stream).expect("failed to accept a websocket");
+        std::thread::spawn(move || handle_connection(websocket));
+    }
+}
 
-    let stream = loop {
-        let stream = server.accept();
-        match stream {
-            Ok(s) => {
-                break s.0;
-            }
-            Err(_) => (),
-        }
-    };
-
-    println!("stream: {:?}", stream.local_addr().unwrap().ip());
-
-    let mut websocket = tungstenite::accept(stream).unwrap();
-
-    let msg = loop {
-        if let Ok(msg) = websocket.read() {
-            break msg;
-        }
-    };
-    let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data()).unwrap();
+fn handle_connection(mut websocket: tungstenite::WebSocket<TcpStream>) {
+    let msg = websocket.read().expect("failed to read a message");
+    let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data())
+        .expect("got unknown message from a client");
     let WebSocketMessage::CreateBrowser { url, width, height } = msg else {
         panic!("Unknown message");
     };
 
-    let (sender, reader) = crossbeam_channel::bounded::<Vec<u8>>(1);
-    let browser = create_browser_task(width, height, &url, sender);
+    let (sender, reader) = crossbeam_channel::unbounded::<cef::Buffer>();
+    let browser = cef::create_browser(width, height, &url, sender);
 
     loop {
-        let msg = websocket.read();
-        println!("try read");
-
-        if let Ok(msg) = msg {
-            _ = handle_message(msg, &browser);
-        }
-        let now = std::time::Instant::now();
         let buffer = reader.recv().unwrap();
-        println!("recv buffer: {:?}", now.elapsed());
+        println!("received buffer in: {:?}", buffer.timestamp.elapsed());
+        println!("channel size: {}", reader.len());
 
-        let msg = tungstenite::Message::Binary(buffer.into());
+        let msg = tungstenite::Message::Binary(buffer.data.into());
 
         let now = std::time::Instant::now();
         _ = websocket.write(msg);

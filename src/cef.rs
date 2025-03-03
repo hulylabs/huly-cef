@@ -1,11 +1,12 @@
 use anyhow::Result;
 
 use cef_ui::{
-    App, BrowserHost, BrowserSettings, Client, Context, LogSeverity, MainArgs, RenderHandler,
-    Settings, WindowInfo,
+    App, BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, Client, Context, LogSeverity,
+    MainArgs, RenderHandler, Settings, WindowInfo,
 };
 use crossbeam_channel::Sender;
 
+use core::panic;
 use std::{
     fs::create_dir_all,
     path::PathBuf,
@@ -27,7 +28,12 @@ pub type CefContext = cef_ui::Context;
 pub struct BrowserState {
     pub width: u32,
     pub height: u32,
-    pub tx: Sender<Vec<u8>>,
+    pub tx: Sender<Buffer>,
+}
+
+pub struct Buffer {
+    pub data: Vec<u8>,
+    pub timestamp: std::time::Instant,
 }
 
 pub fn new() -> Result<CefContext, anyhow::Error> {
@@ -61,7 +67,12 @@ fn get_root_cache_dir() -> Result<PathBuf> {
     Ok(path)
 }
 
-pub fn create_browser(width: u32, height: u32, url: &str, tx: Sender<Vec<u8>>) -> cef_ui::Browser {
+fn create_browser_in_ui_thread(
+    width: u32,
+    height: u32,
+    url: &str,
+    tx: Sender<Buffer>,
+) -> cef_ui::Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
     let browser_settings = BrowserSettings::new().windowless_frame_rate(30);
 
@@ -81,4 +92,46 @@ pub fn create_browser(width: u32, height: u32, url: &str, tx: Sender<Vec<u8>>) -
         BrowserHost::create_browser_sync(&window_info, client, url, &browser_settings, None, None);
 
     return browser;
+}
+
+struct CreateBrowserTaskCallback {
+    tx: Sender<cef_ui::Browser>,
+    width: u32,
+    height: u32,
+    url: String,
+    sender: Sender<Buffer>,
+}
+
+impl CefTaskCallbacks for CreateBrowserTaskCallback {
+    fn execute(&mut self) {
+        let browser =
+            create_browser_in_ui_thread(self.width, self.height, &self.url, self.sender.clone());
+        self.tx.send(browser).expect("failed to send a browser");
+    }
+}
+
+pub fn create_browser(
+    width: u32,
+    height: u32,
+    url: &str,
+    sender: Sender<Buffer>,
+) -> cef_ui::Browser {
+    let (tx, rx) = crossbeam_channel::unbounded::<cef_ui::Browser>();
+    let result = cef_ui::post_task(
+        cef_ui::ThreadId::UI,
+        CefTask::new(CreateBrowserTaskCallback {
+            tx,
+            width: width,
+            height: height,
+            url: url.to_string(),
+            sender,
+        }),
+    );
+
+    if !result {
+        panic!("failed to create a browser in the UI thread");
+    }
+
+    rx.recv()
+        .expect("failed to receive a CEF browser, created in the UI thread")
 }
