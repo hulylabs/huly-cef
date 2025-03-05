@@ -169,12 +169,12 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-task-fixed#4f15076f0469b64a2f8472d88159a8355ea46592"
+source = "git+https://github.com/hulylabs/cef-ui.git#f4a4987af66698a18fa1a1bba070ec6b1a685e20"
 dependencies = [
  "anyhow",
  "bitflags",
  "cef-ui-sys",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=cef-task-fixed)",
+ "cef-ui-util",
  "chrono",
  "dunce",
  "parking_lot",
@@ -185,31 +185,12 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-task-fixed#4f15076f0469b64a2f8472d88159a8355ea46592"
+source = "git+https://github.com/hulylabs/cef-ui.git#f4a4987af66698a18fa1a1bba070ec6b1a685e20"
 
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=build#647b341ebdbc2b5a1e27a93dd0f4f634d2634aca"
-dependencies = [
- "anyhow",
- "bindgen",
- "bzip2",
- "flate2",
- "percent-encoding",
- "reqwest",
- "tar",
- "tracing",
- "tracing-log",
- "tracing-subscriber",
- "url",
- "walkdir",
-]
-
-[[package]]
-name = "cef-ui-util"
-version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-task-fixed#4f15076f0469b64a2f8472d88159a8355ea46592"
+source = "git+https://github.com/hulylabs/cef-ui.git#f4a4987af66698a18fa1a1bba070ec6b1a685e20"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -653,6 +634,27 @@ name = "httparse"
 version = "1.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d71d3574edd2771538b901e6549113b4006ece66150fb69c0fb6d9a2adae946"
+
+[[package]]
+name = "huly-cef"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cef-ui",
+ "cef-ui-util",
+ "chrono",
+ "crossbeam-channel",
+ "futures",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "tungstenite",
+]
 
 [[package]]
 name = "hyper"
@@ -2156,27 +2158,6 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "window_manager"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cef-ui",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=build)",
- "chrono",
- "crossbeam-channel",
- "futures",
- "futures-util",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "tracing-log",
- "tracing-subscriber",
- "tungstenite",
-]
 
 [[package]]
 name = "windows-core"
