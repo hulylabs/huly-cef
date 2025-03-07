@@ -78,15 +78,21 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
         _paint_element_type: cef_ui::PaintElementType,
         _dirty_rects: &[Rect],
         buffer: &[u8],
-        _width: usize,
-        _height: usize,
+        width: usize,
+        height: usize,
     ) {
         let state = self.browser_state.lock().unwrap();
         if state.active {
-            println!("on_paint for url: {}", state.url);
+            let pixel_count = width * height * 4;
+            let mut rgba_buffer = vec![0u8; pixel_count];
+            for (src, dst) in buffer.chunks_exact(4).zip(rgba_buffer.chunks_exact_mut(4)) {
+                let [b, g, r, a] = src.try_into().unwrap();
+                dst.copy_from_slice(&[r, g, b, a]);
+            }
+
             state
                 .tx
-                .send(buffer.to_vec())
+                .send(rgba_buffer.to_vec())
                 .expect("failed to send buffer");
         }
     }

@@ -54,9 +54,11 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         width, height, url
     );
 
+    println!("creating browser");
     // Create a browser
     let (sender, mut reader) = mpsc::unbounded_channel::<Vec<u8>>();
     let browser = cef::create_browser(width, height, &url, sender);
+    println!("browser created");
 
     tokio::spawn(handle_incoming_messages(incoming, browser));
 
@@ -155,7 +157,6 @@ fn process_message(msg: WebSocketMessage, browser: &cef::Browser) {
             println!("got create browser message");
             state.active = true;
             let _ = host.invalidate(cef_ui::PaintElementType::View);
-            println!("was resized");
         }
         _ => {
             println!("Unknown message");
