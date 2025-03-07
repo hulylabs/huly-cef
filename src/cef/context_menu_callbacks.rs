@@ -1,4 +1,7 @@
-use cef_ui::{Browser, ContextMenuHandlerCallbacks, ContextMenuParams, EventFlags, Frame, MenuCommandId, MenuModel, Point, QuickMenuEditStateFlags, RunContextMenuCallback, RunQuickMenuCallback, Size};
+use cef_ui::{
+    Browser, ContextMenuHandlerCallbacks, ContextMenuParams, EventFlags, Frame, MenuCommandId,
+    MenuModel, Point, QuickMenuEditStateFlags, RunContextMenuCallback, RunQuickMenuCallback, Size,
+};
 use tracing::error;
 
 pub struct MyContextMenuHandler;
@@ -10,7 +13,7 @@ impl ContextMenuHandlerCallbacks for MyContextMenuHandler {
         _browser: Browser,
         frame: Frame,
         params: ContextMenuParams,
-        model: MenuModel
+        model: MenuModel,
     ) {
         // Prevent popups from spawning.
         if let Err(e) = model.clear() {
@@ -24,7 +27,7 @@ impl ContextMenuHandlerCallbacks for MyContextMenuHandler {
         frame: Frame,
         params: ContextMenuParams,
         model: MenuModel,
-        callback: RunContextMenuCallback
+        callback: RunContextMenuCallback,
     ) -> bool {
         false
     }
@@ -35,11 +38,10 @@ impl ContextMenuHandlerCallbacks for MyContextMenuHandler {
         frame: Frame,
         params: ContextMenuParams,
         command_id: MenuCommandId,
-        event_flags: EventFlags
+        event_flags: EventFlags,
     ) -> bool {
         false
     }
-
 
     fn on_context_menu_dismissed(&mut self, _browser: Browser, frame: Frame) {}
 
@@ -50,7 +52,7 @@ impl ContextMenuHandlerCallbacks for MyContextMenuHandler {
         location: &Point,
         size: &Size,
         edit_state_flags: QuickMenuEditStateFlags,
-        callback: RunQuickMenuCallback
+        callback: RunQuickMenuCallback,
     ) -> bool {
         false
     }
@@ -60,7 +62,7 @@ impl ContextMenuHandlerCallbacks for MyContextMenuHandler {
         _browser: Browser,
         frame: Frame,
         command_id: MenuCommandId,
-        event_flags: EventFlags
+        event_flags: EventFlags,
     ) -> bool {
         false
     }

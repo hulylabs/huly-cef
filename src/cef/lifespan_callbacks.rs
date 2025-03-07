@@ -1,5 +1,6 @@
 use cef_ui::{
-    Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks, PopupFeatures, WindowInfo, WindowOpenDisposition
+    Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks,
+    PopupFeatures, WindowInfo, WindowOpenDisposition,
 };
 
 pub struct MyLifeSpanHandlerCallbacks;
@@ -19,7 +20,7 @@ impl LifeSpanHandlerCallbacks for MyLifeSpanHandlerCallbacks {
         client: &mut Option<Client>,
         settings: &mut BrowserSettings,
         extra_info: &mut Option<DictionaryValue>,
-        no_javascript_access: &mut bool
+        no_javascript_access: &mut bool,
     ) -> bool {
         true
     }
@@ -31,24 +32,15 @@ impl LifeSpanHandlerCallbacks for MyLifeSpanHandlerCallbacks {
         client: &mut Option<Client>,
         settings: &mut BrowserSettings,
         extra_info: &mut Option<DictionaryValue>,
-        use_default_window: &mut bool
+        use_default_window: &mut bool,
     ) {
     }
-    
-    fn on_after_created(&mut self, _browser: Browser) {
-    }
+
+    fn on_after_created(&mut self, _browser: Browser) {}
 
     fn do_close(&mut self, _browser: Browser) -> bool {
         false
     }
 
-    fn on_before_close(&mut self, _browser: Browser) {
-        // If you have more than one _browser open, you want to only
-        // call this when the number of open browsers reaches zero.
-        // unsafe {
-        //     cef_quit_message_loop();
-        // }
-    }
+    fn on_before_close(&mut self, _browser: Browser) {}
 }
-
-

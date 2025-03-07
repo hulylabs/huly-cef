@@ -24,24 +24,6 @@ mod render_process_callbacks;
 /// Represents the CEF context.
 pub type CefContext = cef_ui::Context;
 
-/// Maintains the state of a browser instance.
-pub struct BrowserState {
-    /// The width of the browser in pixels.
-    pub width: u32,
-    /// The height of the browser in pixels.
-    pub height: u32,
-    /// The sender for transmitting rendered frames.
-    pub tx: UnboundedSender<Buffer>,
-}
-
-/// Represents a frame buffer containing raw image data and a timestamp.
-pub struct Buffer {
-    /// Raw RGBA pixel data.
-    pub data: Vec<u8>,
-    /// The timestamp of when the buffer was created.
-    pub timestamp: std::time::Instant,
-}
-
 /// Initializes and returns a new CEF context.
 ///
 /// # Errors
@@ -82,6 +64,23 @@ fn get_root_cache_dir() -> Result<PathBuf> {
     Ok(path)
 }
 
+pub struct Browser {
+    pub inner: cef_ui::Browser,
+    pub state: Arc<Mutex<BrowserState>>,
+}
+
+/// Maintains the state of a browser instance.
+pub struct BrowserState {
+    /// The width of the browser in pixels.
+    pub width: u32,
+    /// The height of the browser in pixels.
+    pub height: u32,
+    /// The sender for transmitting rendered frames.
+    pub tx: UnboundedSender<Vec<u8>>,
+    /// Whether the browser is active or not.
+    pub active: bool,
+}
+
 /// Creates a browser in the UI thread.
 ///
 /// # Parameters
@@ -98,25 +97,35 @@ fn create_browser_in_ui_thread(
     width: u32,
     height: u32,
     url: &str,
-    tx: UnboundedSender<Buffer>,
-) -> cef_ui::Browser {
+    tx: UnboundedSender<Vec<u8>>,
+) -> Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-    let browser_settings = BrowserSettings::new().windowless_frame_rate(50);
-    let browser_state = Arc::new(Mutex::new(BrowserState { width, height, tx }));
+    let settings = BrowserSettings::new().windowless_frame_rate(30);
+    let state = Arc::new(Mutex::new(BrowserState {
+        width,
+        height,
+        tx,
+        active: true,
+    }));
     let render_handler = RenderHandler::new(render_callbacks::MyRenderHandlerCallbacks::new(
-        browser_state.clone(),
+        state.clone(),
     ));
     let client = Client::new(client_callbacks::MyClientCallbacks::new(render_handler));
-    BrowserHost::create_browser_sync(&window_info, client, url, &browser_settings, None, None)
+    let inner = BrowserHost::create_browser_sync(&window_info, client, url, &settings, None, None);
+
+    Browser {
+        inner,
+        state: state.clone(),
+    }
 }
 
 /// A task for creating a browser asynchronously.
 struct CreateBrowserTaskCallback {
-    tx: Sender<cef_ui::Browser>,
+    tx: Sender<Browser>,
     width: u32,
     height: u32,
     url: String,
-    sender: UnboundedSender<Buffer>,
+    sender: UnboundedSender<Vec<u8>>,
 }
 
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
@@ -148,9 +157,9 @@ pub fn create_browser(
     width: u32,
     height: u32,
     url: &str,
-    sender: UnboundedSender<Buffer>,
-) -> cef_ui::Browser {
-    let (tx, rx) = crossbeam_channel::unbounded::<cef_ui::Browser>();
+    sender: UnboundedSender<Vec<u8>>,
+) -> Browser {
+    let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
     let result = cef_ui::post_task(
         cef_ui::ThreadId::UI,
         CefTask::new(CreateBrowserTaskCallback {
@@ -164,6 +173,7 @@ pub fn create_browser(
     if !result {
         panic!("failed to create a browser in the UI thread");
     }
+
     rx.recv()
         .expect("failed to receive a CEF browser, created in the UI thread")
 }

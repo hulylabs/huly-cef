@@ -81,15 +81,13 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
         _width: usize,
         _height: usize,
     ) {
-        println!("on_paint");
-        let now = std::time::Instant::now();
         let state = self.browser_state.lock().unwrap();
-        let buffer = crate::cef::Buffer {
-            data: buffer.to_vec(),
-            timestamp: std::time::Instant::now(),
-        };
-        state.tx.send(buffer).expect("failed to send buffer");
-        println!("on_paint: {:?}", now.elapsed());
+        if state.active {
+            state
+                .tx
+                .send(buffer.to_vec())
+                .expect("failed to send buffer");
+        }
     }
 
     fn on_accelerated_paint(

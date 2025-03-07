@@ -1,5 +1,6 @@
+use std::sync::{Arc, Mutex};
+
 use futures::{stream::SplitStream, SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc,
@@ -9,20 +10,9 @@ use tungstenite::Message;
 
 use crate::cef;
 
-/// Represents different types of messages that can be sent over the WebSocket.
-#[derive(Debug, Serialize, Deserialize)]
-enum WebSocketMessage {
-    /// Message to create a new browser instance.
-    CreateBrowser {
-        url: String,
-        width: u32,
-        height: u32,
-    },
-    /// Message to indicate a mouse movement event.
-    MouseMove { x: i32, y: i32 },
-    /// Message to indicate a mouse click event.
-    MouseClick { x: i32, y: i32, down: bool },
-}
+mod messages;
+
+use messages::WebSocketMessage;
 
 /// Runs the WebSocket server that listens for incoming connections.
 pub async fn serve() {
@@ -63,13 +53,13 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
     };
 
     // Create a browser
-    let (sender, mut reader) = mpsc::unbounded_channel::<cef::Buffer>();
+    let (sender, mut reader) = mpsc::unbounded_channel::<Vec<u8>>();
     let browser = cef::create_browser(width, height, &url, sender);
 
     tokio::spawn(handle_incoming_messages(incoming, browser));
 
     while let Some(buffer) = reader.recv().await {
-        let msg = Message::Binary(buffer.data.into());
+        let msg = Message::Binary(buffer.into());
         _ = outgoing.send(msg).await;
     }
 
@@ -79,7 +69,7 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
 /// Handles incoming WebSocket messages and processes browser events.
 async fn handle_incoming_messages(
     mut incoming: SplitStream<WebSocketStream<TcpStream>>,
-    browser: cef_ui::Browser,
+    browser: cef::Browser,
 ) {
     while let Some(msg) = incoming.next().await {
         let msg = match msg {
@@ -95,47 +85,58 @@ async fn handle_incoming_messages(
             break;
         }
 
-        if msg.is_binary() {
-            println!("got binary message");
-        }
+        // if msg.is_binary() {
+        //     println!("got binary message");
+        // }
 
-        if msg.is_text() {
-            println!("got text message");
-        }
+        // if msg.is_text() {
+        //     println!("got text message");
+        // }
 
         let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data())
             .expect("got unknown message from a client");
 
-        match msg {
-            WebSocketMessage::MouseMove { x, y } => {
-                let event = cef_ui::MouseEvent {
-                    x,
-                    y,
-                    modifiers: cef_ui::EventFlags::empty(),
-                };
-                browser
-                    .get_host()
-                    .unwrap()
-                    .send_mouse_move_event(&event, false)
-                    .expect("failed to send mouse move event");
-            }
-            WebSocketMessage::MouseClick { x, y, down } => {
-                let event = cef_ui::MouseEvent {
-                    x,
-                    y,
-                    modifiers: cef_ui::EventFlags::empty(),
-                };
-                browser
-                    .get_host()
-                    .unwrap()
-                    .send_mouse_click_event(&event, cef_ui::MouseButtonType::Left, !down, 1)
-                    .expect("failed to send mouse click event");
-            }
-            _ => {
-                println!("Unknown message");
-            }
+        process_message(msg, &browser);
+    }
+}
+
+fn process_message(msg: WebSocketMessage, mut browser: &cef::Browser) {
+    let mut state = browser.state.lock().unwrap();
+    let host = browser.inner.get_host().unwrap();
+
+    match msg {
+        WebSocketMessage::MouseMove { x, y } => {
+            let event = cef_ui::MouseEvent {
+                x,
+                y,
+                modifiers: cef_ui::EventFlags::empty(),
+            };
+            host.send_mouse_move_event(&event, false)
+                .expect("failed to send mouse move event");
+        }
+        WebSocketMessage::MouseClick { x, y, button, down } => {
+            let event = cef_ui::MouseEvent {
+                x,
+                y,
+                modifiers: cef_ui::EventFlags::empty(),
+            };
+
+            let button = match button {
+                messages::MouseType::Left => cef_ui::MouseButtonType::Left,
+                messages::MouseType::Middle => cef_ui::MouseButtonType::Middle,
+                messages::MouseType::Right => cef_ui::MouseButtonType::Right,
+            };
+            host.send_mouse_click_event(&event, button, !down, 1)
+                .expect("failed to send mouse click event");
+        }
+        WebSocketMessage::SetActive => {
+            state.active = true;
+        }
+        WebSocketMessage::SetIdle => {
+            state.active = false;
+        }
+        _ => {
+            println!("Unknown message");
         }
     }
-
-    println!("finished handling incoming messages");
 }

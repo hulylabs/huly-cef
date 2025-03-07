@@ -28,3 +28,4 @@ futures-util = { version = "0.3.31", default-features = false, features = [
     "sink",
     "std",
 ] }
+serde_repr = "0.1.20"

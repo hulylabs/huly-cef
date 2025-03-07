@@ -25,9 +25,7 @@ impl MyClientCallbacks {
 
 impl ClientCallbacks for MyClientCallbacks {
     fn get_context_menu_handler(&mut self) -> Option<ContextMenuHandler> {
-        Some(ContextMenuHandler::new(
-            context_menu_callbacks::MyContextMenuHandler {},
-        ))
+        None
     }
 
     fn get_keyboard_handler(&mut self) -> Option<KeyboardHandler> {
@@ -35,9 +33,7 @@ impl ClientCallbacks for MyClientCallbacks {
     }
 
     fn get_life_span_handler(&mut self) -> Option<LifeSpanHandler> {
-        Some(LifeSpanHandler::new(
-            lifespan_callbacks::MyLifeSpanHandlerCallbacks {},
-        ))
+        None
     }
 
     fn get_render_handler(&mut self) -> Option<RenderHandler> {
