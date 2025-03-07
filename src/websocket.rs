@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use futures::{stream::SplitStream, SinkExt, StreamExt};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -51,6 +49,10 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
     let WebSocketMessage::CreateBrowser { url, width, height } = msg else {
         panic!("Unknown message");
     };
+    println!(
+        "got create browser message: ({}, {}, {})",
+        width, height, url
+    );
 
     // Create a browser
     let (sender, mut reader) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -85,13 +87,23 @@ async fn handle_incoming_messages(
             break;
         }
 
-        // if msg.is_binary() {
-        //     println!("got binary message");
-        // }
+        if msg.is_binary() {
+            println!("got binary message");
+        }
 
-        // if msg.is_text() {
-        //     println!("got text message");
-        // }
+        if msg.is_text() {
+            println!("got text message");
+        }
+
+        if msg.is_ping() {
+            println!("got ping message");
+        }
+
+        if msg.is_pong() {
+            println!("got pong message");
+        }
+
+        println!("msg: {:?}", msg);
 
         let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data())
             .expect("got unknown message from a client");
@@ -100,8 +112,7 @@ async fn handle_incoming_messages(
     }
 }
 
-fn process_message(msg: WebSocketMessage, mut browser: &cef::Browser) {
-    let mut state = browser.state.lock().unwrap();
+fn process_message(msg: WebSocketMessage, browser: &cef::Browser) {
     let host = browser.inner.get_host().unwrap();
 
     match msg {
@@ -130,10 +141,21 @@ fn process_message(msg: WebSocketMessage, mut browser: &cef::Browser) {
                 .expect("failed to send mouse click event");
         }
         WebSocketMessage::SetActive => {
+            let mut state = browser.state.lock().unwrap();
+            println!("setting browser active");
             state.active = true;
         }
         WebSocketMessage::SetIdle => {
+            let mut state = browser.state.lock().unwrap();
+            println!("setting browser idle");
             state.active = false;
+        }
+        WebSocketMessage::CreateBrowser { .. } => {
+            let mut state = browser.state.lock().unwrap();
+            println!("got create browser message");
+            state.active = true;
+            let _ = host.invalidate(cef_ui::PaintElementType::View);
+            println!("was resized");
         }
         _ => {
             println!("Unknown message");

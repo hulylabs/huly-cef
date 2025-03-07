@@ -83,6 +83,7 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
     ) {
         let state = self.browser_state.lock().unwrap();
         if state.active {
+            println!("on_paint for url: {}", state.url);
             state
                 .tx
                 .send(buffer.to_vec())

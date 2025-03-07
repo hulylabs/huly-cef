@@ -71,6 +71,8 @@ pub struct Browser {
 
 /// Maintains the state of a browser instance.
 pub struct BrowserState {
+    /// The URL of the browser.
+    pub url: String,
     /// The width of the browser in pixels.
     pub width: u32,
     /// The height of the browser in pixels.
@@ -102,6 +104,7 @@ fn create_browser_in_ui_thread(
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
     let settings = BrowserSettings::new().windowless_frame_rate(30);
     let state = Arc::new(Mutex::new(BrowserState {
+        url: url.to_string(),
         width,
         height,
         tx,
