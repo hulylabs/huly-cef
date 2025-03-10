@@ -1,4 +1,4 @@
-## Build Instructions (For Windows and Linux only)
+## Launch Instructions (For Windows and Linux only)
 Follow these steps to build and run CEF:
 
 1. **Download CEF Artifacts**  
@@ -10,8 +10,18 @@ Follow these steps to build and run CEF:
    ```bash
    export CEF_ARTIFACTS_DIR=/path/to/cef/libraries
    ```
-3. **Run CEF**  
-   To launch CEF, use the following command:
+3. **Build Huly CEF**  
+   To build Huly CEF, use the following command:
    ```bash
-   cargo run
+   cargo run --bin huly-cef-build -- --profile release
+   ```
+4. **Run Huly CEF**  
+   Windows Or Linux:
+   ```bash
+   ./target/release/huly-cef
+   ```
+
+   MacOS:
+   ```bash
+   ./target/release/huly-cef.app/Contents/MacOS/huly-cef
    ```
