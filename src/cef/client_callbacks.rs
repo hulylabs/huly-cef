@@ -8,9 +8,6 @@ use cef_ui::ProcessId;
 use cef_ui::ProcessMessage;
 use cef_ui::RenderHandler;
 
-use super::context_menu_callbacks;
-use super::lifespan_callbacks;
-
 pub struct MyClientCallbacks {
     render_handler: RenderHandler,
 }

@@ -89,24 +89,6 @@ async fn handle_incoming_messages(
             break;
         }
 
-        if msg.is_binary() {
-            println!("got binary message");
-        }
-
-        if msg.is_text() {
-            println!("got text message");
-        }
-
-        if msg.is_ping() {
-            println!("got ping message");
-        }
-
-        if msg.is_pong() {
-            println!("got pong message");
-        }
-
-        println!("msg: {:?}", msg);
-
         let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data())
             .expect("got unknown message from a client");
 
@@ -156,6 +138,14 @@ fn process_message(msg: WebSocketMessage, browser: &cef::Browser) {
             let mut state = browser.state.lock().unwrap();
             println!("got create browser message");
             state.active = true;
+            let _ = host.invalidate(cef_ui::PaintElementType::View);
+        }
+        WebSocketMessage::Resize { width, height } => {
+            println!("Resize: ({}, {})", width, height);
+            let mut state = browser.state.lock().unwrap();
+            state.width = width;
+            state.height = height;
+            let _ = host.was_resized();
             let _ = host.invalidate(cef_ui::PaintElementType::View);
         }
         _ => {

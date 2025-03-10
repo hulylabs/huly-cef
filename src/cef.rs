@@ -102,7 +102,7 @@ fn create_browser_in_ui_thread(
     tx: UnboundedSender<Vec<u8>>,
 ) -> Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-    let settings = BrowserSettings::new().windowless_frame_rate(30);
+    let settings = BrowserSettings::new().windowless_frame_rate(60);
     let state = Arc::new(Mutex::new(BrowserState {
         url: url.to_string(),
         width,

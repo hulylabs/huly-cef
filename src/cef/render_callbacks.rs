@@ -81,6 +81,7 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
         width: usize,
         height: usize,
     ) {
+        println!("on_paint: ({}, {})", width, height);
         let state = self.browser_state.lock().unwrap();
         if state.active {
             let pixel_count = width * height * 4;
