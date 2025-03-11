@@ -56,14 +56,19 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
 
     println!("creating browser");
     // Create a browser
-    let (sender, mut reader) = mpsc::unbounded_channel::<Vec<u8>>();
+    let (sender, mut reader) = mpsc::unbounded_channel::<cef::messages::CefMessage>();
     let browser = cef::create_browser(width, height, &url, sender);
     println!("browser created");
 
     tokio::spawn(handle_incoming_messages(incoming, browser));
 
-    while let Some(buffer) = reader.recv().await {
-        let msg = Message::Binary(buffer.into());
+    while let Some(message) = reader.recv().await {
+        let msg = match message {
+            cef::messages::CefMessage::Render(buffer) => Message::Binary(buffer.into()),
+            cef::messages::CefMessage::IsLoading => Message::Text("IsLoading".into()),
+            cef::messages::CefMessage::Loaded => Message::Text("Loaded".into()),
+            cef::messages::CefMessage::LoadError => Message::Text("LoadError".into()),
+        };
         _ = outgoing.send(msg).await;
     }
 

@@ -1,12 +1,14 @@
 use cef_ui::{AppCallbacks, BrowserProcessHandler, CommandLine, RenderProcessHandler};
 use tracing::info;
 
-use super::render_process_callbacks::MyRenderProcessHandler;
-
 pub struct MyAppCallbacks;
 
 impl AppCallbacks for MyAppCallbacks {
-    fn on_before_command_line_processing(&mut self, process_type: Option<&str>, command_line: Option<CommandLine>) {
+    fn on_before_command_line_processing(
+        &mut self,
+        process_type: Option<&str>,
+        command_line: Option<CommandLine>,
+    ) {
         info!("Setting CEF command line switches.");
 
         // This is to disable scary warnings on macOS.
@@ -25,6 +27,6 @@ impl AppCallbacks for MyAppCallbacks {
     }
 
     fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
-        Some(RenderProcessHandler::new(MyRenderProcessHandler {}))
+        None
     }
 }

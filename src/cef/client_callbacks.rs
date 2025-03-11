@@ -1,26 +1,23 @@
-use cef_ui::Browser;
-use cef_ui::ClientCallbacks;
-use cef_ui::ContextMenuHandler;
-use cef_ui::Frame;
-use cef_ui::KeyboardHandler;
-use cef_ui::LifeSpanHandler;
-use cef_ui::ProcessId;
-use cef_ui::ProcessMessage;
-use cef_ui::RenderHandler;
+use cef_ui::{
+    Browser, ClientCallbacks, ContextMenuHandler, Frame, KeyboardHandler, LifeSpanHandler,
+    LoadHandler, ProcessId, ProcessMessage, RenderHandler,
+};
 
-pub struct MyClientCallbacks {
+pub struct HulyClientCallbacks {
     render_handler: RenderHandler,
+    load_handler: LoadHandler,
 }
 
-impl MyClientCallbacks {
-    pub fn new(render_handler: RenderHandler) -> Self {
+impl HulyClientCallbacks {
+    pub fn new(render_handler: RenderHandler, load_handler: LoadHandler) -> Self {
         Self {
-            render_handler: render_handler,
+            render_handler,
+            load_handler,
         }
     }
 }
 
-impl ClientCallbacks for MyClientCallbacks {
+impl ClientCallbacks for HulyClientCallbacks {
     fn get_context_menu_handler(&mut self) -> Option<ContextMenuHandler> {
         None
     }
@@ -35,6 +32,10 @@ impl ClientCallbacks for MyClientCallbacks {
 
     fn get_render_handler(&mut self) -> Option<RenderHandler> {
         Some(self.render_handler.clone())
+    }
+
+    fn get_load_handler(&mut self) -> Option<cef_ui::LoadHandler> {
+        Some(self.load_handler.clone())
     }
 
     fn on_process_message_received(

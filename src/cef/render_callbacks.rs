@@ -4,11 +4,11 @@ use cef_ui::{Browser, Point, Rect, RenderHandlerCallbacks, ScreenInfo, Size};
 
 use super::BrowserState;
 
-pub struct MyRenderHandlerCallbacks {
+pub struct HulyRenderHandlerCallbacks {
     browser_state: Arc<Mutex<BrowserState>>,
 }
 
-impl MyRenderHandlerCallbacks {
+impl HulyRenderHandlerCallbacks {
     pub fn new(browser_state: Arc<Mutex<BrowserState>>) -> Self {
         Self {
             browser_state: browser_state,
@@ -16,7 +16,7 @@ impl MyRenderHandlerCallbacks {
     }
 }
 
-impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
+impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn get_accessibility_handler(&mut self) -> Option<cef_ui::AccessibilityHandler> {
         None
     }
@@ -81,7 +81,6 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
         width: usize,
         height: usize,
     ) {
-        println!("on_paint: ({}, {})", width, height);
         let state = self.browser_state.lock().unwrap();
         if state.active {
             let pixel_count = width * height * 4;
@@ -93,7 +92,7 @@ impl RenderHandlerCallbacks for MyRenderHandlerCallbacks {
 
             state
                 .tx
-                .send(rgba_buffer.to_vec())
+                .send(super::messages::CefMessage::Render(rgba_buffer))
                 .expect("failed to send buffer");
         }
     }

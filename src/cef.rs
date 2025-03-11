@@ -1,9 +1,12 @@
 use anyhow::Result;
 use cef_ui::{
-    App, BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, Client, Context, LogSeverity,
-    MainArgs, RenderHandler, Settings, WindowInfo,
+    App, BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, Client, Context, LoadHandler,
+    LogSeverity, MainArgs, RenderHandler, Settings, WindowInfo,
 };
+use client_callbacks::HulyClientCallbacks;
 use crossbeam_channel::Sender;
+use load_callbacks::HulyLoadHandlerCallbacks;
+use render_callbacks::HulyRenderHandlerCallbacks;
 use std::{
     fs::create_dir_all,
     path::PathBuf,
@@ -16,10 +19,10 @@ use tracing_subscriber::FmtSubscriber;
 
 mod application_callbacks;
 mod client_callbacks;
-mod context_menu_callbacks;
-mod lifespan_callbacks;
+mod load_callbacks;
 mod render_callbacks;
-mod render_process_callbacks;
+
+pub mod messages;
 
 /// Represents the CEF context.
 pub type CefContext = cef_ui::Context;
@@ -77,8 +80,8 @@ pub struct BrowserState {
     pub width: u32,
     /// The height of the browser in pixels.
     pub height: u32,
-    /// The sender for transmitting rendered frames.
-    pub tx: UnboundedSender<Vec<u8>>,
+    /// The transmitting for transmitting CEF messages.
+    pub tx: UnboundedSender<messages::CefMessage>,
     /// Whether the browser is active or not.
     pub active: bool,
 }
@@ -90,7 +93,7 @@ pub struct BrowserState {
 /// - `width`: The width of the browser.
 /// - `height`: The height of the browser.
 /// - `url`: The URL to load in the browser.
-/// - `tx`: A sender for frame buffers.
+/// - `tx`: A channel for CEF messages.
 ///
 /// # Returns
 ///
@@ -99,21 +102,20 @@ fn create_browser_in_ui_thread(
     width: u32,
     height: u32,
     url: &str,
-    tx: UnboundedSender<Vec<u8>>,
+    tx: UnboundedSender<messages::CefMessage>,
 ) -> Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-    let settings = BrowserSettings::new().windowless_frame_rate(60);
+    let settings = BrowserSettings::new().windowless_frame_rate(30);
     let state = Arc::new(Mutex::new(BrowserState {
         url: url.to_string(),
         width,
         height,
-        tx,
+        tx: tx.clone(),
         active: true,
     }));
-    let render_handler = RenderHandler::new(render_callbacks::MyRenderHandlerCallbacks::new(
-        state.clone(),
-    ));
-    let client = Client::new(client_callbacks::MyClientCallbacks::new(render_handler));
+    let render_handler = RenderHandler::new(HulyRenderHandlerCallbacks::new(state.clone()));
+    let load_handler = LoadHandler::new(HulyLoadHandlerCallbacks::new(tx.clone()));
+    let client = Client::new(HulyClientCallbacks::new(render_handler, load_handler));
     let inner = BrowserHost::create_browser_sync(&window_info, client, url, &settings, None, None);
 
     Browser {
@@ -128,7 +130,7 @@ struct CreateBrowserTaskCallback {
     width: u32,
     height: u32,
     url: String,
-    sender: UnboundedSender<Vec<u8>>,
+    sender: UnboundedSender<messages::CefMessage>,
 }
 
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
@@ -147,7 +149,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
 /// - `width`: The width of the browser.
 /// - `height`: The height of the browser.
 /// - `url`: The URL to load in the browser.
-/// - `sender`: A sender for frame buffers.
+/// - `sender`: A channel for CEF messages.
 ///
 /// # Returns
 ///
@@ -160,7 +162,7 @@ pub fn create_browser(
     width: u32,
     height: u32,
     url: &str,
-    sender: UnboundedSender<Vec<u8>>,
+    sender: UnboundedSender<messages::CefMessage>,
 ) -> Browser {
     let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
     let result = cef_ui::post_task(
