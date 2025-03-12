@@ -8,9 +8,9 @@ use tungstenite::Message;
 
 use crate::cef;
 
-mod messages;
-
-use messages::WebSocketMessage;
+use crate::cef::messages::BrowserMessage;
+use crate::cef::messages::CefMessage;
+use crate::cef::messages::MouseType;
 
 /// Runs the WebSocket server that listens for incoming connections.
 pub async fn serve() {
@@ -43,10 +43,10 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         .expect("failed to read a message")
         .expect("failed to read a message");
 
-    let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data())
+    let msg = serde_json::from_slice::<BrowserMessage>(&msg.into_data())
         .expect("got unknown message from a client");
 
-    let WebSocketMessage::CreateBrowser { url, width, height } = msg else {
+    let BrowserMessage::CreateBrowser { url, width, height } = msg else {
         panic!("Unknown message");
     };
     println!(
@@ -64,10 +64,10 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
 
     while let Some(message) = reader.recv().await {
         let msg = match message {
-            cef::messages::CefMessage::Render(buffer) => Message::Binary(buffer.into()),
-            cef::messages::CefMessage::IsLoading => Message::Text("IsLoading".into()),
-            cef::messages::CefMessage::Loaded => Message::Text("Loaded".into()),
-            cef::messages::CefMessage::LoadError => Message::Text("LoadError".into()),
+            CefMessage::Render(buffer) => Message::Binary(buffer.into()),
+            CefMessage::IsLoading => Message::Text("IsLoading".into()),
+            CefMessage::Loaded => Message::Text("Loaded".into()),
+            CefMessage::LoadError => Message::Text("LoadError".into()),
         };
         _ = outgoing.send(msg).await;
     }
@@ -94,18 +94,18 @@ async fn handle_incoming_messages(
             break;
         }
 
-        let msg = serde_json::from_slice::<WebSocketMessage>(&msg.into_data())
+        let msg = serde_json::from_slice::<BrowserMessage>(&msg.into_data())
             .expect("got unknown message from a client");
 
         process_message(msg, &browser);
     }
 }
 
-fn process_message(msg: WebSocketMessage, browser: &cef::Browser) {
+fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
     let host = browser.inner.get_host().unwrap();
 
     match msg {
-        WebSocketMessage::MouseMove { x, y } => {
+        BrowserMessage::MouseMove { x, y } => {
             let event = cef_ui::MouseEvent {
                 x,
                 y,
@@ -114,7 +114,7 @@ fn process_message(msg: WebSocketMessage, browser: &cef::Browser) {
             host.send_mouse_move_event(&event, false)
                 .expect("failed to send mouse move event");
         }
-        WebSocketMessage::MouseClick { x, y, button, down } => {
+        BrowserMessage::MouseClick { x, y, button, down } => {
             let event = cef_ui::MouseEvent {
                 x,
                 y,
@@ -122,30 +122,65 @@ fn process_message(msg: WebSocketMessage, browser: &cef::Browser) {
             };
 
             let button = match button {
-                messages::MouseType::Left => cef_ui::MouseButtonType::Left,
-                messages::MouseType::Middle => cef_ui::MouseButtonType::Middle,
-                messages::MouseType::Right => cef_ui::MouseButtonType::Right,
+                MouseType::Left => cef_ui::MouseButtonType::Left,
+                MouseType::Middle => cef_ui::MouseButtonType::Middle,
+                MouseType::Right => cef_ui::MouseButtonType::Right,
             };
             host.send_mouse_click_event(&event, button, !down, 1)
                 .expect("failed to send mouse click event");
         }
-        WebSocketMessage::SetActive => {
+        BrowserMessage::MouseWheel { x, y, dx, dy } => {
+            println!("MouseWheel: ({}, {}, {}, {})", x, y, dx, dy);
+            let event = cef_ui::MouseEvent {
+                x,
+                y,
+                modifiers: cef_ui::EventFlags::empty(),
+            };
+            host.send_mouse_wheel_event(&event, dx, -dy)
+                .expect("failed to send mouse wheel event");
+        }
+        // BrowserMessage::KeyPress { key_code, down } => {
+        //     println!("keypress: ({}, {})", key_code, down);
+        //     let event_type = if down {
+        //         cef_ui::KeyEventType::KeyDown
+        //     } else {
+        //         cef_ui::KeyEventType::KeyUp
+        //     };
+        //     let mut event = cef_ui::KeyEvent {
+        //         event_type: event_type,
+        //         modifiers: cef_ui::EventFlags::empty(),
+        //         windows_key_code: key_code.into(),
+        //         native_key_code: key_code as i32,
+        //         is_system_key: false,
+        //         character: key_code as u16,
+        //         unmodified_character: key_code as u16,
+        //         focus_on_editable_field: false,
+        //     };
+
+        //     _ = host.send_key_event(event.clone());
+
+        //     if event_type == cef_ui::KeyEventType::KeyDown {
+        //         event.event_type = cef_ui::KeyEventType::Char;
+        //         _ = host.send_key_event(event);
+        //     }
+        // }
+        BrowserMessage::SetActive => {
             let mut state = browser.state.lock().unwrap();
             println!("setting browser active");
             state.active = true;
         }
-        WebSocketMessage::SetIdle => {
+        BrowserMessage::SetIdle => {
             let mut state = browser.state.lock().unwrap();
             println!("setting browser idle");
             state.active = false;
         }
-        WebSocketMessage::CreateBrowser { .. } => {
+        BrowserMessage::CreateBrowser { .. } => {
             let mut state = browser.state.lock().unwrap();
             println!("got create browser message");
             state.active = true;
             let _ = host.invalidate(cef_ui::PaintElementType::View);
         }
-        WebSocketMessage::Resize { width, height } => {
+        BrowserMessage::Resize { width, height } => {
             println!("Resize: ({}, {})", width, height);
             let mut state = browser.state.lock().unwrap();
             state.width = width;
