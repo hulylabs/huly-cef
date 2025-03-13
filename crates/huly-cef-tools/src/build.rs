@@ -50,7 +50,7 @@ fn main() -> Result<()> {
             app_name:        String::from("huly-cef"),
             main_exe_name:   String::from("huly-cef"),
             helper_exe_name: String::from("huly-cef-helper"),
-            resources_dir:   workspace_dir.join("resources/macos"),
+            resources_dir:   workspace_dir.join("cef-resources/macos"),
             org_name:        String::from("huly")
         }
         .run()?;

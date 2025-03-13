@@ -1,4 +1,4 @@
-use cef_ui::{Browser, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, Size};
+use cef_ui::{Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, Size};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::messages::CefMessage;
@@ -54,7 +54,7 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
     fn on_cursor_change(
         &mut self,
         _browser: Browser,
-        _cursor: u64,
+        _cursor: CursorHandle,
         cursor_type: CursorType,
         _custom_cursor_info: Option<CursorInfo>,
     ) -> bool {
