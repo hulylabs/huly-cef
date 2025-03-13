@@ -1,6 +1,4 @@
-use core::fmt;
-
-use cef_ui::{Browser, CursorType, DisplayHandlerCallbacks, Frame};
+use cef_ui::{Browser, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, Size};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::messages::CefMessage;
@@ -46,7 +44,7 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         false
     }
 
-    fn on_auto_resize(&mut self, _browser: Browser, _new_size: &cef_ui::Size) -> bool {
+    fn on_auto_resize(&mut self, _browser: Browser, _new_size: &Size) -> bool {
         false
     }
 
@@ -56,8 +54,8 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         &mut self,
         _browser: Browser,
         _cursor: u64,
-        cursor_type: cef_ui::CursorType,
-        _custom_cursor_info: Option<cef_ui::CursorInfo>,
+        cursor_type: CursorType,
+        _custom_cursor_info: Option<CursorInfo>,
     ) -> bool {
         self.cef_message_channel
             .send(CefMessage::CursorChanged(format!("{:?}", cursor_type)));

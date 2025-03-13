@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cef_ui::{
-    App, BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, Client, Context, LoadHandler,
-    LogSeverity, MainArgs, RenderHandler, Settings, WindowInfo,
+    App, BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, Context, LogSeverity, MainArgs,
+    Settings, WindowInfo,
 };
 use crossbeam_channel::Sender;
 use std::{

@@ -1,0 +1,18 @@
+[package]
+name = "huly-cef-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-log = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+cef-ui-util = { git = "https://github.com/hulylabs/cef-ui.git" }
+clap = { version = "4.5.31", features = ["derive"] }
+
+
+[[bin]]
+name = "huly-cef-build"
+path = "src/build.rs"

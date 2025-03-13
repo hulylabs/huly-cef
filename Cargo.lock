@@ -219,12 +219,11 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler#507ee0984c1758d3987b34fd60bf1051c191ea9b"
 dependencies = [
  "anyhow",
  "bitflags",
  "cef-ui-sys",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler)",
+ "cef-ui-util 0.1.0",
  "chrono",
  "dunce",
  "parking_lot",
@@ -247,12 +246,10 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler#507ee0984c1758d3987b34fd60bf1051c191ea9b"
 
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler#507ee0984c1758d3987b34fd60bf1051c191ea9b"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -774,12 +771,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cef-ui",
- "cef-ui-helper",
  "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
- "clap",
  "crossbeam-channel",
  "futures",
- "futures-util",
  "serde",
  "serde_json",
  "serde_repr",
@@ -789,6 +783,27 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "tungstenite",
+]
+
+[[package]]
+name = "huly-cef-helper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cef-ui-helper",
+ "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+]
+
+[[package]]
+name = "huly-cef-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "clap",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]
