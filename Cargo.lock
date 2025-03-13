@@ -219,12 +219,12 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#a8b0a6fdddc0f036e823f9eb09ac4c0e22f5b3cd"
+source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler#507ee0984c1758d3987b34fd60bf1051c191ea9b"
 dependencies = [
  "anyhow",
  "bitflags",
  "cef-ui-sys",
- "cef-ui-util",
+ "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler)",
  "chrono",
  "dunce",
  "parking_lot",
@@ -247,7 +247,26 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#a8b0a6fdddc0f036e823f9eb09ac4c0e22f5b3cd"
+source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler#507ee0984c1758d3987b34fd60bf1051c191ea9b"
+
+[[package]]
+name = "cef-ui-util"
+version = "0.1.0"
+source = "git+https://github.com/hulylabs/cef-ui.git?branch=cef-display-handler#507ee0984c1758d3987b34fd60bf1051c191ea9b"
+dependencies = [
+ "anyhow",
+ "bindgen",
+ "bzip2",
+ "flate2",
+ "percent-encoding",
+ "reqwest",
+ "tar",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "url",
+ "walkdir",
+]
 
 [[package]]
 name = "cef-ui-util"
@@ -756,7 +775,7 @@ dependencies = [
  "anyhow",
  "cef-ui",
  "cef-ui-helper",
- "cef-ui-util",
+ "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
  "clap",
  "crossbeam-channel",
  "futures",

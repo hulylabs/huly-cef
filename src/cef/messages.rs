@@ -8,6 +8,10 @@ pub enum CefMessage {
     Loaded,
     /// Message to indicate that the browser has failed to load a page.
     LoadError,
+    /// Message to indicate that cursor has changed.
+    CursorChanged(String),
+    /// Message to indicate that title has changed.
+    TitleChanged(String),
 }
 
 use serde::{Deserialize, Serialize};

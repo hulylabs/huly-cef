@@ -3,10 +3,7 @@ use cef_ui::{
     App, BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, Client, Context, LoadHandler,
     LogSeverity, MainArgs, RenderHandler, Settings, WindowInfo,
 };
-use client_callbacks::HulyClientCallbacks;
 use crossbeam_channel::Sender;
-use load_callbacks::HulyLoadHandlerCallbacks;
-use render_callbacks::HulyRenderHandlerCallbacks;
 use std::{
     fs::create_dir_all,
     path::PathBuf,
@@ -18,9 +15,7 @@ use tracing_log::LogTracer;
 use tracing_subscriber::FmtSubscriber;
 
 mod application_callbacks;
-mod client_callbacks;
-mod load_callbacks;
-mod render_callbacks;
+mod client;
 
 pub mod messages;
 
@@ -81,7 +76,7 @@ pub struct BrowserState {
     /// The height of the browser in pixels.
     pub height: u32,
     /// The transmitting for transmitting CEF messages.
-    pub tx: UnboundedSender<messages::CefMessage>,
+    pub sender: UnboundedSender<messages::CefMessage>,
     /// Whether the browser is active or not.
     pub active: bool,
 }
@@ -93,7 +88,7 @@ pub struct BrowserState {
 /// - `width`: The width of the browser.
 /// - `height`: The height of the browser.
 /// - `url`: The URL to load in the browser.
-/// - `tx`: A channel for CEF messages.
+/// - `sender`: A channel for CEF messages.
 ///
 /// # Returns
 ///
@@ -102,7 +97,7 @@ fn create_browser_in_ui_thread(
     width: u32,
     height: u32,
     url: &str,
-    tx: UnboundedSender<messages::CefMessage>,
+    sender: UnboundedSender<messages::CefMessage>,
 ) -> Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
     let settings = BrowserSettings::new().windowless_frame_rate(30);
@@ -110,17 +105,15 @@ fn create_browser_in_ui_thread(
         url: url.to_string(),
         width,
         height,
-        tx: tx.clone(),
+        sender: sender.clone(),
         active: true,
     }));
-    let render_handler = RenderHandler::new(HulyRenderHandlerCallbacks::new(state.clone()));
-    let load_handler = LoadHandler::new(HulyLoadHandlerCallbacks::new(tx.clone()));
-    let client = Client::new(HulyClientCallbacks::new(render_handler, load_handler));
+    let client = client::new(state.clone(), sender);
     let inner = BrowserHost::create_browser_sync(&window_info, client, url, &settings, None, None);
 
     Browser {
         inner,
-        state: state.clone(),
+        state: state,
     }
 }
 

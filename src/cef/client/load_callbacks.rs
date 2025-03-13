@@ -1,7 +1,7 @@
 use cef_ui::{Browser, Frame, LoadHandlerCallbacks};
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::messages::CefMessage;
+use crate::cef::messages::CefMessage;
 
 pub struct HulyLoadHandlerCallbacks {
     cef_message_channel: UnboundedSender<CefMessage>,

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use cef_ui::{Browser, Point, Rect, RenderHandlerCallbacks, ScreenInfo, Size};
 
-use super::BrowserState;
+use crate::cef::{messages::CefMessage, BrowserState};
 
 pub struct HulyRenderHandlerCallbacks {
     browser_state: Arc<Mutex<BrowserState>>,
@@ -91,8 +91,8 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
             }
 
             state
-                .tx
-                .send(super::messages::CefMessage::Render(rgba_buffer))
+                .sender
+                .send(CefMessage::Render(rgba_buffer))
                 .expect("failed to send buffer");
         }
     }

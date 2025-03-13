@@ -68,6 +68,9 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
             CefMessage::IsLoading => Message::Text("IsLoading".into()),
             CefMessage::Loaded => Message::Text("Loaded".into()),
             CefMessage::LoadError => Message::Text("LoadError".into()),
+            CefMessage::CursorChanged(cursor) => {
+                Message::Text(format!("{{ CursorChanged: {{ cursor: {} }} }}", cursor).into())
+            }
         };
         _ = outgoing.send(msg).await;
     }
