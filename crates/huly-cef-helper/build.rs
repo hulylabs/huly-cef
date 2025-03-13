@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cef_ui_util::{link_cef, link_cef_helper};
+use cef_ui_util::link_cef_helper;
 
 fn main() -> Result<()> {
     link_cef_helper()?;

@@ -36,7 +36,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         _transition_type: cef_ui::TransitionType,
     ) {
         if frame.is_main().unwrap() {
-            _ = self.cef_message_channel.send(CefMessage::IsLoading);
+            _ = self.cef_message_channel.send(CefMessage::Loading);
         }
     }
 

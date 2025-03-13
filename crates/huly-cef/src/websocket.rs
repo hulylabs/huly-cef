@@ -65,12 +65,11 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
     while let Some(message) = reader.recv().await {
         let msg = match message {
             CefMessage::Render(buffer) => Message::Binary(buffer.into()),
-            CefMessage::IsLoading => Message::Text("IsLoading".into()),
-            CefMessage::Loaded => Message::Text("Loaded".into()),
-            CefMessage::LoadError => Message::Text("LoadError".into()),
-            CefMessage::CursorChanged(cursor) => {
-                Message::Text(format!("{{ CursorChanged: {{ cursor: {} }} }}", cursor).into())
-            }
+            message => Message::Text(
+                serde_json::to_string(&message)
+                    .expect("failed to serialize a message")
+                    .into(),
+            ),
         };
         _ = outgoing.send(msg).await;
     }
@@ -192,7 +191,7 @@ fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
             let _ = host.invalidate(cef_ui::PaintElementType::View);
         }
         _ => {
-            println!("Unknown message");
+            panic!("Unknown message: {:?}", msg);
         }
     }
 }

@@ -19,26 +19,27 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
     fn on_address_change(&mut self, _browser: Browser, _frame: Frame, _url: &str) {}
 
     fn on_title_change(&mut self, _browser: Browser, title: &str) {
-        self.cef_message_channel
-            .send(CefMessage::TitleChanged(title.to_string()))
+        _ = self
+            .cef_message_channel
+            .send(CefMessage::TitleChanged(title.to_string()));
     }
 
     fn on_favicon_urlchange(&mut self, _browser: Browser, _icon_urls: Vec<String>) {}
 
     fn on_fullscreen_mode_change(&mut self, _browser: Browser, _fullscreen: bool) {}
 
-    fn on_tooltip(&mut self, _browser: Browser, _text: &str) -> bool {
+    fn on_tooltip(&mut self, _browser: Browser, _text: Option<String>) -> bool {
         false
     }
 
-    fn on_status_message(&mut self, _browser: Browser, _value: &str) {}
+    fn on_status_message(&mut self, _browser: Browser, _value: Option<String>) {}
 
     fn on_console_message(
         &mut self,
         _browser: Browser,
         _level: cef_ui::LogSeverity,
-        _message: &str,
-        _source: &str,
+        _message: Option<String>,
+        _source: Option<String>,
         _line: i32,
     ) -> bool {
         false
@@ -57,7 +58,8 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         cursor_type: CursorType,
         _custom_cursor_info: Option<CursorInfo>,
     ) -> bool {
-        self.cef_message_channel
+        _ = self
+            .cef_message_channel
             .send(CefMessage::CursorChanged(format!("{:?}", cursor_type)));
 
         true

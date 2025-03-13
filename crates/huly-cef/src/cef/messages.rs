@@ -1,9 +1,10 @@
 /// Represents different types of messages that can be sent from CEF to the browser.
+#[derive(Debug, Serialize, Deserialize)]
 pub enum CefMessage {
     /// Message to render a frame.
     Render(Vec<u8>),
     /// Message to indicate that the browser is loading a page.
-    IsLoading,
+    Loading,
     /// Message to indicate that the browser has finished loading a page.
     Loaded,
     /// Message to indicate that the browser has failed to load a page.
