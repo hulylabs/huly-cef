@@ -1,0 +1,61 @@
+use cef_ui::{
+    Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks,
+    PopupFeatures, WindowInfo, WindowOpenDisposition,
+};
+use tokio::sync::mpsc::UnboundedSender;
+
+use crate::cef::messages::CefMessage;
+
+pub struct HulyLifeSpanHandlerCallbacks {
+    cef_message_channel: UnboundedSender<CefMessage>,
+}
+
+impl HulyLifeSpanHandlerCallbacks {
+    pub fn new(cef_message_channel: UnboundedSender<CefMessage>) -> Self {
+        Self {
+            cef_message_channel,
+        }
+    }
+}
+
+impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
+    unsafe fn on_before_popup(
+        &mut self,
+        _browser: Browser,
+        _frame: Frame,
+        _target_url: Option<String>,
+        _target_frame_name: Option<String>,
+        _target_disposition: WindowOpenDisposition,
+        _user_gesture: bool,
+        _popup_features: PopupFeatures,
+        _window_info: &mut WindowInfo,
+        _client: &mut Option<Client>,
+        _settings: &mut BrowserSettings,
+        _extra_info: &mut Option<DictionaryValue>,
+        _no_javascript_access: &mut bool,
+    ) -> bool {
+        false
+    }
+
+    fn on_before_dev_tools_popup(
+        &mut self,
+        _browser: Browser,
+        _window_info: &mut WindowInfo,
+        _client: &mut Option<Client>,
+        _settings: &mut BrowserSettings,
+        _extra_info: &mut Option<DictionaryValue>,
+        _use_default_window: &mut bool,
+    ) {
+    }
+
+    fn on_after_created(&mut self, _browser: Browser) {}
+
+    fn do_close(&mut self, _browser: Browser) -> bool {
+        self.cef_message_channel
+            .send(CefMessage::Close)
+            .expect("failed to send close message");
+        true
+    }
+
+    fn on_before_close(&mut self, _browser: Browser) {}
+}

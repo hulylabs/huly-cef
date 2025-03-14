@@ -55,14 +55,17 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
     );
 
     // Create a browser
-    let (sender, mut reader) = mpsc::unbounded_channel::<cef::messages::CefMessage>();
-    let browser = cef::create_browser(width, height, &url, sender);
+    let (cef_message_sender, mut cef_message_reader) = mpsc::unbounded_channel::<CefMessage>();
+    let browser = cef::create_browser(width, height, &url, cef_message_sender);
 
     tokio::spawn(handle_incoming_messages(incoming, browser));
 
-    while let Some(message) = reader.recv().await {
+    while let Some(message) = cef_message_reader.recv().await {
         let msg = match message {
             CefMessage::Render(buffer) => Message::Binary(buffer.into()),
+            CefMessage::Close => {
+                break;
+            }
             message => Message::Text(
                 serde_json::to_string(&message)
                     .expect("failed to serialize a message")
@@ -72,9 +75,9 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         _ = outgoing.send(msg).await;
     }
 
-    println!("=============================");
+    println!("+++++++++++++++++++++++++++++");
     println!("handle_connection is finished");
-    println!("=============================");
+    println!("+++++++++++++++++++++++++++++");
 }
 
 /// Handles incoming WebSocket messages and processes browser events.
@@ -99,15 +102,20 @@ async fn handle_incoming_messages(
         let msg = serde_json::from_slice::<BrowserMessage>(&msg.into_data())
             .expect("got unknown message from a client");
 
-        process_message(msg, &browser);
+        let closed = process_message(msg, &browser);
+        if closed {
+            break;
+        }
     }
+
+    _ = browser.inner.get_host().unwrap().close_browser(false);
 
     println!("====================================");
     println!("handle_incoming_messages is finished");
     println!("====================================");
 }
 
-fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
+fn process_message(msg: BrowserMessage, browser: &cef::Browser) -> bool {
     let host = browser.inner.get_host().unwrap();
 
     match msg {
@@ -197,8 +205,23 @@ fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
             let _ = host.was_resized();
             let _ = host.invalidate(cef_ui::PaintElementType::View);
         }
+        BrowserMessage::Close => return true,
+        BrowserMessage::GoBack => {
+            println!("GoBack");
+            let _ = browser.inner.go_back();
+        }
+        BrowserMessage::GoForward => {
+            println!("GoForward");
+            let _ = browser.inner.go_forward();
+        }
+        BrowserMessage::Reload => {
+            println!("Reload");
+            let _ = browser.inner.reload();
+        }
         _ => {
             panic!("Unknown message: {:?}", msg);
         }
     }
+
+    return false;
 }

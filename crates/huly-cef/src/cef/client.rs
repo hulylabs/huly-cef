@@ -9,6 +9,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use super::{messages::CefMessage, BrowserState};
 
 mod display_callbacks;
+mod life_span_callbacks;
 mod load_callbacks;
 mod render_callbacks;
 
@@ -16,6 +17,7 @@ pub struct HulyClientCallbacks {
     render_handler: RenderHandler,
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
+    life_span_handler: LifeSpanHandler,
 }
 
 impl HulyClientCallbacks {
@@ -23,11 +25,13 @@ impl HulyClientCallbacks {
         render_handler: RenderHandler,
         load_handler: LoadHandler,
         display_handler: DisplayHandler,
+        life_span_handler: LifeSpanHandler,
     ) -> Self {
         Self {
             render_handler,
             load_handler,
             display_handler,
+            life_span_handler,
         }
     }
 }
@@ -42,7 +46,7 @@ impl ClientCallbacks for HulyClientCallbacks {
     }
 
     fn get_life_span_handler(&mut self) -> Option<LifeSpanHandler> {
-        None
+        Some(self.life_span_handler.clone())
     }
 
     fn get_render_handler(&mut self) -> Option<RenderHandler> {
@@ -78,10 +82,14 @@ pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<CefMessage>)
     let display_handler = DisplayHandler::new(display_callbacks::HulyDisplayHandlerCallbacks::new(
         sender.clone(),
     ));
+    let life_span_handler = LifeSpanHandler::new(
+        life_span_callbacks::HulyLifeSpanHandlerCallbacks::new(sender.clone()),
+    );
 
     Client::new(HulyClientCallbacks::new(
         render_handler,
         load_handler,
         display_handler,
+        life_span_handler,
     ))
 }

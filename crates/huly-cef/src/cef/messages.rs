@@ -13,6 +13,8 @@ pub enum CefMessage {
     CursorChanged(String),
     /// Message to indicate that title has changed.
     TitleChanged(String),
+    /// Message to indicate that CEF has closed the browser.
+    Close,
 }
 
 use serde::{Deserialize, Serialize};
@@ -58,4 +60,12 @@ pub enum BrowserMessage {
     SetIdle,
     /// Message to indicate that the browser is active and should be rendered.
     SetActive,
+    /// Message to indicate that the browser is closing.
+    Close,
+    /// Message to indicate that the browser is reloading.
+    Reload,
+    /// Message to indicate that the browser should go back to the previous page.
+    GoBack,
+    /// Message to indicate that the browser should go forward to the next page.
+    GoForward,
 }

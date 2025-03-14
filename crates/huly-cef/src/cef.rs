@@ -135,7 +135,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
     }
 }
 
-/// Creates a new browser instance asynchronously.
+/// Creates a new browser instance.
 ///
 /// # Parameters
 ///
