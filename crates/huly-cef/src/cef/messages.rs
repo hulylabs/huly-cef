@@ -49,7 +49,11 @@ pub enum BrowserMessage {
     /// Message to indicate a mouse scroll event.
     MouseWheel { x: i32, y: i32, dx: i32, dy: i32 },
     /// Message to indicate a key press event.
-    KeyPress { key_code: i32, down: bool },
+    KeyPress {
+        character: u16,
+        code: i32,
+        down: bool,
+    },
     /// Message to indicate that the browser is idle and should not be rendered.
     SetIdle,
     /// Message to indicate that the browser is active and should be rendered.

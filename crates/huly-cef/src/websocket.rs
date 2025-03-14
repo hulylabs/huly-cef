@@ -54,11 +54,9 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         width, height, url
     );
 
-    println!("creating browser");
     // Create a browser
     let (sender, mut reader) = mpsc::unbounded_channel::<cef::messages::CefMessage>();
     let browser = cef::create_browser(width, height, &url, sender);
-    println!("browser created");
 
     tokio::spawn(handle_incoming_messages(incoming, browser));
 
@@ -74,7 +72,9 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         _ = outgoing.send(msg).await;
     }
 
-    println!("finished handling connection");
+    println!("=============================");
+    println!("handle_connection is finished");
+    println!("=============================");
 }
 
 /// Handles incoming WebSocket messages and processes browser events.
@@ -101,6 +101,10 @@ async fn handle_incoming_messages(
 
         process_message(msg, &browser);
     }
+
+    println!("====================================");
+    println!("handle_incoming_messages is finished");
+    println!("====================================");
 }
 
 fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
@@ -132,7 +136,6 @@ fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
                 .expect("failed to send mouse click event");
         }
         BrowserMessage::MouseWheel { x, y, dx, dy } => {
-            println!("MouseWheel: ({}, {}, {}, {})", x, y, dx, dy);
             let event = cef_ui::MouseEvent {
                 x,
                 y,
@@ -141,31 +144,35 @@ fn process_message(msg: BrowserMessage, browser: &cef::Browser) {
             host.send_mouse_wheel_event(&event, dx, -dy)
                 .expect("failed to send mouse wheel event");
         }
-        // BrowserMessage::KeyPress { key_code, down } => {
-        //     println!("keypress: ({}, {})", key_code, down);
-        //     let event_type = if down {
-        //         cef_ui::KeyEventType::KeyDown
-        //     } else {
-        //         cef_ui::KeyEventType::KeyUp
-        //     };
-        //     let mut event = cef_ui::KeyEvent {
-        //         event_type: event_type,
-        //         modifiers: cef_ui::EventFlags::empty(),
-        //         windows_key_code: key_code.into(),
-        //         native_key_code: key_code as i32,
-        //         is_system_key: false,
-        //         character: key_code as u16,
-        //         unmodified_character: key_code as u16,
-        //         focus_on_editable_field: false,
-        //     };
+        BrowserMessage::KeyPress {
+            character,
+            code,
+            down,
+        } => {
+            println!("keypress: ({}, {}, {})", character, code, down);
+            let event_type = if down {
+                cef_ui::KeyEventType::KeyDown
+            } else {
+                cef_ui::KeyEventType::KeyUp
+            };
+            let mut event = cef_ui::KeyEvent {
+                event_type: event_type,
+                modifiers: cef_ui::EventFlags::empty(),
+                windows_key_code: code.into(),
+                native_key_code: code as i32,
+                is_system_key: false,
+                character: character,
+                unmodified_character: character,
+                focus_on_editable_field: false,
+            };
 
-        //     _ = host.send_key_event(event.clone());
+            _ = host.send_key_event(event.clone());
 
-        //     if event_type == cef_ui::KeyEventType::KeyDown {
-        //         event.event_type = cef_ui::KeyEventType::Char;
-        //         _ = host.send_key_event(event);
-        //     }
-        // }
+            if event_type == cef_ui::KeyEventType::KeyDown && character != 0 {
+                event.event_type = cef_ui::KeyEventType::Char;
+                _ = host.send_key_event(event);
+            }
+        }
         BrowserMessage::SetActive => {
             let mut state = browser.state.lock().unwrap();
             println!("setting browser active");
