@@ -9,6 +9,7 @@ export class CEFClient {
 
     public onLoadStateChanged: ((state: LoadState) => void) | undefined;
     public onTitleChanged: ((title: string) => void) | undefined;
+    public onUrlChanged: ((url: string) => void) | undefined;
     public onCursorChanged: ((cursor: string) => void) | undefined;
     public onRender: ((data: Uint8Array) => void) | undefined;
 
@@ -45,9 +46,11 @@ export class CEFClient {
                     if (parsed.CursorChanged) {
                         this.onCursorChanged?.(parsed.CursorChanged);
                     }
+
+                    if (parsed.UrlChanged) {
+                        this.onUrlChanged?.(parsed.UrlChanged);
+                    }
                 }
-
-
             }
         }
     }

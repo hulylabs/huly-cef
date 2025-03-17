@@ -16,7 +16,11 @@ impl HulyDisplayHandlerCallbacks {
 }
 
 impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
-    fn on_address_change(&mut self, _browser: Browser, _frame: Frame, _url: &str) {}
+    fn on_address_change(&mut self, _browser: Browser, _frame: Frame, url: &str) {
+        _ = self
+            .cef_message_channel
+            .send(CefMessage::UrlChanged(url.to_string()));
+    }
 
     fn on_title_change(&mut self, _browser: Browser, title: &str) {
         _ = self

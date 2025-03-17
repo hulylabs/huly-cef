@@ -13,6 +13,8 @@ pub enum CefMessage {
     CursorChanged(String),
     /// Message to indicate that title has changed.
     TitleChanged(String),
+    /// Message to indicate that URL has changed.
+    UrlChanged(String),
     /// Message to indicate that CEF has closed the browser.
     Close,
 }
