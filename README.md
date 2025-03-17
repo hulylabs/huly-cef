@@ -1,5 +1,5 @@
-## Launch Instructions (For Windows and Linux only)
-Follow these steps to build and run CEF:
+## Launch Instructions For Huly CEF
+Follow these steps to build and run Huly CEF:
 
 1. **Download CEF Artifacts**  
    First, download the necessary CEF artifacts from the following link:  
@@ -24,4 +24,23 @@ Follow these steps to build and run CEF:
    MacOS:
    ```bash
    ./target/release/huly-cef.app/Contents/MacOS/huly-cef
+   ```
+
+## Build Instructions For TypeScript CEF Client
+
+1. **Build The Package**  
+   To build the package, use the following command:
+   ```bash
+   cd ./packages/cef-client
+   npm run build
+   ```
+2. **Link The Package**  
+   To link the package, use the following command:
+   ```bash
+   npm link
+   ```
+3. **Use The Package In Your Project**  
+   To use the package in your project, run the following command in the project's folder:
+   ```bash
+   npm link cef-client
    ```

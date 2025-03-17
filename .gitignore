@@ -1,5 +1,9 @@
 # Ignore build artifacts
 target
 
-# Ignore CEF-generated files.
+# Ignore CEF-generated files
 MediaDeviceSalts*
+
+# Ignore Node.js modules
+node_modules
+dist
