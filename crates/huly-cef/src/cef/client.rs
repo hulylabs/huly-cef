@@ -6,7 +6,7 @@ use cef_ui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{messages::CefMessage, BrowserState};
+use super::{browser::BrowserState, messages::CefMessage};
 
 mod display_callbacks;
 mod life_span_callbacks;

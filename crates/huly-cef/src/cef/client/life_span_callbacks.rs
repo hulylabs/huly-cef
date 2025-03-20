@@ -50,10 +50,16 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
 
     fn on_after_created(&mut self, _browser: Browser) {}
 
-    fn do_close(&mut self, _browser: Browser) -> bool {
-        self.cef_message_channel
-            .send(CefMessage::Close)
-            .expect("failed to send close message");
+    fn do_close(&mut self, browser: Browser) -> bool {
+        println!("do_close is called");
+        let result = self.cef_message_channel.send(CefMessage::Closed);
+
+        match result {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Failed to send message: {:?}", e);
+            }
+        }
         true
     }
 

@@ -62,7 +62,11 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
                 "on_load_error: ({:?}, {}, {})",
                 error_code, error_text, failed_url
             );
-            _ = self.cef_message_channel.send(CefMessage::LoadError);
+            _ = self.cef_message_channel.send(CefMessage::LoadError {
+                error_code: 0,
+                error_text: error_text.to_string(),
+                failed_url: failed_url.to_string(),
+            });
         }
     }
 }

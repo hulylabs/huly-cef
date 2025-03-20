@@ -2,13 +2,17 @@
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CefMessage {
     /// Message to render a frame.
-    Render(Vec<u8>),
+    Frame(Vec<u8>),
     /// Message to indicate that the browser is loading a page.
     Loading,
     /// Message to indicate that the browser has finished loading a page.
     Loaded,
     /// Message to indicate that the browser has failed to load a page.
-    LoadError,
+    LoadError {
+        error_code: i32,
+        error_text: String,
+        failed_url: String,
+    },
     /// Message to indicate that cursor has changed.
     CursorChanged(String),
     /// Message to indicate that title has changed.
@@ -16,7 +20,7 @@ pub enum CefMessage {
     /// Message to indicate that URL has changed.
     UrlChanged(String),
     /// Message to indicate that CEF has closed the browser.
-    Close,
+    Closed,
 }
 
 use serde::{Deserialize, Serialize};
@@ -33,12 +37,8 @@ pub enum MouseType {
 /// Represents different types of messages that can be sent from the browser to CEF.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BrowserMessage {
-    /// Message to create a new browser instance.
-    CreateBrowser {
-        url: String,
-        width: u32,
-        height: u32,
-    },
+    /// Message to load a new url.
+    GoTo { url: String },
     /// Message to resize the browser.
     Resize { width: u32, height: u32 },
     /// Message to indicate a mouse movement event.
@@ -59,9 +59,9 @@ pub enum BrowserMessage {
         down: bool,
     },
     /// Message to indicate that the browser is idle and should not be rendered.
-    SetIdle,
+    StopVideo,
     /// Message to indicate that the browser is active and should be rendered.
-    SetActive,
+    StartVideo,
     /// Message to indicate that the browser is closing.
     Close,
     /// Message to indicate that the browser is reloading.

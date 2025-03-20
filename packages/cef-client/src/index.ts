@@ -55,8 +55,8 @@ export class CEFClient {
         }
     }
 
-    createBrowser(url: string, width: number, height: number) {
-        this.websocket.send(JSON.stringify({ CreateBrowser: { url: url, width: Math.floor(width), height: Math.floor(height) } }));
+    goTo(url: string) {
+        this.websocket.send(JSON.stringify({ GoTo: { url: url } }));
     };
 
     onMouseMove(x: number, y: number) {
@@ -95,12 +95,17 @@ export class CEFClient {
         this.websocket.send(JSON.stringify({ Resize: { width: Math.floor(width), height: Math.floor(height) } }));
     };
 
-    setIdle() {
-        this.websocket.send(JSON.stringify("SetIdle"));
+    startVideo() {
+        this.websocket.send(JSON.stringify("StartVideo"));
+    }
+
+    stopVideo() {
+        this.websocket.send(JSON.stringify("StopVideo"));
     };
 
     close() {
         this.websocket.send(JSON.stringify("Close"));
+        this.websocket.close();
     }
 
     goBack() {
