@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use cef_ui::{Browser, Point, Rect, RenderHandlerCallbacks, ScreenInfo, Size};
 
@@ -7,16 +7,12 @@ use crate::cef::{browser::BrowserState, messages::CefMessage};
 
 pub struct HulyRenderHandlerCallbacks {
     browser_state: Arc<Mutex<BrowserState>>,
-    frame_count: usize,
-    last_fps_time: Instant,
 }
 
 impl HulyRenderHandlerCallbacks {
     pub fn new(browser_state: Arc<Mutex<BrowserState>>) -> Self {
         Self {
             browser_state: browser_state,
-            frame_count: 0,
-            last_fps_time: Instant::now(),
         }
     }
 }
@@ -94,24 +90,12 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
                 let [b, g, r, a] = src.try_into().unwrap();
                 dst.copy_from_slice(&[r, g, b, a]);
             }
-
             let result = state.sender.send(CefMessage::Frame(rgba_buffer));
             match result {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("Failed to send message: {:?}", e);
+                    // eprintln!("Failed to send message: {:?}", e);
                 }
-            }
-
-            // FPS counter logic
-            self.frame_count += 1;
-            let now = Instant::now();
-            if now.duration_since(self.last_fps_time) >= Duration::new(2, 0) {
-                let fps =
-                    self.frame_count as f64 / now.duration_since(self.last_fps_time).as_secs_f64();
-                println!("FPS: {}", fps);
-                self.frame_count = 0;
-                self.last_fps_time = now;
             }
         }
     }
