@@ -14,6 +14,7 @@ mod load_callbacks;
 mod render_callbacks;
 
 pub struct HulyClientCallbacks {
+    sender: UnboundedSender<CefMessage>,
     render_handler: RenderHandler,
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
@@ -22,12 +23,14 @@ pub struct HulyClientCallbacks {
 
 impl HulyClientCallbacks {
     pub fn new(
+        sender: UnboundedSender<CefMessage>,
         render_handler: RenderHandler,
         load_handler: LoadHandler,
         display_handler: DisplayHandler,
         life_span_handler: LifeSpanHandler,
     ) -> Self {
         Self {
+            sender,
             render_handler,
             load_handler,
             display_handler,
@@ -62,8 +65,21 @@ impl ClientCallbacks for HulyClientCallbacks {
         _browser: Browser,
         _frame: Frame,
         _source_process: ProcessId,
-        _message: ProcessMessage,
+        message: ProcessMessage,
     ) -> bool {
+        if let Ok(name) = message.get_name() {
+            if name == "UrlHoveredMessage" {
+                let args = message.get_argument_list().unwrap().unwrap();
+                if let (Ok(url), Ok(hovered)) = (args.get_string(0), args.get_bool(1)) {
+                    self.sender
+                        .send(CefMessage::UrlHovered {
+                            url: url.unwrap(),
+                            hovered,
+                        })
+                        .unwrap();
+                }
+            }
+        }
         true
     }
 
@@ -87,6 +103,7 @@ pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<CefMessage>)
     );
 
     Client::new(HulyClientCallbacks::new(
+        sender,
         render_handler,
         load_handler,
         display_handler,

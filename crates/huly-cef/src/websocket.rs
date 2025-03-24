@@ -45,6 +45,12 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
             CefMessage::Closed => {
                 break;
             }
+            CefMessage::UrlHovered { url, hovered } => {
+                println!("UrlHovered: {}, {}", url, hovered);
+                serde_json::to_string("UrlHovered")
+                    .expect("failed to serialize a message")
+                    .into()
+            }
             message => Message::Text(
                 serde_json::to_string(&message)
                     .expect("failed to serialize a message")

@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use cef_ui::{Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, Size};
 use tokio::sync::mpsc::UnboundedSender;
+use tungstenite::http::Uri;
 
 use crate::cef::messages::CefMessage;
 

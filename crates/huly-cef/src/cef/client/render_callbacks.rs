@@ -1,5 +1,4 @@
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 use cef_ui::{Browser, Point, Rect, RenderHandlerCallbacks, ScreenInfo, Size};
 

@@ -11,8 +11,6 @@ use super::{
 
 /// Maintains the state of a browser instance.
 pub struct BrowserState {
-    /// The URL of the browser.
-    pub url: String,
     /// The width of the browser in pixels.
     pub width: u32,
     /// The height of the browser in pixels.
@@ -156,18 +154,6 @@ impl Browser {
     }
 }
 
-/// Creates a browser in the UI thread.
-///
-/// # Parameters
-///
-/// - `width`: The width of the browser.
-/// - `height`: The height of the browser.
-/// - `url`: The URL to load in the browser.
-/// - `sender`: A channel for CEF messages.
-///
-/// # Returns
-///
-/// A new instance of a CEF browser.
 fn create_browser_in_ui_thread(
     width: u32,
     height: u32,
@@ -177,7 +163,6 @@ fn create_browser_in_ui_thread(
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
     let settings = BrowserSettings::new().windowless_frame_rate(50);
     let state = Arc::new(Mutex::new(BrowserState {
-        url: url.to_string(),
         width,
         height,
         sender: sender.clone(),

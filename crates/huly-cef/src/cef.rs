@@ -5,7 +5,7 @@ use tracing::{level_filters::LevelFilter, subscriber::set_global_default, Level}
 use tracing_log::LogTracer;
 use tracing_subscriber::FmtSubscriber;
 
-mod application_callbacks;
+mod application;
 mod client;
 
 pub mod browser;
@@ -35,7 +35,7 @@ pub fn new() -> Result<CefContext, anyhow::Error> {
         .root_cache_path(&root_cache_dir)?
         .no_sandbox(false);
 
-    let app = App::new(application_callbacks::MyAppCallbacks {});
+    let app = App::new(application::HulyAppCallbacks::new());
     let context = Context::new(main_args, settings, Some(app));
 
     Ok(context)
