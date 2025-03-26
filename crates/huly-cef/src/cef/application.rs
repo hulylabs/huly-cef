@@ -1,5 +1,4 @@
 use cef_ui::{AppCallbacks, BrowserProcessHandler, CommandLine, RenderProcessHandler};
-use tracing::info;
 
 mod render_process_callbacks;
 
@@ -21,20 +20,9 @@ impl HulyAppCallbacks {
 impl AppCallbacks for HulyAppCallbacks {
     fn on_before_command_line_processing(
         &mut self,
-        process_type: Option<&str>,
-        command_line: Option<CommandLine>,
+        _process_type: Option<&str>,
+        _command_line: Option<CommandLine>,
     ) {
-        info!("Setting CEF command line switches.");
-
-        // This is to disable scary warnings on macOS.
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        if let Some(command_line) = command_line {
-            if process_type.is_none() {
-                if let Err(e) = command_line.append_switch("--use-mock-keychain") {
-                    println!("{}", e);
-                }
-            }
-        }
     }
 
     fn get_browser_process_handler(&mut self) -> Option<BrowserProcessHandler> {

@@ -106,7 +106,9 @@ impl Browser {
         let mut state = self.state.lock().unwrap();
         state.active = true;
 
-        let _ = self
+        _ = self.inner.get_host().unwrap().was_hidden(false);
+
+        _ = self
             .inner
             .get_host()
             .unwrap()
@@ -117,7 +119,7 @@ impl Browser {
         let mut state = self.state.lock().unwrap();
         state.active = false;
 
-        // self.inner.get_host().unwrap().was_hidden(true);
+        _ = self.inner.get_host().unwrap().was_hidden(true);
     }
 
     pub fn resize(&self, width: u32, height: u32) {

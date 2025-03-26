@@ -103,7 +103,7 @@ async fn handle_incoming_messages(
 fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
     match msg {
         BrowserMessage::MouseMove { x, y } => {
-            println!("mouse_move: ({}, {})", x, y);
+            // println!("mouse_move: ({}, {})", x, y);
             browser.mouse_move(x, y)
         }
         BrowserMessage::MouseClick { x, y, button, down } => {

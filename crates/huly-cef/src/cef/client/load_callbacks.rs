@@ -19,9 +19,9 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
     fn on_loading_state_change(
         &mut self,
         _browser: Browser,
-        is_loading: bool,
-        can_go_back: bool,
-        can_go_forward: bool,
+        _is_loading: bool,
+        _can_go_back: bool,
+        _can_go_forward: bool,
     ) {
     }
 

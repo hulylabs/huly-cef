@@ -93,7 +93,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
             match result {
                 Ok(_) => {}
                 Err(e) => {
-                    // eprintln!("Failed to send message: {:?}", e);
+                    eprintln!("Failed to send message: {:?}", e);
                 }
             }
         }
@@ -104,7 +104,6 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         _browser: Browser,
         _paint_element_type: cef_ui::PaintElementType,
         _dirty_rects: &[Rect],
-        _shared_handle: *mut std::ffi::c_void,
     ) {
     }
 

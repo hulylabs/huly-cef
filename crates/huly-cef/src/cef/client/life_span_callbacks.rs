@@ -23,6 +23,7 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
         &mut self,
         _browser: Browser,
         _frame: Frame,
+        _popup_id: i32,
         _target_url: Option<String>,
         _target_frame_name: Option<String>,
         _target_disposition: WindowOpenDisposition,
@@ -50,7 +51,7 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
 
     fn on_after_created(&mut self, _browser: Browser) {}
 
-    fn do_close(&mut self, browser: Browser) -> bool {
+    fn do_close(&mut self, _browser: Browser) -> bool {
         println!("do_close is called");
         let result = self.cef_message_channel.send(CefMessage::Closed);
 

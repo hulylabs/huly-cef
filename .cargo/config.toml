@@ -1,3 +1,3 @@
 [env]
 CEF_WORKSPACE_DIR = { relative = true, force = true, value = "." }
-CEF_ARTIFACTS_DIR = { relative = false, force = false, value = "/home/nikita/repos/cef" }
+CEF_ARTIFACTS_DIR = { relative = false, force = false, value = "/home/nikita/repos/cef131/cef" }
