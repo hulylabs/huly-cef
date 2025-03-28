@@ -25,10 +25,12 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
             .send(CefMessage::UrlChanged(url.to_string()));
     }
 
-    fn on_title_change(&mut self, _browser: Browser, title: &str) {
-        _ = self
-            .cef_message_channel
-            .send(CefMessage::TitleChanged(title.to_string()));
+    fn on_title_change(&mut self, _browser: Browser, title: Option<String>) {
+        if let Some(title) = title {
+            _ = self
+                .cef_message_channel
+                .send(CefMessage::TitleChanged(title.to_string()));
+        }
     }
 
     fn on_favicon_urlchange(&mut self, _browser: Browser, _icon_urls: Vec<String>) {}

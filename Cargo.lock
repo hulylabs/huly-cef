@@ -212,12 +212,11 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=update-cef-131#f8ff4621dc5727c1f8fa211ab470e4d8221ff4d9"
 dependencies = [
  "anyhow",
  "bitflags",
  "cef-ui-sys",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=update-cef-131)",
+ "cef-ui-util 0.1.0",
  "chrono",
  "dunce",
  "parking_lot",
@@ -240,12 +239,10 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=update-cef-131#f8ff4621dc5727c1f8fa211ab470e4d8221ff4d9"
 
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git?branch=update-cef-131#f8ff4621dc5727c1f8fa211ab470e4d8221ff4d9"
 dependencies = [
  "anyhow",
  "bindgen",

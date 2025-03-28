@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use cef_ui::{BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, WindowInfo};
+use cef_ui::{BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, WindowInfo, WindowsKeyCode};
 use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -107,6 +107,7 @@ impl Browser {
         state.active = true;
 
         _ = self.inner.get_host().unwrap().was_hidden(false);
+        _ = self.inner.get_host().unwrap().set_focus(true);
 
         _ = self
             .inner

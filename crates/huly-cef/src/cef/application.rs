@@ -21,8 +21,11 @@ impl AppCallbacks for HulyAppCallbacks {
     fn on_before_command_line_processing(
         &mut self,
         _process_type: Option<&str>,
-        _command_line: Option<CommandLine>,
+        command_line: Option<CommandLine>,
     ) {
+        if let Some(command_line) = command_line {
+            _ = command_line.append_switch("enable-media-stream");
+        }
     }
 
     fn get_browser_process_handler(&mut self) -> Option<BrowserProcessHandler> {
