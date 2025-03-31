@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use cef_ui::{BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, WindowInfo, WindowsKeyCode};
+use cef_ui::{BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, WindowInfo};
 use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -28,7 +28,6 @@ pub struct Browser {
 
 impl Browser {
     pub fn new(width: u32, height: u32, sender: UnboundedSender<CefMessage>) -> Self {
-        println!("creating a new browser");
         create_browser(width, height, "", sender)
     }
 
@@ -164,7 +163,7 @@ fn create_browser_in_ui_thread(
     sender: UnboundedSender<CefMessage>,
 ) -> Browser {
     let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-    let settings = BrowserSettings::new().windowless_frame_rate(50);
+    let settings = BrowserSettings::new();
     let state = Arc::new(Mutex::new(BrowserState {
         width,
         height,
