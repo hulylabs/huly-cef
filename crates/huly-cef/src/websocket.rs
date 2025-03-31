@@ -118,9 +118,11 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
             character,
             code,
             down,
+            ctrl,
+            shift,
         } => {
             println!("keypress: ({}, {}, {})", character, code, down);
-            browser.key_press(character, code, down);
+            browser.key_press(character, code, down, ctrl, shift);
         }
         BrowserMessage::StartVideo => {
             println!("StartVideo");

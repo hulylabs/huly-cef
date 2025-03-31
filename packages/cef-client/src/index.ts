@@ -75,20 +75,20 @@ export class CEFClient {
         this.websocket.send(JSON.stringify({ MouseWheel: { x: x, y: y, dx: dx, dy: dy } }));
     };
 
-    onKeyDown(key: string, code: number) {
+    onKeyDown(key: string, code: number, ctrl: boolean, shift: boolean) {
         let char = 0;
         if (key.length === 1) {
             char = key.charCodeAt(0);
         }
-        this.websocket.send(JSON.stringify({ KeyPress: { character: char, code: code, down: true } }));
+        this.websocket.send(JSON.stringify({ KeyPress: { character: char, code: code, down: true, ctrl: ctrl, shift: shift } }));
     };
 
-    onKeyUp(key: string, code: number) {
+    onKeyUp(key: string, code: number, ctrl: boolean, shift: boolean) {
         let char = 0;
         if (key.length === 1) {
             char = key.charCodeAt(0);
         }
-        this.websocket.send(JSON.stringify({ KeyPress: { character: char, code: code, down: false } }));
+        this.websocket.send(JSON.stringify({ KeyPress: { character: char, code: code, down: false, ctrl: ctrl, shift: shift } }));
     };
 
     onResize(width: number, height: number) {

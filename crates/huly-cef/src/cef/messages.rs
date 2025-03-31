@@ -59,6 +59,8 @@ pub enum BrowserMessage {
         character: u16,
         code: i32,
         down: bool,
+        ctrl: bool,
+        shift: bool,
     },
     /// Message indicating that the browser is idle and should not be rendered.
     StopVideo,

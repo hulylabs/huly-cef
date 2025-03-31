@@ -76,15 +76,23 @@ impl Browser {
             .expect("failed to send mouse wheel event");
     }
 
-    pub fn key_press(&self, character: u16, code: i32, down: bool) {
+    pub fn key_press(&self, character: u16, code: i32, down: bool, ctrl: bool, shift: bool) {
         let event_type = if down {
             cef_ui::KeyEventType::KeyDown
         } else {
             cef_ui::KeyEventType::KeyUp
         };
+
+        let mut modifiers = cef_ui::EventFlags::empty();
+        if ctrl {
+            modifiers = modifiers.union(cef_ui::EventFlags::ControlDown);
+        }
+        if shift {
+            modifiers = modifiers.union(cef_ui::EventFlags::ShiftDown);
+        }
         let mut event = cef_ui::KeyEvent {
             event_type: event_type,
-            modifiers: cef_ui::EventFlags::empty(),
+            modifiers: modifiers,
             windows_key_code: code.into(),
             native_key_code: code,
             is_system_key: false,
