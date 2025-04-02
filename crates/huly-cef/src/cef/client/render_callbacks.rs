@@ -1,17 +1,23 @@
 use std::sync::{Arc, Mutex};
 
 use cef_ui::{Browser, Point, Rect, RenderHandlerCallbacks, ScreenInfo, Size};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::{browser::BrowserState, messages::CefMessage};
 
 pub struct HulyRenderHandlerCallbacks {
+    cef_message_channel: UnboundedSender<CefMessage>,
     browser_state: Arc<Mutex<BrowserState>>,
 }
 
 impl HulyRenderHandlerCallbacks {
-    pub fn new(browser_state: Arc<Mutex<BrowserState>>) -> Self {
+    pub fn new(
+        cef_message_channel: UnboundedSender<CefMessage>,
+        browser_state: Arc<Mutex<BrowserState>>,
+    ) -> Self {
         Self {
-            browser_state: browser_state,
+            cef_message_channel,
+            browser_state,
         }
     }
 }
@@ -75,12 +81,14 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn on_paint(
         &mut self,
         _browser: Browser,
-        _paint_element_type: cef_ui::PaintElementType,
-        _dirty_rects: &[Rect],
+        paint_element_type: cef_ui::PaintElementType,
+        dirty_rects: &[Rect],
         buffer: &[u8],
         width: usize,
         height: usize,
     ) {
+        println!("Painting element type: {:?}", paint_element_type);
+        println!("Dirty rects: {:?}", dirty_rects);
         let state = self.browser_state.lock().unwrap();
         if state.active {
             let pixel_count = width * height * 4;
@@ -89,7 +97,9 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
                 let [b, g, r, a] = src.try_into().unwrap();
                 dst.copy_from_slice(&[r, g, b, a]);
             }
-            let result = state.sender.send(CefMessage::Frame(rgba_buffer));
+            let result = self
+                .cef_message_channel
+                .send(CefMessage::Frame(rgba_buffer));
             match result {
                 Ok(_) => {}
                 Err(e) => {

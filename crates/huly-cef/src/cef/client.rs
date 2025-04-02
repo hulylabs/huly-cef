@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
-    LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler,
+    LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -12,6 +12,7 @@ mod display_callbacks;
 mod life_span_callbacks;
 mod load_callbacks;
 mod render_callbacks;
+mod request_callbacks;
 
 pub struct HulyClientCallbacks {
     sender: UnboundedSender<CefMessage>,
@@ -19,22 +20,36 @@ pub struct HulyClientCallbacks {
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
     life_span_handler: LifeSpanHandler,
+    request_handler: RequestHandler,
 }
 
 impl HulyClientCallbacks {
-    pub fn new(
-        sender: UnboundedSender<CefMessage>,
-        render_handler: RenderHandler,
-        load_handler: LoadHandler,
-        display_handler: DisplayHandler,
-        life_span_handler: LifeSpanHandler,
-    ) -> Self {
+    pub fn new(sender: UnboundedSender<CefMessage>, state: Arc<Mutex<BrowserState>>) -> Self {
+        let render_handler = RenderHandler::new(render_callbacks::HulyRenderHandlerCallbacks::new(
+            sender.clone(),
+            state.clone(),
+        ));
+        let load_handler = LoadHandler::new(load_callbacks::HulyLoadHandlerCallbacks::new(
+            sender.clone(),
+        ));
+        let display_handler = DisplayHandler::new(
+            display_callbacks::HulyDisplayHandlerCallbacks::new(sender.clone()),
+        );
+        let life_span_handler = LifeSpanHandler::new(
+            life_span_callbacks::HulyLifeSpanHandlerCallbacks::new(sender.clone()),
+        );
+
+        let request_handler = RequestHandler::new(
+            request_callbacks::HulyRequestHandlerCallbacks::new(sender.clone()),
+        );
+
         Self {
             sender,
             render_handler,
             load_handler,
             display_handler,
             life_span_handler,
+            request_handler,
         }
     }
 }
@@ -60,6 +75,10 @@ impl ClientCallbacks for HulyClientCallbacks {
         Some(self.load_handler.clone())
     }
 
+    fn get_display_handler(&mut self) -> Option<cef_ui::DisplayHandler> {
+        Some(self.display_handler.clone())
+    }
+
     fn on_process_message_received(
         &mut self,
         _browser: Browser,
@@ -83,30 +102,12 @@ impl ClientCallbacks for HulyClientCallbacks {
         true
     }
 
-    fn get_display_handler(&mut self) -> Option<cef_ui::DisplayHandler> {
-        Some(self.display_handler.clone())
+    fn get_request_handler(&mut self) -> Option<cef_ui::RequestHandler> {
+        Some(self.request_handler.clone())
+        // None
     }
 }
 
 pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<CefMessage>) -> cef_ui::Client {
-    let render_handler = RenderHandler::new(render_callbacks::HulyRenderHandlerCallbacks::new(
-        state.clone(),
-    ));
-    let load_handler = LoadHandler::new(load_callbacks::HulyLoadHandlerCallbacks::new(
-        sender.clone(),
-    ));
-    let display_handler = DisplayHandler::new(display_callbacks::HulyDisplayHandlerCallbacks::new(
-        sender.clone(),
-    ));
-    let life_span_handler = LifeSpanHandler::new(
-        life_span_callbacks::HulyLifeSpanHandlerCallbacks::new(sender.clone()),
-    );
-
-    Client::new(HulyClientCallbacks::new(
-        sender,
-        render_handler,
-        load_handler,
-        display_handler,
-        life_span_handler,
-    ))
+    Client::new(HulyClientCallbacks::new(sender, state))
 }

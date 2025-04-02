@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use cef_ui::{BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, WindowInfo};
+use cef_ui::{
+    BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, EventFlags, KeyEvent, KeyEventType,
+    MouseButtonType, MouseEvent, PaintElementType, ThreadId, WindowInfo,
+};
 use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -15,10 +18,10 @@ pub struct BrowserState {
     pub width: u32,
     /// The height of the browser in pixels.
     pub height: u32,
-    /// The transmitting for transmitting CEF messages.
-    pub sender: UnboundedSender<CefMessage>,
     /// Whether the browser is active or not.
     pub active: bool,
+
+    pub left_mouse_button_down: bool,
 }
 
 pub struct Browser {
@@ -32,11 +35,13 @@ impl Browser {
     }
 
     pub fn mouse_move(&self, x: i32, y: i32) {
-        let event = cef_ui::MouseEvent {
-            x,
-            y,
-            modifiers: cef_ui::EventFlags::empty(),
-        };
+        let mut modifiers = EventFlags::empty();
+        if self.state.lock().unwrap().left_mouse_button_down {
+            modifiers.insert(EventFlags::LeftMouseButton);
+        }
+
+        let event = MouseEvent { x, y, modifiers };
+
         self.inner
             .get_host()
             .unwrap()
@@ -45,17 +50,23 @@ impl Browser {
     }
 
     pub fn mouse_click(&self, x: i32, y: i32, button: MouseType, down: bool) {
-        let event = cef_ui::MouseEvent {
+        if button == MouseType::Left {
+            let mut state = self.state.lock().unwrap();
+            state.left_mouse_button_down = down;
+        }
+
+        let event = MouseEvent {
             x,
             y,
-            modifiers: cef_ui::EventFlags::empty(),
+            modifiers: EventFlags::empty(),
         };
 
         let button = match button {
-            MouseType::Left => cef_ui::MouseButtonType::Left,
-            MouseType::Middle => cef_ui::MouseButtonType::Middle,
-            MouseType::Right => cef_ui::MouseButtonType::Right,
+            MouseType::Left => MouseButtonType::Left,
+            MouseType::Middle => MouseButtonType::Middle,
+            MouseType::Right => MouseButtonType::Right,
         };
+
         self.inner
             .get_host()
             .unwrap()
@@ -64,10 +75,10 @@ impl Browser {
     }
 
     pub fn mouse_wheel(&self, x: i32, y: i32, dx: i32, dy: i32) {
-        let event = cef_ui::MouseEvent {
+        let event = MouseEvent {
             x,
             y,
-            modifiers: cef_ui::EventFlags::empty(),
+            modifiers: EventFlags::empty(),
         };
         self.inner
             .get_host()
@@ -78,33 +89,33 @@ impl Browser {
 
     pub fn key_press(&self, character: u16, code: i32, down: bool, ctrl: bool, shift: bool) {
         let event_type = if down {
-            cef_ui::KeyEventType::KeyDown
+            KeyEventType::KeyDown
         } else {
-            cef_ui::KeyEventType::KeyUp
+            KeyEventType::KeyUp
         };
 
-        let mut modifiers = cef_ui::EventFlags::empty();
+        let mut modifiers = EventFlags::empty();
         if ctrl {
-            modifiers = modifiers.union(cef_ui::EventFlags::ControlDown);
+            modifiers = modifiers.union(EventFlags::ControlDown);
         }
         if shift {
-            modifiers = modifiers.union(cef_ui::EventFlags::ShiftDown);
+            modifiers = modifiers.union(EventFlags::ShiftDown);
         }
-        let mut event = cef_ui::KeyEvent {
-            event_type: event_type,
-            modifiers: modifiers,
+        let mut event = KeyEvent {
+            event_type,
+            modifiers,
             windows_key_code: code.into(),
             native_key_code: code,
             is_system_key: false,
-            character: character,
+            character,
             unmodified_character: character,
             focus_on_editable_field: false,
         };
 
         _ = self.inner.get_host().unwrap().send_key_event(event.clone());
 
-        if event_type == cef_ui::KeyEventType::KeyDown && character != 0 {
-            event.event_type = cef_ui::KeyEventType::Char;
+        if event_type == KeyEventType::KeyDown && character != 0 {
+            event.event_type = KeyEventType::Char;
             _ = self.inner.get_host().unwrap().send_key_event(event);
         }
     }
@@ -120,7 +131,7 @@ impl Browser {
             .inner
             .get_host()
             .unwrap()
-            .invalidate(cef_ui::PaintElementType::View);
+            .invalidate(PaintElementType::View);
     }
 
     pub fn stop_video(&self) {
@@ -140,7 +151,7 @@ impl Browser {
             .inner
             .get_host()
             .unwrap()
-            .invalidate(cef_ui::PaintElementType::View);
+            .invalidate(PaintElementType::View);
     }
 
     pub fn go_to(&self, url: &str) {
@@ -175,16 +186,13 @@ fn create_browser_in_ui_thread(
     let state = Arc::new(Mutex::new(BrowserState {
         width,
         height,
-        sender: sender.clone(),
         active: true,
+        left_mouse_button_down: false,
     }));
     let client = client::new(state.clone(), sender);
     let inner = BrowserHost::create_browser_sync(&window_info, client, url, &settings, None, None);
 
-    Browser {
-        inner: inner,
-        state: state,
-    }
+    Browser { inner, state }
 }
 
 /// A task for creating a browser asynchronously.
@@ -229,7 +237,7 @@ pub fn create_browser(
 ) -> Browser {
     let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
     let result = cef_ui::post_task(
-        cef_ui::ThreadId::UI,
+        ThreadId::UI,
         CefTask::new(CreateBrowserTaskCallback {
             tx,
             width,

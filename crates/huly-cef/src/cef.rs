@@ -47,7 +47,7 @@ pub fn new() -> Result<CefContext, anyhow::Error> {
 ///
 /// Returns an error if the directory cannot be created.
 fn get_root_cache_dir() -> Result<PathBuf> {
-    let path = PathBuf::from("/tmp/cef");
+    let path = PathBuf::from("/home/nikita/repos/cefcache");
     if !path.exists() {
         create_dir_all(&path)?;
     }
