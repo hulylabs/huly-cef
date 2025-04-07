@@ -84,13 +84,12 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn on_paint(
         &mut self,
         _browser: Browser,
-        paint_element_type: PaintElementType,
+        _paint_element_type: PaintElementType,
         _dirty_rects: &[Rect],
         buffer: &[u8],
         width: usize,
         height: usize,
     ) {
-        println!("Painting element type: {:?}", paint_element_type);
         let state = self.browser_state.lock().unwrap();
         if state.active {
             let pixel_count = width * height * 4;
@@ -99,15 +98,9 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
                 let [b, g, r, a] = src.try_into().unwrap();
                 dst.copy_from_slice(&[r, g, b, a]);
             }
-            let result = self
+            _ = self
                 .cef_message_channel
                 .send(CefMessage::Frame(rgba_buffer));
-            match result {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!("Failed to send message: {:?}", e);
-                }
-            }
         }
     }
 

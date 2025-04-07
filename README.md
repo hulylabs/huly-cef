@@ -26,7 +26,7 @@ Follow these steps to build and run Huly CEF:
    ./target/release/huly-cef.app/Contents/MacOS/huly-cef
    ```
 
-## Build Instructions For TypeScript CEF Client
+## Build Instructions For TypeScript CEF Client (Development Only)
 
 1. **Build The Package**  
    To build the package, use the following command:
