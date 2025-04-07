@@ -4,7 +4,6 @@ use tracing::{level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_log::LogTracer;
 use tracing_subscriber::FmtSubscriber;
 
-mod cef;
 mod websocket;
 
 fn main() -> Result<()> {
@@ -15,7 +14,7 @@ fn main() -> Result<()> {
 
     set_global_default(subscriber)?;
 
-    let cef = cef::new()?;
+    let cef = huly_cef::new()?;
 
     if let Some(code) = cef.is_cef_subprocess() {
         std::process::exit(code);

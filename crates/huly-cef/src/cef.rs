@@ -1,9 +1,6 @@
 use anyhow::Result;
 use cef_ui::{App, Context, LogSeverity, MainArgs, Settings};
-use std::{
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-};
+use std::{fs::create_dir_all, path::PathBuf};
 
 mod application;
 mod client;

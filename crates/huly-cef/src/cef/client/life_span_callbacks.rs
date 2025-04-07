@@ -2,8 +2,8 @@ use cef_ui::{
     Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks,
     PopupFeatures, WindowInfo, WindowOpenDisposition,
 };
+use log;
 use tokio::sync::mpsc::UnboundedSender;
-use tracing_log::log;
 
 use crate::cef::messages::CefMessage;
 

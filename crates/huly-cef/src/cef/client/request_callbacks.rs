@@ -4,14 +4,12 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::cef::messages::CefMessage;
 
 pub struct HulyRequestHandlerCallbacks {
-    cef_message_channel: UnboundedSender<CefMessage>,
+    cef_msg_channel: UnboundedSender<CefMessage>,
 }
 
 impl HulyRequestHandlerCallbacks {
-    pub fn new(cef_message_channel: UnboundedSender<CefMessage>) -> Self {
-        Self {
-            cef_message_channel,
-        }
+    pub fn new(cef_msg_channel: UnboundedSender<CefMessage>) -> Self {
+        Self { cef_msg_channel }
     }
 }
 

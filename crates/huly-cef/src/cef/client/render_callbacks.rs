@@ -4,8 +4,8 @@ use cef_ui::{
     AccessibilityHandler, Browser, DragData, DragOperations, HorizontalAlignment, PaintElementType,
     Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
 };
+use log;
 use tokio::sync::mpsc::UnboundedSender;
-use tracing_log::log;
 
 use crate::cef::{browser::BrowserState, messages::CefMessage};
 

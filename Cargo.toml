@@ -3,7 +3,8 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.dependencies]
-anyhow = "1.0.95"
+log = "0.4"
+anyhow = "1.0"
 tracing = "0.1"
-tracing-log = "0.2.0"
-tracing-subscriber = "0.3.19"
+tracing-log = "0.2"
+tracing-subscriber = "0.3"

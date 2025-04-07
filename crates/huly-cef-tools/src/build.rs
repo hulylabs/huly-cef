@@ -10,7 +10,7 @@ use tracing_subscriber::FmtSubscriber;
 struct BuildArgs {
     /// Whether this is a release build.
     #[arg(long, default_value_t = String::from("dev"))]
-    pub profile: String
+    pub profile: String,
 }
 
 fn main() -> Result<()> {
@@ -29,8 +29,8 @@ fn main() -> Result<()> {
 
     // Build the main executable.
     BuildCommand {
-        binary:  String::from("huly-cef"),
-        profile: args.profile.to_string()
+        binary: String::from("huly-cef-websockets"),
+        profile: args.profile.to_string(),
     }
     .run()?;
 
@@ -38,20 +38,20 @@ fn main() -> Result<()> {
     if cfg!(target_os = "macos") {
         // Build the helper executable.
         BuildCommand {
-            binary:  String::from("huly-cef-helper"),
-            profile: args.profile.to_string()
+            binary: String::from("huly-cef-helper"),
+            profile: args.profile.to_string(),
         }
         .run()?;
 
         // Build the app bundle.
         AppBundleSettings {
-            profile:         args.profile.to_string(),
-            artifacts_dir:   get_cef_artifacts_dir()?,
-            app_name:        String::from("huly-cef"),
-            main_exe_name:   String::from("huly-cef"),
+            profile: args.profile.to_string(),
+            artifacts_dir: get_cef_artifacts_dir()?,
+            app_name: String::from("huly-cef-websockets"),
+            main_exe_name: String::from("huly-cef-websockets"),
             helper_exe_name: String::from("huly-cef-helper"),
-            resources_dir:   workspace_dir.join("cef-resources/macos"),
-            org_name:        String::from("huly")
+            resources_dir: workspace_dir.join("cef-resources/macos"),
+            org_name: String::from("huly"),
         }
         .run()?;
     }

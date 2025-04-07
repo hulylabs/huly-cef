@@ -748,18 +748,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cef-ui",
- "cef-ui-util",
  "crossbeam-channel",
- "futures",
+ "log",
  "serde",
- "serde_json",
  "serde_repr",
  "tokio",
- "tokio-tungstenite",
- "tracing",
- "tracing-log",
- "tracing-subscriber",
- "tungstenite",
  "url",
 ]
 
@@ -782,6 +775,25 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "huly-cef-websockets"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cef-ui",
+ "cef-ui-util",
+ "futures",
+ "huly-cef",
+ "log",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "tungstenite",
 ]
 
 [[package]]

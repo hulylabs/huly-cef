@@ -18,17 +18,17 @@ Follow these steps to build and run Huly CEF:
 4. **Run Huly CEF**  
    Linux:
    ```bash
-   ./target/release/huly-cef
+   ./target/release/huly-cef-websockets
    ```
 
    Windows:
    ```bash
-   ./target/release/huly-cef.exe
+   ./target/release/huly-cef-websockets.exe
    ```
 
    MacOS:
    ```bash
-   ./target/release/huly-cef.app/Contents/MacOS/huly-cef
+   ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
    ```
 
 ## Build Instructions For TypeScript CEF Client (Development Only)

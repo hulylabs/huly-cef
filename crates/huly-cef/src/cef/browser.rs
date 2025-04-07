@@ -190,27 +190,6 @@ impl Browser {
     }
 }
 
-fn create_browser_in_ui_thread(
-    width: u32,
-    height: u32,
-    url: &str,
-    sender: UnboundedSender<CefMessage>,
-) -> Browser {
-    let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-    let settings = BrowserSettings::new();
-    let state = Arc::new(Mutex::new(BrowserState {
-        width,
-        height,
-        active: true,
-        left_mouse_button_down: false,
-    }));
-    let client = client::new(state.clone(), sender);
-    let inner = BrowserHost::create_browser_sync(&window_info, client, url, &settings, None, None);
-
-    Browser { inner, state }
-}
-
-/// A task for creating a browser asynchronously.
 struct CreateBrowserTaskCallback {
     tx: Sender<Browser>,
     width: u32,
@@ -222,9 +201,27 @@ struct CreateBrowserTaskCallback {
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
     /// Executes the task to create a browser and send it through the channel.
     fn execute(&mut self) {
-        let browser =
-            create_browser_in_ui_thread(self.width, self.height, &self.url, self.sender.clone());
-        self.tx.send(browser).expect("failed to send a browser");
+        let window_info = WindowInfo::new().windowless_rendering_enabled(true);
+        let settings = BrowserSettings::new();
+        let state = Arc::new(Mutex::new(BrowserState {
+            width: self.width,
+            height: self.height,
+            active: true,
+            left_mouse_button_down: false,
+        }));
+        let client = client::new(state.clone(), self.sender.clone());
+        let inner = BrowserHost::create_browser_sync(
+            &window_info,
+            client,
+            &self.url,
+            &settings,
+            None,
+            None,
+        );
+
+        self.tx
+            .send(Browser { inner, state })
+            .expect("failed to send a browser");
     }
 }
 

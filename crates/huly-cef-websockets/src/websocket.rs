@@ -1,14 +1,16 @@
 use futures::{stream::SplitStream, SinkExt, StreamExt};
+use log;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::{self},
 };
 use tokio_tungstenite::WebSocketStream;
-use tracing_log::log;
 use tungstenite::Message;
 
-use crate::cef::messages::CefMessage;
-use crate::cef::{browser::Browser, messages::BrowserMessage};
+use huly_cef::{
+    browser::Browser,
+    messages::{BrowserMessage, CefMessage},
+};
 
 /// Runs the WebSocket server that listens for incoming connections.
 pub async fn serve() {
