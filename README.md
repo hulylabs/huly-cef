@@ -1,3 +1,13 @@
+## Crates
+
+| Crate Name            | Description                                                                 |
+|-----------------------|-----------------------------------------------------------------------------|
+| `huly-cef`            | Core library for interacting with the Chromium Embedded Framework (CEF)     |
+| `huly-cef-helper`     | macOS-specific helper app required for proper bundle packaging              |
+| `huly-cef-tools`      | Utility crate providing tools and helpers for building `huly-cef` apps      |
+| `huly-cef-websockets` | WebSocket-based server for streaming and interacting with CEF browser views |
+
+
 ## Launch Instructions For Huly CEF
 Follow these steps to build and run Huly CEF:
 
@@ -31,7 +41,7 @@ Follow these steps to build and run Huly CEF:
    ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
    ```
 
-## Build Instructions For TypeScript CEF Client (Development Only)
+## Build Instructions For TypeScript CEF Client (For Development)
 
 1. **Build The Package**  
    To build the package, use the following command:
