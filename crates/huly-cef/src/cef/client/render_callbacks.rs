@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use cef_ui::{Browser, Point, Rect, RenderHandlerCallbacks, ScreenInfo, Size};
+use cef_ui::{
+    AccessibilityHandler, Browser, DragData, DragOperations, HorizontalAlignment, PaintElementType,
+    Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
+};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::{browser::BrowserState, messages::CefMessage};
@@ -23,13 +26,13 @@ impl HulyRenderHandlerCallbacks {
 }
 
 impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
-    fn get_accessibility_handler(&mut self) -> Option<cef_ui::AccessibilityHandler> {
+    fn get_accessibility_handler(&mut self) -> Option<AccessibilityHandler> {
         None
     }
 
     fn get_root_screen_rect(&mut self, _browser: Browser) -> Option<Rect> {
         let state = self.browser_state.lock().unwrap();
-        Some(cef_ui::Rect {
+        Some(Rect {
             x: 0,
             y: 0,
             width: state.width as i32,
@@ -39,7 +42,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
 
     fn get_view_rect(&mut self, _browser: Browser) -> Rect {
         let state = self.browser_state.lock().unwrap();
-        cef_ui::Rect {
+        Rect {
             x: 0,
             y: 0,
             width: state.width as i32,
@@ -51,7 +54,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         Some(Point { x: 0, y: 0 })
     }
 
-    fn get_screen_info(&mut self, _browser: Browser) -> Option<cef_ui::ScreenInfo> {
+    fn get_screen_info(&mut self, _browser: Browser) -> Option<ScreenInfo> {
         let state = self.browser_state.lock().unwrap();
 
         Some(ScreenInfo {
@@ -81,14 +84,13 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn on_paint(
         &mut self,
         _browser: Browser,
-        paint_element_type: cef_ui::PaintElementType,
-        dirty_rects: &[Rect],
+        paint_element_type: PaintElementType,
+        _dirty_rects: &[Rect],
         buffer: &[u8],
         width: usize,
         height: usize,
     ) {
         println!("Painting element type: {:?}", paint_element_type);
-        println!("Dirty rects: {:?}", dirty_rects);
         let state = self.browser_state.lock().unwrap();
         if state.active {
             let pixel_count = width * height * 4;
@@ -112,7 +114,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn on_accelerated_paint(
         &mut self,
         _browser: Browser,
-        _paint_element_type: cef_ui::PaintElementType,
+        _paint_element_type: PaintElementType,
         _dirty_rects: &[Rect],
     ) {
     }
@@ -120,7 +122,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn get_touch_handle_size(
         &mut self,
         _browser: Browser,
-        _orientation: cef_ui::HorizontalAlignment,
+        _orientation: HorizontalAlignment,
     ) -> Size {
         Size {
             width: 0,
@@ -128,31 +130,26 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         }
     }
 
-    fn on_touch_handle_state_changed(
-        &mut self,
-        _browser: Browser,
-        _state: &cef_ui::TouchHandleState,
-    ) {
-    }
+    fn on_touch_handle_state_changed(&mut self, _browser: Browser, _state: &TouchHandleState) {}
 
     fn start_dragging(
         &mut self,
         _browser: Browser,
-        _drag_data: cef_ui::DragData,
-        _allowed_ops: cef_ui::DragOperations,
+        _drag_data: DragData,
+        _allowed_ops: DragOperations,
         _drag_start: &Point,
     ) -> bool {
         false
     }
 
-    fn update_drag_cursor(&mut self, _browser: Browser, _operation: cef_ui::DragOperations) {}
+    fn update_drag_cursor(&mut self, _browser: Browser, _operation: DragOperations) {}
 
     fn on_scroll_offset_changed(&mut self, _browser: Browser, _x: f64, _y: f64) {}
 
     fn on_ime_composition_range_changed(
         &mut self,
         _browser: Browser,
-        _selected_range: &cef_ui::Range,
+        _selected_range: &Range,
         _character_bounds: &[Rect],
     ) {
     }
@@ -161,14 +158,9 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         &mut self,
         _browser: Browser,
         _selected_text: Option<String>,
-        _selected_range: &cef_ui::Range,
+        _selected_range: &Range,
     ) {
     }
 
-    fn on_virtual_keyboard_requested(
-        &mut self,
-        _browser: Browser,
-        _input_mode: cef_ui::TextInputMode,
-    ) {
-    }
+    fn on_virtual_keyboard_requested(&mut self, _browser: Browser, _input_mode: TextInputMode) {}
 }

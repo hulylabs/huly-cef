@@ -24,9 +24,9 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
         _browser: Browser,
         _frame: Frame,
         _popup_id: i32,
-        _target_url: Option<String>,
+        target_url: Option<String>,
         _target_frame_name: Option<String>,
-        _target_disposition: WindowOpenDisposition,
+        target_disposition: WindowOpenDisposition,
         _user_gesture: bool,
         _popup_features: PopupFeatures,
         _window_info: &mut WindowInfo,
@@ -35,7 +35,25 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
         _extra_info: &mut Option<DictionaryValue>,
         _no_javascript_access: &mut bool,
     ) -> bool {
-        false
+        match target_disposition {
+            WindowOpenDisposition::NewForegroundTab => {
+                _ = self
+                    .cef_message_channel
+                    .send(CefMessage::NewTabRequested(target_url.unwrap()));
+            }
+            WindowOpenDisposition::NewBackgroundTab => {
+                _ = self
+                    .cef_message_channel
+                    .send(CefMessage::NewTabRequested(target_url.unwrap()));
+            }
+            WindowOpenDisposition::NewWindow => {
+                _ = self
+                    .cef_message_channel
+                    .send(CefMessage::NewTabRequested(target_url.unwrap()));
+            }
+            _ => {}
+        };
+        true
     }
 
     fn on_before_dev_tools_popup(

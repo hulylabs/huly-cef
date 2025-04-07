@@ -23,6 +23,8 @@ pub enum CefMessage {
     Closed,
     /// Message indicating that the mouse has hovered over a URL.
     UrlHovered { url: String, hovered: bool },
+    /// Message indicating that a new tab has been requested.
+    NewTabRequested(String),
 }
 
 use serde::{Deserialize, Serialize};

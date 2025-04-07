@@ -11,6 +11,7 @@ export class CEFClient {
     public onTitleChanged: ((title: string) => void) | undefined;
     public onUrlChanged: ((url: string) => void) | undefined;
     public onCursorChanged: ((cursor: string) => void) | undefined;
+    public onNewTabRequested: ((url: string) => void) | undefined;
     public onRender: ((data: Uint8Array) => void) | undefined;
 
     constructor(websocket: WebSocket) {
@@ -49,6 +50,10 @@ export class CEFClient {
 
                     if (parsed.UrlChanged) {
                         this.onUrlChanged?.(parsed.UrlChanged);
+                    }
+
+                    if (parsed.NewTabRequested) {
+                        this.onNewTabRequested?.(parsed.NewTabRequested);
                     }
                 }
             }

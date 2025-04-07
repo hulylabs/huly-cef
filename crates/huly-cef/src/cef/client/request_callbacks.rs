@@ -24,7 +24,6 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _user_gesture: bool,
         _is_redirect: bool,
     ) -> bool {
-        println!("on_before_browse");
         false
     }
 
@@ -32,13 +31,10 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         &mut self,
         _browser: cef_ui::Browser,
         _frame: cef_ui::Frame,
-        target_url: &str,
-        target_disposition: cef_ui::WindowOpenDisposition,
+        _target_url: &str,
+        _target_disposition: cef_ui::WindowOpenDisposition,
         _user_gesture: bool,
     ) -> bool {
-        println!("on_open_urlfrom_tab");
-        println!("target_url: {}", target_url);
-        println!("taget_disposition: {:?}", target_disposition);
         true
     }
 
