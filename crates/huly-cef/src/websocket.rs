@@ -4,6 +4,7 @@ use tokio::{
     sync::mpsc::{self},
 };
 use tokio_tungstenite::WebSocketStream;
+use tracing_log::log;
 use tungstenite::Message;
 
 use crate::cef::messages::CefMessage;
@@ -31,38 +32,35 @@ pub async fn serve() {
 
 /// Handles a single WebSocket connection.
 async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStream>) {
+    log::info!("New WebSocket connection");
     let (mut outgoing, incoming) = websocket.split();
 
     // Create a browser
     let (cef_message_sender, mut cef_message_reader) = mpsc::unbounded_channel::<CefMessage>();
     let browser = Browser::new(100, 100, cef_message_sender);
+    let browser_id = browser.get_id();
 
     tokio::spawn(handle_incoming_messages(incoming, browser));
 
     while let Some(message) = cef_message_reader.recv().await {
+        log::trace!("Received a message from CEF: {:?}", message);
+
         let msg = match message {
             CefMessage::Frame(buffer) => Message::Binary(buffer.into()),
             CefMessage::Closed => {
                 break;
             }
-            CefMessage::UrlHovered { url, hovered } => {
-                println!("UrlHovered: {}, {}", url, hovered);
-                serde_json::to_string("UrlHovered")
-                    .expect("failed to serialize a message")
-                    .into()
-            }
-            message => Message::Text(
-                serde_json::to_string(&message)
-                    .expect("failed to serialize a message")
-                    .into(),
-            ),
+            message => serde_json::to_string(&message)
+                .expect("failed to serialize a message")
+                .into(),
         };
         _ = outgoing.send(msg).await;
     }
 
-    println!("+++++++++++++++++++++++++++++");
-    println!("handle_connection is finished");
-    println!("+++++++++++++++++++++++++++++");
+    log::info!(
+        "handle_connection function is finished for browser {}",
+        browser_id
+    );
 }
 
 /// Handles incoming WebSocket messages and processes browser events.
@@ -74,13 +72,13 @@ async fn handle_incoming_messages(
         let msg = match msg {
             Ok(msg) => msg,
             Err(error) => {
-                println!("failed to read a message: {:?}, closing connection", error);
+                log::error!("Failed to read a message: {:?}", error);
                 break;
             }
         };
 
         if msg.is_close() {
-            println!("websocket connection closed");
+            log::info!("WebSocket connection closed");
             break;
         }
 
@@ -95,23 +93,21 @@ async fn handle_incoming_messages(
 
     _ = browser.close();
 
-    println!("====================================");
-    println!("handle_incoming_messages is finished");
-    println!("====================================");
+    log::info!(
+        "handle_incoming_messages function is finished for browser: {}",
+        browser.get_id()
+    );
 }
 
 fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
     match msg {
-        BrowserMessage::MouseMove { x, y } => {
-            // println!("mouse_move: ({}, {})", x, y);
-            browser.mouse_move(x, y)
-        }
+        BrowserMessage::MouseMove { x, y } => browser.mouse_move(x, y),
         BrowserMessage::MouseClick { x, y, button, down } => {
-            println!("mouse_click: ({}, {}, {:?}, {})", x, y, button, down);
+            log::trace!("mouse_click: ({}, {}, {:?}, {})", x, y, button, down);
             browser.mouse_click(x, y, button, down);
         }
         BrowserMessage::MouseWheel { x, y, dx, dy } => {
-            println!("mouse_wheel: ({}, {}, {}, {})", x, y, dx, dy);
+            log::trace!("mouse_wheel: ({}, {}, {}, {})", x, y, dx, dy);
             browser.mouse_wheel(x, y, dx, dy);
         }
         BrowserMessage::KeyPress {
@@ -121,36 +117,36 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
             ctrl,
             shift,
         } => {
-            println!("keypress: ({}, {}, {})", character, code, down);
+            log::trace!("keypress: ({}, {}, {})", character, code, down);
             browser.key_press(character, code, down, ctrl, shift);
         }
         BrowserMessage::StartVideo => {
-            println!("StartVideo");
+            log::trace!("StartVideo");
             browser.start_video();
         }
         BrowserMessage::StopVideo => {
-            println!("StopVideo");
+            log::trace!("StopVideo");
             browser.stop_video();
         }
         BrowserMessage::GoTo { url } => {
-            println!("GoTo: {}", url);
+            log::trace!("GoTo: {}", url);
             browser.go_to(&url);
         }
         BrowserMessage::Resize { width, height } => {
-            println!("Resize: ({}, {})", width, height);
+            log::trace!("Resize: ({}, {})", width, height);
             browser.resize(width, height);
         }
         BrowserMessage::Close => return true,
         BrowserMessage::GoBack => {
-            println!("GoBack");
+            log::trace!("GoBack");
             browser.go_back();
         }
         BrowserMessage::GoForward => {
-            println!("GoForward");
+            log::trace!("GoForward");
             browser.go_forward();
         }
         BrowserMessage::Reload => {
-            println!("Reload");
+            log::trace!("Reload");
             browser.reload();
         }
     }

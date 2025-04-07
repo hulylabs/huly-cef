@@ -3,18 +3,17 @@ use cef_ui::{
     PopupFeatures, WindowInfo, WindowOpenDisposition,
 };
 use tokio::sync::mpsc::UnboundedSender;
+use tracing_log::log;
 
 use crate::cef::messages::CefMessage;
 
 pub struct HulyLifeSpanHandlerCallbacks {
-    cef_message_channel: UnboundedSender<CefMessage>,
+    cef_msg_channel: UnboundedSender<CefMessage>,
 }
 
 impl HulyLifeSpanHandlerCallbacks {
-    pub fn new(cef_message_channel: UnboundedSender<CefMessage>) -> Self {
-        Self {
-            cef_message_channel,
-        }
+    pub fn new(cef_msg_channel: UnboundedSender<CefMessage>) -> Self {
+        Self { cef_msg_channel }
     }
 }
 
@@ -36,20 +35,15 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
         _no_javascript_access: &mut bool,
     ) -> bool {
         match target_disposition {
-            WindowOpenDisposition::NewForegroundTab => {
-                _ = self
-                    .cef_message_channel
-                    .send(CefMessage::NewTabRequested(target_url.unwrap()));
-            }
-            WindowOpenDisposition::NewBackgroundTab => {
-                _ = self
-                    .cef_message_channel
-                    .send(CefMessage::NewTabRequested(target_url.unwrap()));
-            }
-            WindowOpenDisposition::NewWindow => {
-                _ = self
-                    .cef_message_channel
-                    .send(CefMessage::NewTabRequested(target_url.unwrap()));
+            WindowOpenDisposition::NewForegroundTab
+            | WindowOpenDisposition::NewBackgroundTab
+            | WindowOpenDisposition::NewWindow => {
+                if let Err(error) = self
+                    .cef_msg_channel
+                    .send(CefMessage::NewTabRequested(target_url.unwrap()))
+                {
+                    log::error!("Failed to send message: {:?}", error);
+                }
             }
             _ => {}
         };
@@ -69,15 +63,14 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
 
     fn on_after_created(&mut self, _browser: Browser) {}
 
-    fn do_close(&mut self, _browser: Browser) -> bool {
-        println!("do_close is called");
-        let result = self.cef_message_channel.send(CefMessage::Closed);
+    fn do_close(&mut self, browser: Browser) -> bool {
+        log::info!(
+            "closing browser: {}",
+            browser.get_identifier().expect("failed to get browser id")
+        );
 
-        match result {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("Failed to send message: {:?}", e);
-            }
+        if let Err(error) = self.cef_msg_channel.send(CefMessage::Closed) {
+            log::error!("Failed to send message: {:?}", error);
         }
         true
     }

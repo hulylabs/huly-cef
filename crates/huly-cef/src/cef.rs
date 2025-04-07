@@ -1,9 +1,9 @@
 use anyhow::Result;
 use cef_ui::{App, Context, LogSeverity, MainArgs, Settings};
-use std::{fs::create_dir_all, path::{Path, PathBuf}};
-use tracing::{level_filters::LevelFilter, subscriber::set_global_default, Level};
-use tracing_log::LogTracer;
-use tracing_subscriber::FmtSubscriber;
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 
 mod application;
 mod client;
@@ -20,13 +20,6 @@ pub type CefContext = cef_ui::Context;
 ///
 /// Returns an error if initialization fails.
 pub fn new() -> Result<CefContext, anyhow::Error> {
-    LogTracer::init()?;
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(LevelFilter::from_level(Level::ERROR))
-        .finish();
-
-    set_global_default(subscriber)?;
-
     let root_cache_dir = get_root_cache_dir()?;
 
     let main_args = MainArgs::new()?;

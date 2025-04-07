@@ -170,8 +170,23 @@ impl Browser {
         let _ = self.inner.reload();
     }
 
-    pub fn close(self) {
+    pub fn close(&self) {
         let _ = self.inner.get_host().unwrap().close_browser(true);
+    }
+
+    pub fn get_url(&self) -> String {
+        self.inner
+            .get_main_frame()
+            .unwrap()
+            .unwrap()
+            .get_url()
+            .unwrap_or_default()
+    }
+
+    pub fn get_id(&self) -> i32 {
+        self.inner
+            .get_identifier()
+            .expect("failed to get browser ID")
     }
 }
 

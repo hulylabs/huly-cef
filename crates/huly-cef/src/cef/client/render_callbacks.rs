@@ -5,21 +5,22 @@ use cef_ui::{
     Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
 };
 use tokio::sync::mpsc::UnboundedSender;
+use tracing_log::log;
 
 use crate::cef::{browser::BrowserState, messages::CefMessage};
 
 pub struct HulyRenderHandlerCallbacks {
-    cef_message_channel: UnboundedSender<CefMessage>,
+    cef_msg_channel: UnboundedSender<CefMessage>,
     browser_state: Arc<Mutex<BrowserState>>,
 }
 
 impl HulyRenderHandlerCallbacks {
     pub fn new(
-        cef_message_channel: UnboundedSender<CefMessage>,
+        cef_msg_channel: UnboundedSender<CefMessage>,
         browser_state: Arc<Mutex<BrowserState>>,
     ) -> Self {
         Self {
-            cef_message_channel,
+            cef_msg_channel,
             browser_state,
         }
     }
@@ -98,9 +99,10 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
                 let [b, g, r, a] = src.try_into().unwrap();
                 dst.copy_from_slice(&[r, g, b, a]);
             }
-            _ = self
-                .cef_message_channel
-                .send(CefMessage::Frame(rgba_buffer));
+
+            if let Err(error) = self.cef_msg_channel.send(CefMessage::Frame(rgba_buffer)) {
+                log::error!("Failed to send message: {:?}", error);
+            }
         }
     }
 

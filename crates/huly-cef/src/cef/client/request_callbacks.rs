@@ -62,7 +62,6 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _scheme: Option<&str>,
         _callback: cef_ui::AuthCallback,
     ) -> bool {
-        println!("get_auth_credentials");
         true
     }
 
@@ -74,7 +73,6 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _ssl_info: cef_ui::SslInfo,
         _callback: cef_ui::Callback,
     ) -> bool {
-        println!("on_certificate_error");
         true
     }
 
@@ -87,17 +85,12 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _certificates: &[cef_ui::X509Certificate],
         _callback: cef_ui::SelectClientCertificateCallback,
     ) -> bool {
-        println!("on_select_client_certificate");
         true
     }
 
-    fn on_render_view_ready(&mut self, _browser: Browser) {
-        println!("on_render_view_ready");
-    }
+    fn on_render_view_ready(&mut self, _browser: Browser) {}
 
-    fn on_document_available_in_main_frame(&mut self, _browser: Browser) {
-        println!("on_document_available_in_main_frame");
-    }
+    fn on_document_available_in_main_frame(&mut self, _browser: Browser) {}
 
     fn on_render_process_terminated(
         &mut self,
@@ -106,6 +99,5 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _error_code: i32,
         _error_string: Option<String>,
     ) {
-        println!("on_render_process_terminated");
     }
 }
