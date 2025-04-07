@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cef_ui::{App, Context, LogSeverity, MainArgs, Settings};
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{fs::create_dir_all, path::{Path, PathBuf}};
 use tracing::{level_filters::LevelFilter, subscriber::set_global_default, Level};
 use tracing_log::LogTracer;
 use tracing_subscriber::FmtSubscriber;
@@ -47,7 +47,7 @@ pub fn new() -> Result<CefContext, anyhow::Error> {
 ///
 /// Returns an error if the directory cannot be created.
 fn get_root_cache_dir() -> Result<PathBuf> {
-    let path = PathBuf::from("/home/nikita/repos/cefcache");
+    let path = PathBuf::from("/tmp/cefcache");
     if !path.exists() {
         create_dir_all(&path)?;
     }

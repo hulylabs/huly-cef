@@ -13,7 +13,7 @@ Follow these steps to build and run Huly CEF:
 3. **Build Huly CEF**  
    To build Huly CEF, use the following command:
    ```bash
-   cargo run --bin huly-cef-build --release -- --profile=release
+   cargo run --bin huly-cef-build --release -- --profile release
    ```
 4. **Run Huly CEF**  
    Linux:
