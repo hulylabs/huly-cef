@@ -72,7 +72,7 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
         if let Err(error) = self.cef_msg_channel.send(CefMessage::Closed) {
             log::error!("Failed to send message: {:?}", error);
         }
-        true
+        false
     }
 
     fn on_before_close(&mut self, _browser: Browser) {}
