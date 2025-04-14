@@ -16,6 +16,7 @@ export class CEFClient {
 
     constructor(websocket: WebSocket) {
         this.websocket = websocket;
+        this.websocket.binaryType = "arraybuffer";
 
         this.websocket.onmessage = (event) => {
             if (event.data instanceof ArrayBuffer) {
@@ -25,7 +26,6 @@ export class CEFClient {
 
             if (typeof event.data === "string") {
                 let parsed = JSON.parse(event.data);
-                console.log("parsed", parsed);
 
                 if (typeof parsed === "string") {
                     if (parsed === "Loading") {

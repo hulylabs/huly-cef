@@ -47,6 +47,7 @@ Follow these steps to build and run Huly CEF:
    To build the package, use the following command:
    ```bash
    cd ./packages/cef-client
+   npm install
    npm run build
    ```
 2. **Link The Package**  

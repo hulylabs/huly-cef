@@ -131,11 +131,11 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
             browser.stop_video();
         }
         BrowserMessage::GoTo { url } => {
-            log::trace!("GoTo: {}", url);
+            log::info!("GoTo: {}", url);
             browser.go_to(&url);
         }
         BrowserMessage::Resize { width, height } => {
-            log::trace!("Resize: ({}, {})", width, height);
+            log::info!("Resize: ({}, {})", width, height);
             browser.resize(width, height);
         }
         BrowserMessage::Close => return true,
