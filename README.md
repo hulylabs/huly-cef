@@ -60,3 +60,9 @@ Follow these steps to build and run Huly CEF:
    ```bash
    npm link cef-client
    ```
+
+4. **Publish The Package**
+   To publish the package, use the following command:
+   ```bash
+   npm publish
+   ```
