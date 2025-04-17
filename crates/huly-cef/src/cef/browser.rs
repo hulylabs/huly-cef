@@ -202,7 +202,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
     /// Executes the task to create a browser and send it through the channel.
     fn execute(&mut self) {
         let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-        let settings = BrowserSettings::new().windowless_frame_rate(30);
+        let settings = BrowserSettings::new().windowless_frame_rate(60);
         let state = Arc::new(Mutex::new(BrowserState {
             width: self.width,
             height: self.height,
