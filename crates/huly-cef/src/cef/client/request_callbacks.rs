@@ -4,6 +4,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::cef::messages::CefMessage;
 
 pub struct HulyRequestHandlerCallbacks {
+    #[allow(unused)]
     cef_msg_channel: UnboundedSender<CefMessage>,
 }
 

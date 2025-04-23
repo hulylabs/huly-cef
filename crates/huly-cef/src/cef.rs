@@ -21,7 +21,7 @@ pub fn new() -> Result<CefContext, anyhow::Error> {
 
     let main_args = MainArgs::new()?;
     let settings = Settings::new()
-        .log_severity(LogSeverity::Error)
+        .log_severity(LogSeverity::Verbose)
         .root_cache_path(&root_cache_dir)?
         .no_sandbox(false);
 
