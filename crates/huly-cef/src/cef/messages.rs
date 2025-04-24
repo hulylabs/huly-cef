@@ -25,6 +25,8 @@ pub enum CefMessage {
     UrlHovered { url: String, hovered: bool },
     /// Message indicating that a new tab has been requested.
     NewTabRequested(String),
+    /// Message indicating that the browser is still alive.
+    Pong,
 }
 
 use serde::{Deserialize, Serialize};
@@ -76,4 +78,6 @@ pub enum BrowserMessage {
     GoBack,
     /// Message indicating that the browser should go forward to the next page.
     GoForward,
+    /// Message to check if the browser is alive.
+    Ping,
 }

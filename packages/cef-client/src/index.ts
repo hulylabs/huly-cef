@@ -4,9 +4,27 @@ export enum LoadState {
     Error,
 }
 
+// export enum CursorType {
+//     Default = "default",
+//     Pointer = "pointer",
+//     Text = "text",
+//     Wait = "wait",
+//     Crosshair = "crosshair",
+//     Move = "move",
+//     NotAllowed = "not-allowed",
+// }
+
+
+const HEARTBEAT_INTERVAL = 5000;
+const HEARTBEAT_TIMEOUT = 2500;
+
 export class CEFClient {
     websocket: WebSocket;
+    heartbeatInterval: number;
+    heartbeatTimeout: number;
+    lastPongTime: number;
 
+    public onConnectionBroken: (() => void) | undefined;
     public onLoadStateChanged: ((state: LoadState) => void) | undefined;
     public onTitleChanged: ((title: string) => void) | undefined;
     public onUrlChanged: ((url: string) => void) | undefined;
@@ -17,6 +35,33 @@ export class CEFClient {
     constructor(websocket: WebSocket) {
         this.websocket = websocket;
         this.websocket.binaryType = "arraybuffer";
+        this.lastPongTime = Date.now();
+        this.heartbeatTimeout = -1;
+
+        this.heartbeatInterval = setInterval(() => {
+            if (this.websocket.readyState === WebSocket.CLOSED) {
+                this.onConnectionBroken?.();
+                return;
+            }
+
+            if (this.websocket.readyState === WebSocket.OPEN) {
+                this.websocket.send("Ping");
+            }
+
+            if (this.heartbeatTimeout !== -1) {
+                clearTimeout(this.heartbeatTimeout);
+                this.heartbeatTimeout = -1;
+            }
+
+            this.heartbeatTimeout = setTimeout(() => {
+                if (Date.now() - this.lastPongTime > HEARTBEAT_TIMEOUT) {
+                    console.log("Heartbeat timeout, closing connection.");
+                    this.onConnectionBroken?.();
+                } else {
+                    console.log("Heartbeat timeout, but still connected.");
+                }
+            }, HEARTBEAT_TIMEOUT);
+        }, HEARTBEAT_INTERVAL);
 
         this.websocket.onmessage = (event) => {
             if (event.data instanceof ArrayBuffer) {
@@ -36,6 +81,9 @@ export class CEFClient {
                     }
                     if (parsed === "LoadError") {
                         this.onLoadStateChanged?.(LoadState.Error);
+                    }
+                    if (parsed === "Pong") {
+                        this.lastPongTime = Date.now();
                     }
                 }
 
@@ -109,6 +157,9 @@ export class CEFClient {
     };
 
     close() {
+        clearInterval(this.heartbeatInterval);
+        clearTimeout(this.heartbeatTimeout);
+
         this.websocket.send(JSON.stringify("Close"));
         this.websocket.close();
     }

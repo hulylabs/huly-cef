@@ -26,6 +26,7 @@ pub struct BrowserState {
 
 pub struct Browser {
     pub inner: cef_ui::Browser,
+    pub sender: UnboundedSender<CefMessage>,
     pub state: Arc<Mutex<BrowserState>>,
 }
 
@@ -188,6 +189,10 @@ impl Browser {
             .get_identifier()
             .expect("failed to get browser ID")
     }
+
+    pub fn pong(&self) {
+        let _ = self.sender.send(CefMessage::Pong);
+    }
 }
 
 struct CreateBrowserTaskCallback {
@@ -220,7 +225,11 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
         );
 
         self.tx
-            .send(Browser { inner, state })
+            .send(Browser {
+                inner,
+                sender: self.sender.clone(),
+                state,
+            })
             .expect("failed to send a browser");
     }
 }

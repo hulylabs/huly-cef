@@ -151,6 +151,10 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
             log::trace!("Reload");
             browser.reload();
         }
+        BrowserMessage::Ping => {
+            log::trace!("Ping");
+            browser.pong();
+        }
     }
 
     return false;
