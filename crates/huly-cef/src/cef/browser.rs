@@ -189,10 +189,6 @@ impl Browser {
             .get_identifier()
             .expect("failed to get browser ID")
     }
-
-    pub fn pong(&self) {
-        let _ = self.sender.send(CefMessage::Pong);
-    }
 }
 
 struct CreateBrowserTaskCallback {

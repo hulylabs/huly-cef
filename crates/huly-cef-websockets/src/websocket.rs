@@ -50,6 +50,11 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         let msg = match message {
             CefMessage::Frame(buffer) => Message::Binary(buffer.into()),
             CefMessage::Closed => {
+                println!("Sending Close Frame");
+                outgoing
+                    .send(Message::Close(None))
+                    .await
+                    .expect("failed to send a close message");
                 break;
             }
             message => serde_json::to_string(&message)
@@ -150,10 +155,6 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
         BrowserMessage::Reload => {
             log::trace!("Reload");
             browser.reload();
-        }
-        BrowserMessage::Ping => {
-            log::trace!("Ping");
-            browser.pong();
         }
     }
 
