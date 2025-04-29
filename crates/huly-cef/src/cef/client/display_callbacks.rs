@@ -33,7 +33,13 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         }
     }
 
-    fn on_favicon_urlchange(&mut self, _browser: Browser, _icon_urls: Vec<String>) {}
+    fn on_favicon_urlchange(&mut self, _browser: Browser, icon_urls: Vec<String>) {
+        if !icon_urls.is_empty() {
+            _ = self
+                .cef_message_channel
+                .send(CefMessage::FaviconUrlChanged(icon_urls[0].to_string()));
+        }
+    }
 
     fn on_fullscreen_mode_change(&mut self, _browser: Browser, _fullscreen: bool) {}
 

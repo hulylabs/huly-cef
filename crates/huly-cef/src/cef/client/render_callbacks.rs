@@ -92,6 +92,10 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         height: usize,
     ) {
         let state = self.browser_state.lock().unwrap();
+        if state.width != width as u32 || state.height != height as u32 {
+            return;
+        }
+
         if state.active {
             let pixel_count = width * height * 4;
             let mut rgba_buffer = vec![0u8; pixel_count];

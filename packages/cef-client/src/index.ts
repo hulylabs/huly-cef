@@ -27,6 +27,7 @@ export class CEFClient {
     public onLoadStateChanged: ((state: LoadState) => void) | undefined;
     public onTitleChanged: ((title: string) => void) | undefined;
     public onUrlChanged: ((url: string) => void) | undefined;
+    public onFaviconUrlChanged: ((url: string) => void) | undefined;
     public onCursorChanged: ((cursor: string) => void) | undefined;
     public onNewTabRequested: ((url: string) => void) | undefined;
     public onRender: ((data: Uint8Array) => void) | undefined;
@@ -121,6 +122,7 @@ export class CEFClient {
         if (event.data instanceof ArrayBuffer) {
             let imageData = new Uint8Array(event.data);
             this.onRender?.(imageData);
+            return;
         }
 
         if (typeof event.data === "string") {
@@ -153,6 +155,10 @@ export class CEFClient {
 
                 if (parsed.NewTabRequested) {
                     this.onNewTabRequested?.(parsed.NewTabRequested);
+                }
+
+                if (parsed.FaviconUrlChanged) {
+                    this.onFaviconUrlChanged?.(parsed.FaviconUrlChanged);
                 }
             }
         }

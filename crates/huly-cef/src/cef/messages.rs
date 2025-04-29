@@ -19,6 +19,8 @@ pub enum CefMessage {
     TitleChanged(String),
     /// Message indicating that URL has changed.
     UrlChanged(String),
+    /// Message indicating that favicon has changed.
+    FaviconUrlChanged(String),
     /// Message indicating that CEF has closed the browser.
     Closed,
     /// Message indicating that the mouse has hovered over a URL.

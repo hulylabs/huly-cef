@@ -212,7 +212,7 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#dbd835b5fe0d22f8d96d87e51318b6ce44ac6cc3"
+source = "git+https://github.com/hulylabs/cef-ui.git#3929b6ce5e57892a48e8a08387c9f22128f7de8a"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -228,7 +228,7 @@ dependencies = [
 [[package]]
 name = "cef-ui-helper"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#dbd835b5fe0d22f8d96d87e51318b6ce44ac6cc3"
+source = "git+https://github.com/hulylabs/cef-ui.git#3929b6ce5e57892a48e8a08387c9f22128f7de8a"
 dependencies = [
  "anyhow",
  "libloading",
@@ -240,12 +240,12 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#dbd835b5fe0d22f8d96d87e51318b6ce44ac6cc3"
+source = "git+https://github.com/hulylabs/cef-ui.git#3929b6ce5e57892a48e8a08387c9f22128f7de8a"
 
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#dbd835b5fe0d22f8d96d87e51318b6ce44ac6cc3"
+source = "git+https://github.com/hulylabs/cef-ui.git#3929b6ce5e57892a48e8a08387c9f22128f7de8a"
 dependencies = [
  "anyhow",
  "bindgen",
