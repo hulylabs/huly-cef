@@ -84,27 +84,13 @@ impl ClientCallbacks for HulyClientCallbacks {
         _browser: Browser,
         _frame: Frame,
         _source_process: ProcessId,
-        message: ProcessMessage,
+        _message: ProcessMessage,
     ) -> bool {
-        if let Ok(name) = message.get_name() {
-            if name == "UrlHoveredMessage" {
-                let args = message.get_argument_list().unwrap().unwrap();
-                if let (Ok(url), Ok(hovered)) = (args.get_string(0), args.get_bool(1)) {
-                    self.sender
-                        .send(CefMessage::UrlHovered {
-                            url: url.unwrap(),
-                            hovered,
-                        })
-                        .unwrap();
-                }
-            }
-        }
         true
     }
 
     fn get_request_handler(&mut self) -> Option<cef_ui::RequestHandler> {
         Some(self.request_handler.clone())
-        // None
     }
 }
 

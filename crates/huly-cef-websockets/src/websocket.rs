@@ -13,8 +13,8 @@ use huly_cef::{
 };
 
 /// Runs the WebSocket server that listens for incoming connections.
-pub async fn serve() {
-    let server = TcpListener::bind("127.0.0.1:8080")
+pub async fn serve(addr: String) {
+    let server = TcpListener::bind(addr)
         .await
         .expect("failed to start a TCP listener");
 
