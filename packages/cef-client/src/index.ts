@@ -23,6 +23,9 @@ export class CEFClient {
 
     heartbeatInterval: NodeJS.Timeout | number | undefined;
 
+    size: { width: number; height: number } = { width: 0, height: 0 };
+    url: string = "";
+
     public onConnectionBroken: (() => void) | undefined;
     public onLoadStateChanged: ((state: LoadState) => void) | undefined;
     public onTitleChanged: ((title: string) => void) | undefined;
@@ -74,7 +77,10 @@ export class CEFClient {
     };
 
     resize(width: number, height: number) {
-        this.send(JSON.stringify({ Resize: { width: Math.floor(width), height: Math.floor(height) } }));
+        this.size.width = Math.floor(width);
+        this.size.height = Math.floor(height);
+
+        this.send(JSON.stringify({ Resize: this.size }));
     };
 
     startVideo() {
@@ -150,6 +156,7 @@ export class CEFClient {
                 }
 
                 if (parsed.UrlChanged) {
+                    this.url = parsed.UrlChanged;
                     this.onUrlChanged?.(parsed.UrlChanged);
                 }
 
@@ -179,6 +186,8 @@ export class CEFClient {
         this.heartbeatInterval = setInterval(() => {
             if (this.websocket.readyState === WebSocket.CLOSED) {
                 this.websocket = this.createWebSocket(this.websocket.url);
+                this.send(JSON.stringify({ Resize: this.size }));
+                this.send(JSON.stringify({ GoTo: { url: this.url } }));
             }
         }, HEARTBEAT_INTERVAL);
     }
