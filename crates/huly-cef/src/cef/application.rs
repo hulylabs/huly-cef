@@ -25,8 +25,6 @@ impl AppCallbacks for HulyAppCallbacks {
     ) {
         if let Some(command_line) = command_line {
             _ = command_line.append_switch("enable-media-stream");
-            _ = command_line
-                .append_switch_with_value("load-extension", Some("/home/nikita/Downloads/unhook"));
         }
     }
 

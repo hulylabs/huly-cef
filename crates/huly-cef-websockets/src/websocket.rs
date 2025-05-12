@@ -50,7 +50,7 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         let msg = match message {
             CefMessage::Frame(buffer) => Message::Binary(buffer.into()),
             CefMessage::Closed => {
-                println!("Sending Close Frame");
+                log::info!("Sending Close Frame");
                 outgoing
                     .send(Message::Close(None))
                     .await
