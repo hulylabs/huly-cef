@@ -1,3 +1,21 @@
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
+
+#[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
+#[repr(u8)]
+pub enum MouseType {
+    Left = 0,
+    Middle = 1,
+    Right = 2,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum LoadState {
+    Loading,
+    Loaded,
+    LoadError,
+}
+
 /// Represents different types of messages that can be sent from CEF to the browser.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CefMessage {
@@ -27,17 +45,14 @@ pub enum CefMessage {
     UrlHovered { url: String, hovered: bool },
     /// Message indicating that a new tab has been requested.
     NewTabRequested(String),
-}
-
-use serde::{Deserialize, Serialize};
-use serde_repr::*;
-
-#[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
-#[repr(u8)]
-pub enum MouseType {
-    Left = 0,
-    Middle = 1,
-    Right = 2,
+    /// Message indicating that load state has changed.
+    LoadStateChanged {
+        state: LoadState,
+        can_go_back: bool,
+        can_go_forward: bool,
+        error_code: i32,
+        error_text: String,
+    },
 }
 
 /// Represents different types of messages that can be sent from the browser to CEF.

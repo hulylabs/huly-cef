@@ -1,8 +1,17 @@
-export enum LoadState {
+export enum LoadStateKind {
     Loading,
     Loaded,
     Error,
-}
+};
+
+export type LoadState = {
+    LoadStateKind: LoadStateKind;
+    canGoBack: boolean;
+    canGoForward: boolean;
+    error_code?: number;
+    error_message?: string;
+};
+
 
 // export enum CursorType {
 //     Default = "default",
@@ -134,18 +143,6 @@ export class CEFClient {
         if (typeof event.data === "string") {
             let parsed = JSON.parse(event.data);
 
-            if (typeof parsed === "string") {
-                if (parsed === "Loading") {
-                    this.onLoadStateChanged?.(LoadState.Loading);
-                }
-                if (parsed === "Loaded") {
-                    this.onLoadStateChanged?.(LoadState.Loaded);
-                }
-                if (parsed === "LoadError") {
-                    this.onLoadStateChanged?.(LoadState.Error);
-                }
-            }
-
             if (typeof parsed === "object") {
                 if (parsed.TitleChanged) {
                     this.onTitleChanged?.(parsed.TitleChanged);
@@ -166,6 +163,31 @@ export class CEFClient {
 
                 if (parsed.FaviconUrlChanged) {
                     this.onFaviconUrlChanged?.(parsed.FaviconUrlChanged);
+                }
+
+                if (parsed.LoadStateChanged) {
+                    let state = parsed.LoadStateChanged;
+                    let loadState: LoadState = {
+                        LoadStateKind: LoadStateKind.Loading,
+                        canGoBack: state.can_go_back,
+                        canGoForward: state.can_go_forward,
+                    };
+
+                    switch (state.state) {
+                        case "Loading": loadState.LoadStateKind = LoadStateKind.Loading; break;
+                        case "Loaded": loadState.LoadStateKind = LoadStateKind.Loaded; break;
+                        case "LoadError": loadState.LoadStateKind = LoadStateKind.Error; break;
+                    }
+
+                    if (state.error_code != 0) {
+                        loadState.error_code = state.error_code;
+                    }
+
+                    if (state.error_message != "") {
+                        loadState.error_message = state.error_message;
+                    }
+
+                    this.onLoadStateChanged?.(loadState);
                 }
             }
         }
