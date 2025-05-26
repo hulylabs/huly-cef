@@ -21,15 +21,13 @@ pub enum LoadState {
 pub enum CefMessage {
     /// Message to render a frame.
     Frame(Vec<u8>),
-    /// Message indicating that the browser is loading a page.
-    Loading,
-    /// Message indicating that the browser has finished loading a page.
-    Loaded,
-    /// Message indicating that the browser has failed to load a page.
-    LoadError {
-        error_code: i32,
-        error_text: String,
-        failed_url: String,
+    ///Message to render a popup frame.
+    Popup {
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+        data: Vec<u8>,
     },
     /// Message indicating that cursor has changed.
     CursorChanged(String),

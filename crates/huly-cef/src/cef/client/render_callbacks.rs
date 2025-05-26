@@ -4,7 +4,7 @@ use cef_ui::{
     AccessibilityHandler, Browser, DragData, DragOperations, HorizontalAlignment, PaintElementType,
     Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
 };
-use log;
+
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::{browser::BrowserState, messages::CefMessage};
@@ -12,6 +12,9 @@ use crate::cef::{browser::BrowserState, messages::CefMessage};
 pub struct HulyRenderHandlerCallbacks {
     cef_msg_channel: UnboundedSender<CefMessage>,
     browser_state: Arc<Mutex<BrowserState>>,
+
+    popup_rect: Option<Rect>,
+    popup_data: Option<Vec<u8>>,
 }
 
 impl HulyRenderHandlerCallbacks {
@@ -22,7 +25,32 @@ impl HulyRenderHandlerCallbacks {
         Self {
             cef_msg_channel,
             browser_state,
+            popup_rect: None,
+            popup_data: None,
         }
+    }
+
+    fn send_popup(&self) {
+        if let (Some(rect), Some(data)) = (&self.popup_rect, &self.popup_data) {
+            _ = self.cef_msg_channel.send(CefMessage::Popup {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width as u32,
+                height: rect.height as u32,
+                data: data.clone(),
+            });
+        }
+    }
+
+    fn convert_bgra_to_rgba(&self, buffer: &[u8], width: usize, height: usize) -> Vec<u8> {
+        let pixel_count = width * height;
+        let mut rgba_buffer = vec![0u8; pixel_count * 4];
+        for (src, dst) in buffer.chunks_exact(4).zip(rgba_buffer.chunks_exact_mut(4)) {
+            let [b, g, r, a] = src.try_into().unwrap();
+            dst.copy_from_slice(&[r, g, b, a]);
+        }
+
+        rgba_buffer
     }
 }
 
@@ -78,34 +106,41 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         })
     }
 
-    fn on_popup_show(&mut self, _browser: Browser, _show: bool) {}
+    fn on_popup_show(&mut self, _browser: Browser, show: bool) {
+        if !show {
+            self.popup_rect = None;
+            self.popup_data = None;
+        }
+    }
 
-    fn on_popup_size(&mut self, _browser: Browser, _rect: &Rect) {}
+    fn on_popup_size(&mut self, _browser: Browser, rect: &Rect) {
+        self.popup_rect = Some(rect.clone());
+    }
 
     fn on_paint(
         &mut self,
         _browser: Browser,
-        _paint_element_type: PaintElementType,
+        paint_element_type: PaintElementType,
         _dirty_rects: &[Rect],
         buffer: &[u8],
         width: usize,
         height: usize,
     ) {
         let state = self.browser_state.lock().unwrap();
-        if state.width != width as u32 || state.height != height as u32 {
+        if !state.active {
             return;
         }
 
-        if state.active {
-            let pixel_count = width * height * 4;
-            let mut rgba_buffer = vec![0u8; pixel_count];
-            for (src, dst) in buffer.chunks_exact(4).zip(rgba_buffer.chunks_exact_mut(4)) {
-                let [b, g, r, a] = src.try_into().unwrap();
-                dst.copy_from_slice(&[r, g, b, a]);
+        match paint_element_type {
+            PaintElementType::Popup => {
+                self.popup_data = Some(buffer.to_vec());
+                self.send_popup();
             }
-
-            if let Err(error) = self.cef_msg_channel.send(CefMessage::Frame(rgba_buffer)) {
-                log::error!("Failed to send message: {:?}", error);
+            PaintElementType::View => {
+                _ = self.cef_msg_channel.send(CefMessage::Frame(
+                    self.convert_bgra_to_rgba(buffer, width, height),
+                ));
+                self.send_popup();
             }
         }
     }

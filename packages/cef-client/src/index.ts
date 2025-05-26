@@ -43,6 +43,7 @@ export class CEFClient {
     public onCursorChanged: ((cursor: string) => void) | undefined;
     public onNewTabRequested: ((url: string) => void) | undefined;
     public onRender: ((data: Uint8Array) => void) | undefined;
+    public onPopupRender: ((x: number, y: number, w: number, h: number, data: Uint8Array) => void) | undefined;
 
     constructor(url: string) {
         this.websocket = this.createWebSocket(url);
@@ -135,8 +136,18 @@ export class CEFClient {
 
     private onmessage(event: MessageEvent) {
         if (event.data instanceof ArrayBuffer) {
-            let imageData = new Uint8Array(event.data);
-            this.onRender?.(imageData);
+            let data = new Uint8Array(event.data);;
+
+            if (data[0] == 0) {
+                this.onRender?.(data.subarray(1));
+            } else {
+                let x = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
+                let y = data[5] | (data[6] << 8) | (data[7] << 16) | (data[8] << 24);
+                let w = data[9] | (data[10] << 8) | (data[11] << 16) | (data[12] << 24);
+                let h = data[13] | (data[14] << 8) | (data[15] << 16) | (data[16] << 24);
+
+                this.onPopupRender?.(x, y, w, h, data.subarray(17));
+            }
             return;
         }
 

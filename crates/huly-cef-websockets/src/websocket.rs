@@ -48,7 +48,29 @@ async fn handle_connection(websocket: tokio_tungstenite::WebSocketStream<TcpStre
         log::trace!("Received a message from CEF: {:?}", message);
 
         let msg = match message {
-            CefMessage::Frame(buffer) => Message::Binary(buffer.into()),
+            CefMessage::Frame(data) => {
+                let mut buffer = Vec::new();
+                buffer.extend(0_i8.to_ne_bytes());
+                buffer.extend(data);
+                Message::Binary(buffer.into())
+            }
+            CefMessage::Popup {
+                x,
+                y,
+                width,
+                height,
+                data,
+            } => {
+                let mut buffer = Vec::new();
+                buffer.extend(1_i8.to_ne_bytes());
+                buffer.extend(x.to_ne_bytes());
+                buffer.extend(y.to_ne_bytes());
+                buffer.extend(width.to_ne_bytes());
+                buffer.extend(height.to_ne_bytes());
+                buffer.extend(data);
+
+                Message::Binary(buffer.into())
+            }
             CefMessage::Closed => {
                 log::info!("Sending Close Frame");
                 outgoing
