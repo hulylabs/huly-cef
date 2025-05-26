@@ -89,10 +89,9 @@ impl Browser {
     }
 
     pub fn key_press(&self, character: u16, code: i32, down: bool, ctrl: bool, shift: bool) {
-        let event_type = if down {
-            KeyEventType::KeyDown
-        } else {
-            KeyEventType::KeyUp
+        let mut event_type = KeyEventType::KeyUp;
+        if down {
+            event_type = KeyEventType::KeyDown;
         };
 
         let mut modifiers = EventFlags::empty();
