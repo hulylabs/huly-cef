@@ -88,7 +88,15 @@ impl Browser {
             .expect("failed to send mouse wheel event");
     }
 
-    pub fn key_press(&self, character: u16, code: i32, down: bool, ctrl: bool, shift: bool) {
+    pub fn key_press(
+        &self,
+        character: u16,
+        windowscode: i32,
+        code: i32,
+        down: bool,
+        ctrl: bool,
+        shift: bool,
+    ) {
         let mut event_type = KeyEventType::KeyUp;
         if down {
             event_type = KeyEventType::KeyDown;
@@ -104,7 +112,7 @@ impl Browser {
         let mut event = KeyEvent {
             event_type,
             modifiers,
-            windows_key_code: code.into(),
+            windows_key_code: windowscode.into(),
             native_key_code: code,
             is_system_key: false,
             character,

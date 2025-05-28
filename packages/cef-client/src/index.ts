@@ -1,6 +1,27 @@
-import { KeyCode, keyCodeToWindowsVirtualKey } from "./keyboard";
+import {
+  KeyCode,
+  keyCodeToMacOSVirtualKey,
+  keyCodeToWindowsVirtualKey,
+} from "./keyboard";
 
 export { KeyCode };
+
+enum Platform {
+  Windows,
+  MacOS,
+  Linux,
+}
+
+function detectPlatform(): Platform {
+  const platform = navigator.userAgent;
+  if (platform.includes("Windows")) {
+    return Platform.Windows;
+  }
+  if (platform.includes("Mac")) {
+    return Platform.MacOS;
+  }
+  return Platform.Linux;
+}
 
 export enum LoadStateKind {
   Loading,
@@ -36,6 +57,7 @@ export class CEFClient {
 
   size: { width: number; height: number } = { width: 0, height: 0 };
   url: string = "";
+  platform: Platform = detectPlatform();
 
   public onConnectionBroken: (() => void) | undefined;
   public onLoadStateChanged: ((state: LoadState) => void) | undefined;
@@ -89,11 +111,23 @@ export class CEFClient {
     ctrl: boolean,
     shift: boolean,
   ) {
+    let platform = detectPlatform();
+    let platformKeyCode = 0;
+    switch (platform) {
+      case Platform.Windows:
+      case Platform.Linux:
+        platformKeyCode = keyCodeToWindowsVirtualKey(keycode);
+        break;
+      case Platform.MacOS:
+        platformKeyCode = keyCodeToMacOSVirtualKey(keycode);
+        break;
+    }
     this.send(
       JSON.stringify({
         KeyPress: {
           character: character,
-          code: keyCodeToWindowsVirtualKey(keycode),
+          windowscode: keyCodeToWindowsVirtualKey(keycode),
+          code: platformKeyCode,
           down: down,
           ctrl: ctrl,
           shift: shift,

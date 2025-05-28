@@ -75,6 +75,7 @@ pub enum BrowserMessage {
     KeyPress {
         character: u16,
         code: i32,
+        windowscode: i32,
         down: bool,
         ctrl: bool,
         shift: bool,

@@ -141,13 +141,14 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
         }
         BrowserMessage::KeyPress {
             character,
+            windowscode,
             code,
             down,
             ctrl,
             shift,
         } => {
             log::trace!("keypress: ({}, {}, {})", character, code, down);
-            browser.key_press(character, code, down, ctrl, shift);
+            browser.key_press(character, windowscode, code, down, ctrl, shift);
         }
         BrowserMessage::StartVideo => {
             log::trace!("StartVideo");
