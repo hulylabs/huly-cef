@@ -111,9 +111,8 @@ export class CEFClient {
     ctrl: boolean,
     shift: boolean,
   ) {
-    let platform = detectPlatform();
     let platformKeyCode = 0;
-    switch (platform) {
+    switch (this.platform) {
       case Platform.Windows:
       case Platform.Linux:
         platformKeyCode = keyCodeToWindowsVirtualKey(keycode);
