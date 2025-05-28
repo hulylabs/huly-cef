@@ -129,6 +129,7 @@ impl Browser {
     }
 
     pub fn start_video(&self) {
+        log::info!("Starting video for browser {}", self.get_id());
         let mut state = self.state.lock().unwrap();
         state.active = true;
 
@@ -143,6 +144,7 @@ impl Browser {
     }
 
     pub fn stop_video(&self) {
+        log::info!("Stopping video for browser {}", self.get_id());
         let mut state = self.state.lock().unwrap();
         state.active = false;
 

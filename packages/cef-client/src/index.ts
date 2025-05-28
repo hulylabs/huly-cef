@@ -51,15 +51,16 @@ const HEARTBEAT_INTERVAL = 5000;
 
 export class CEFClient {
   websocket: WebSocket;
+  platform: Platform = detectPlatform();
   pendingMessages: string[] = [];
 
   heartbeatInterval: NodeJS.Timeout | number | undefined;
 
   size: { width: number; height: number } = { width: 0, height: 0 };
   url: string = "";
-  platform: Platform = detectPlatform();
+  active: boolean = false;
 
-  public onConnectionBroken: (() => void) | undefined;
+  public onReconnected: (() => void) | undefined;
   public onLoadStateChanged: ((state: LoadState) => void) | undefined;
   public onTitleChanged: ((title: string) => void) | undefined;
   public onUrlChanged: ((url: string) => void) | undefined;
@@ -143,10 +144,12 @@ export class CEFClient {
   }
 
   startVideo() {
+    this.active = true;
     this.send(JSON.stringify("StartVideo"));
   }
 
   stopVideo() {
+    this.active = false;
     this.send(JSON.stringify("StopVideo"));
   }
 
@@ -167,10 +170,21 @@ export class CEFClient {
     this.send(JSON.stringify("Reload"));
   }
 
-  private createWebSocket(url: string) {
+  private createWebSocket(url: string, reconnect: boolean = false): WebSocket {
     let websocket = new WebSocket(url);
     websocket.binaryType = "arraybuffer";
-    websocket.onopen = () => this.onopen();
+
+    websocket.onopen = () => {
+      if (reconnect) {
+        websocket.send(JSON.stringify({ Resize: this.size }));
+        websocket.send(JSON.stringify({ GoTo: { url: this.url } }));
+        websocket.send(JSON.stringify(this.active ? "StartVideo" : "StopVideo"));
+        this.onReconnected?.();
+      } else {
+        this.onopen();
+      }
+    }
+
     websocket.onmessage = (event) => this.onmessage(event);
 
     return websocket;
@@ -274,9 +288,12 @@ export class CEFClient {
   private startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
       if (this.websocket.readyState === WebSocket.CLOSED) {
-        this.websocket = this.createWebSocket(this.websocket.url);
-        this.send(JSON.stringify({ Resize: this.size }));
-        this.send(JSON.stringify({ GoTo: { url: this.url } }));
+        this.websocket.removeEventListener("open", this.onopen);
+        this.websocket.removeEventListener("message", this.onmessage);
+        this.websocket.close();
+
+        this.websocket = this.createWebSocket(this.websocket.url, true);
+
       }
     }, HEARTBEAT_INTERVAL);
   }
