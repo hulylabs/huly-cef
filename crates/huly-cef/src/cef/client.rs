@@ -15,7 +15,6 @@ mod render_callbacks;
 mod request_callbacks;
 
 pub struct HulyClientCallbacks {
-    sender: UnboundedSender<CefMessage>,
     render_handler: RenderHandler,
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
@@ -44,7 +43,6 @@ impl HulyClientCallbacks {
         );
 
         Self {
-            sender,
             render_handler,
             load_handler,
             display_handler,

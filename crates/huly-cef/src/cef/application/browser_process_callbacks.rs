@@ -1,5 +1,3 @@
-use std::result;
-
 use cef_ui::{
     BrowserProcessHandlerCallbacks, Client, CommandLine, PreferenceRegistrar, PreferencesType,
 };

@@ -46,17 +46,17 @@ fn parse_arguments() -> Arguments {
     match parse_argument(&args, "--port") {
         Ok(port) => match port.parse::<u16>() {
             Ok(port) => result.port = port,
-            Err(_) => log::error!(
+            Err(_) => log::warn!(
                 "Invalid port number provided, using default: {}",
                 result.port
             ),
         },
-        Err(_) => log::error!("No port argument provided, using default: {}", result.port),
+        Err(_) => log::warn!("No port argument provided, using default: {}", result.port),
     }
 
     match parse_argument(&args, "--cache-path") {
         Ok(path) => result.cache_path = path,
-        Err(_) => log::error!(
+        Err(_) => log::warn!(
             "No cache path argument provided, using default: {}",
             result.cache_path
         ),

@@ -198,6 +198,10 @@ impl Browser {
             .get_identifier()
             .expect("failed to get browser ID")
     }
+
+    pub fn set_focus(&self, focus: bool) {
+        let _ = self.inner.get_host().unwrap().set_focus(focus);
+    }
 }
 
 struct CreateBrowserTaskCallback {

@@ -92,4 +92,6 @@ pub enum BrowserMessage {
     GoBack,
     /// Message indicating that the browser should go forward to the next page.
     GoForward,
+    /// Message indicating that the browser should set focus.
+    SetFocus(bool),
 }

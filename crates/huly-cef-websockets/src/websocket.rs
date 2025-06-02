@@ -179,6 +179,10 @@ fn process_message(msg: BrowserMessage, browser: &Browser) -> bool {
             log::trace!("Reload");
             browser.reload();
         }
+        BrowserMessage::SetFocus(focus) => {
+            log::trace!("SetFocus: {}", focus);
+            browser.set_focus(focus);
+        }
     }
 
     return false;

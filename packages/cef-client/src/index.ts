@@ -170,6 +170,10 @@ export class CEFClient {
     this.send(JSON.stringify("Reload"));
   }
 
+  setFocus(focus: boolean) {
+    this.send(JSON.stringify({ SetFocus: focus }));
+  }
+
   private createWebSocket(url: string, reconnect: boolean = false): WebSocket {
     let websocket = new WebSocket(url);
     websocket.binaryType = "arraybuffer";
