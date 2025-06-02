@@ -5,24 +5,20 @@ use cef_ui::{
 };
 
 pub struct HulyBrowserProcessHandlerCallbacks {
+    port: u16,
     cache_path: String,
-    root_cache_path: String,
 }
 
 impl HulyBrowserProcessHandlerCallbacks {
-    pub fn new(cache_path: String, root_cache_path: String) -> Self {
-        Self {
-            cache_path,
-            root_cache_path,
-        }
+    pub fn new(port: u16, cache_path: String) -> Self {
+        Self { port, cache_path }
     }
 }
 
 impl BrowserProcessHandlerCallbacks for HulyBrowserProcessHandlerCallbacks {
     fn on_before_child_process_launch(&mut self, command_line: CommandLine) {
-        _ = command_line.append_switch_with_value("port", Some("8080"));
+        _ = command_line.append_switch_with_value("port", Some(&self.port.to_string()));
         _ = command_line.append_switch_with_value("cache-path", Some(&self.cache_path));
-        _ = command_line.append_switch_with_value("root-cache-path", Some(&self.root_cache_path));
     }
 
     fn on_register_custom_preferences(

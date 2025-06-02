@@ -784,7 +784,6 @@ dependencies = [
  "anyhow",
  "cef-ui",
  "cef-ui-util",
- "clap",
  "futures",
  "huly-cef",
  "log",
