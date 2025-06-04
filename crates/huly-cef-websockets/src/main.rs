@@ -4,7 +4,7 @@ use tracing::{level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_log::LogTracer;
 use tracing_subscriber::FmtSubscriber;
 
-mod websocket;
+mod server;
 
 #[derive(Debug)]
 struct Arguments {
@@ -74,15 +74,16 @@ fn main() -> Result<()> {
     set_global_default(subscriber)?;
 
     let args = parse_arguments();
-
-    let cef = huly_cef::new(args.port, args.cache_path)?;
-
+    let cef = huly_cef::new(args.port, args.cache_path.clone())?;
     if let Some(code) = cef.is_cef_subprocess() {
         std::process::exit(code);
     }
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.spawn(websocket::serve(format!("127.0.0.1:{}", args.port)));
+    rt.spawn(server::serve(
+        format!("127.0.0.1:{}", args.port),
+        args.cache_path,
+    ));
 
     _ = cef.initialize();
 

@@ -27,7 +27,17 @@ pub struct BrowserState {
 pub struct Browser {
     pub inner: cef_ui::Browser,
     pub sender: UnboundedSender<CefMessage>,
-    pub state: Arc<Mutex<BrowserState>>,
+    state: Arc<Mutex<BrowserState>>,
+}
+
+impl Clone for Browser {
+    fn clone(&self) -> Self {
+        Browser {
+            inner: self.inner.clone(),
+            sender: self.sender.clone(),
+            state: Arc::clone(&self.state),
+        }
+    }
 }
 
 impl Browser {
@@ -259,7 +269,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
 /// # Panics
 ///
 /// This function will panic if it fails to create a browser in the UI thread.
-pub fn create_browser(
+fn create_browser(
     width: u32,
     height: u32,
     url: &str,

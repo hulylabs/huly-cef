@@ -95,3 +95,17 @@ pub enum BrowserMessage {
     /// Message indicating that the browser should set focus.
     SetFocus(bool),
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ClientBrowserMessage {
+    Close,
+    RestoreSession,
+    OpenTab(String),
+    CloseTab(i32),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ServerBrowserMessage {
+    Session(Vec<String>),
+    Tab(i32),
+}

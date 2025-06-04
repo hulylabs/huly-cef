@@ -4,7 +4,8 @@ import {
   keyCodeToWindowsVirtualKey,
 } from "./keyboard";
 
-export { KeyCode };
+export { KeyCode } from "./keyboard";
+export { BrowserClient } from "./browser";
 
 enum Platform {
   Windows,
@@ -190,6 +191,10 @@ export class CEFClient {
     }
 
     websocket.onmessage = (event) => this.onmessage(event);
+
+    websocket.onclose = () => {
+      console.log("WebSocket connection closed.");
+    }
 
     return websocket;
   }

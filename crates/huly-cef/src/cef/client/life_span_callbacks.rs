@@ -2,7 +2,7 @@ use cef_ui::{
     Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks,
     PopupFeatures, WindowInfo, WindowOpenDisposition,
 };
-use log;
+use log::{self, error};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::messages::CefMessage;
@@ -38,11 +38,11 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
             WindowOpenDisposition::NewForegroundTab
             | WindowOpenDisposition::NewBackgroundTab
             | WindowOpenDisposition::NewWindow => {
-                if let Err(error) = self
+                if let Err(e) = self
                     .cef_msg_channel
                     .send(CefMessage::NewTabRequested(target_url.unwrap()))
                 {
-                    log::error!("Failed to send message: {:?}", error);
+                    error!("Failed to send message: {:?}", e);
                 }
             }
             _ => {}
@@ -65,12 +65,12 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
 
     fn do_close(&mut self, browser: Browser) -> bool {
         log::info!(
-            "closing browser: {}",
-            browser.get_identifier().expect("failed to get browser id")
+            "closing tab: {}",
+            browser.get_identifier().expect("failed to get tab id")
         );
 
         if let Err(error) = self.cef_msg_channel.send(CefMessage::Closed) {
-            log::error!("Failed to send message: {:?}", error);
+            log::error!("failed to send message: {:?}", error);
         }
         false
     }
