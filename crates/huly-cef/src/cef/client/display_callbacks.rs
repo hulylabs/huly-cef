@@ -1,43 +1,44 @@
 use cef_ui::{Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, Size};
+use log::error;
 use tokio::sync::mpsc::UnboundedSender;
 use url::Url;
 
-use crate::cef::messages::CefMessage;
+use crate::cef::messages::TabMessage;
 
 pub struct HulyDisplayHandlerCallbacks {
-    cef_message_channel: UnboundedSender<CefMessage>,
+    cef_message_channel: UnboundedSender<TabMessage>,
     hovered_url: Option<Url>,
 }
 
 impl HulyDisplayHandlerCallbacks {
-    pub fn new(cef_message_channel: UnboundedSender<CefMessage>) -> Self {
+    pub fn new(cef_message_channel: UnboundedSender<TabMessage>) -> Self {
         Self {
             cef_message_channel,
             hovered_url: None,
+        }
+    }
+
+    fn send_message(&self, message: TabMessage) {
+        if let Err(e) = self.cef_message_channel.send(message) {
+            error!("failed to send message: {}", e);
         }
     }
 }
 
 impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
     fn on_address_change(&mut self, _browser: Browser, _frame: Frame, url: &str) {
-        _ = self
-            .cef_message_channel
-            .send(CefMessage::UrlChanged(url.to_string()));
+        self.send_message(TabMessage::UrlChanged(url.to_string()));
     }
 
     fn on_title_change(&mut self, _browser: Browser, title: Option<String>) {
         if let Some(title) = title {
-            _ = self
-                .cef_message_channel
-                .send(CefMessage::TitleChanged(title.to_string()));
+            self.send_message(TabMessage::TitleChanged(title.to_string()));
         }
     }
 
     fn on_favicon_urlchange(&mut self, _browser: Browser, icon_urls: Vec<String>) {
         if !icon_urls.is_empty() {
-            _ = self
-                .cef_message_channel
-                .send(CefMessage::FaviconUrlChanged(icon_urls[0].to_string()));
+            self.send_message(TabMessage::FaviconUrlChanged(icon_urls[0].to_string()));
         }
     }
 
@@ -51,14 +52,14 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         if let Some(value) = value {
             let url = Url::parse(&value);
             if let Ok(url) = url {
-                _ = self.cef_message_channel.send(CefMessage::UrlHovered {
+                self.send_message(TabMessage::UrlHovered {
                     url: url.to_string(),
                     hovered: true,
                 });
                 self.hovered_url = Some(url);
             }
         } else {
-            _ = self.cef_message_channel.send(CefMessage::UrlHovered {
+            self.send_message(TabMessage::UrlHovered {
                 url: "".to_string(),
                 hovered: false,
             });
@@ -90,10 +91,7 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         cursor_type: CursorType,
         _custom_cursor_info: Option<CursorInfo>,
     ) -> bool {
-        _ = self
-            .cef_message_channel
-            .send(CefMessage::CursorChanged(format!("{:?}", cursor_type)));
-
+        self.send_message(TabMessage::CursorChanged(format!("{:?}", cursor_type)));
         true
     }
 

@@ -5,15 +5,21 @@ use cef_ui::{
 use log::{self, error};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::cef::messages::CefMessage;
+use crate::cef::messages::TabMessage;
 
 pub struct HulyLifeSpanHandlerCallbacks {
-    cef_msg_channel: UnboundedSender<CefMessage>,
+    cef_msg_channel: UnboundedSender<TabMessage>,
 }
 
 impl HulyLifeSpanHandlerCallbacks {
-    pub fn new(cef_msg_channel: UnboundedSender<CefMessage>) -> Self {
+    pub fn new(cef_msg_channel: UnboundedSender<TabMessage>) -> Self {
         Self { cef_msg_channel }
+    }
+
+    fn send_message(&self, message: TabMessage) {
+        if let Err(e) = self.cef_msg_channel.send(message) {
+            error!("Failed to send message: {:?}", e);
+        }
     }
 }
 
@@ -38,12 +44,7 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
             WindowOpenDisposition::NewForegroundTab
             | WindowOpenDisposition::NewBackgroundTab
             | WindowOpenDisposition::NewWindow => {
-                if let Err(e) = self
-                    .cef_msg_channel
-                    .send(CefMessage::NewTabRequested(target_url.unwrap()))
-                {
-                    error!("Failed to send message: {:?}", e);
-                }
+                self.send_message(TabMessage::NewTabRequested(target_url.unwrap()));
             }
             _ => {}
         };
@@ -69,9 +70,7 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
             browser.get_identifier().expect("failed to get tab id")
         );
 
-        if let Err(error) = self.cef_msg_channel.send(CefMessage::Closed) {
-            log::error!("failed to send message: {:?}", error);
-        }
+        self.send_message(TabMessage::Closed);
         false
     }
 

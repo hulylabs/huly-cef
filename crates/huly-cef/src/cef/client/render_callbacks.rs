@@ -5,12 +5,13 @@ use cef_ui::{
     Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
 };
 
+use log::error;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::cef::{browser::BrowserState, messages::CefMessage};
+use crate::cef::{browser::BrowserState, messages::TabMessage};
 
 pub struct HulyRenderHandlerCallbacks {
-    cef_msg_channel: UnboundedSender<CefMessage>,
+    cef_message_channel: UnboundedSender<TabMessage>,
     browser_state: Arc<Mutex<BrowserState>>,
 
     popup_rect: Option<Rect>,
@@ -19,20 +20,26 @@ pub struct HulyRenderHandlerCallbacks {
 
 impl HulyRenderHandlerCallbacks {
     pub fn new(
-        cef_msg_channel: UnboundedSender<CefMessage>,
+        cef_message_channel: UnboundedSender<TabMessage>,
         browser_state: Arc<Mutex<BrowserState>>,
     ) -> Self {
         Self {
-            cef_msg_channel,
+            cef_message_channel,
             browser_state,
             popup_rect: None,
             popup_data: None,
         }
     }
 
+    fn send_message(&self, message: TabMessage) {
+        if let Err(e) = self.cef_message_channel.send(message) {
+            error!("Failed to send message: {:?}", e);
+        }
+    }
+
     fn send_popup(&self) {
         if let (Some(rect), Some(data)) = (&self.popup_rect, &self.popup_data) {
-            _ = self.cef_msg_channel.send(CefMessage::Popup {
+            self.send_message(TabMessage::Popup {
                 x: rect.x,
                 y: rect.y,
                 width: rect.width as u32,
@@ -137,7 +144,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
                 self.send_popup();
             }
             PaintElementType::View => {
-                _ = self.cef_msg_channel.send(CefMessage::Frame(
+                self.send_message(TabMessage::Frame(
                     self.convert_bgra_to_rgba(buffer, width, height),
                 ));
                 self.send_popup();

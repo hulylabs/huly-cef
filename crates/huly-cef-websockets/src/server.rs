@@ -3,23 +3,28 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use log::{self, info};
-use tokio::net::TcpListener;
+use log::{self, error, info};
+use tokio::{
+    net::TcpListener,
+    sync::mpsc::{self, UnboundedSender},
+};
 
-use huly_cef::browser::Browser;
+use huly_cef::{browser::Browser, messages::TabMessage};
 
 mod browser;
 mod tab;
 
 enum ConnectionType {
     Browser,
-    Tab,
+    Tab(i32),
     None,
 }
 
 struct ServerState {
     cache_path: String,
-    tabs: HashMap<i32, Browser>,
+    tabs: HashMap<i32, Arc<Mutex<Browser>>>,
+
+    tab_event_receivers: HashMap<i32, UnboundedSender<TabMessage>>,
 }
 
 /// Runs the websocket server that listens for incoming connections.
@@ -31,6 +36,7 @@ pub async fn serve(addr: String, cache_path: String) {
     let state = Arc::new(Mutex::new(ServerState {
         cache_path: cache_path,
         tabs: HashMap::new(),
+        tab_event_receivers: HashMap::new(),
     }));
 
     loop {
@@ -47,8 +53,14 @@ pub async fn serve(addr: String, cache_path: String) {
                     connection_type = ConnectionType::Browser;
                 }
 
-                if req.uri().path() == "/tab" {
-                    connection_type = ConnectionType::Tab;
+                if req.uri().path().contains("/tab/") {
+                    if let Some(tab_id) = req.uri().path().strip_prefix("/tab/") {
+                        if let Ok(id) = tab_id.parse::<i32>() {
+                            connection_type = ConnectionType::Tab(id);
+                        }
+                    } else {
+                        error!("Invalid path for tab connection: {}", req.uri().path());
+                    }
                 }
                 Ok(resp)
             },
@@ -61,12 +73,17 @@ pub async fn serve(addr: String, cache_path: String) {
                 info!("new browser connection established");
                 tokio::spawn(browser::handle(state.clone(), websocket));
             }
-            ConnectionType::Tab => {
+            ConnectionType::Tab(id) => {
                 info!("new tab connection established");
-                tokio::spawn(tab::handle(state.clone(), websocket));
+                let mut state = state.lock().unwrap();
+
+                let (tx, rx) = mpsc::unbounded_channel::<TabMessage>();
+                state.tab_event_receivers.insert(id, tx);
+
+                tokio::spawn(tab::translate_tab_messages(rx, websocket));
             }
             ConnectionType::None => {
-                panic!("unknown connection type, expected /browser or /tab");
+                panic!("unknown connection type, expected /browser or /tab/<id>");
             }
         }
     }

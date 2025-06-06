@@ -7,9 +7,11 @@ use cef_ui::{
 use crossbeam_channel::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::messages::LoadState;
+
 use super::{
     client,
-    messages::{CefMessage, MouseType},
+    messages::{MouseType, TabMessage},
 };
 
 /// Maintains the state of a browser instance.
@@ -25,23 +27,35 @@ pub struct BrowserState {
 }
 
 pub struct Browser {
-    pub inner: cef_ui::Browser,
-    pub sender: UnboundedSender<CefMessage>,
+    pub id: i32,
+    pub title: String,
+    pub url: String,
+    pub favicon: Option<String>,
+    pub load_state: LoadState,
+    pub cursor: String,
+
+    inner: cef_ui::Browser,
     state: Arc<Mutex<BrowserState>>,
 }
 
 impl Clone for Browser {
     fn clone(&self) -> Self {
         Browser {
+            id: self.id,
+            title: self.title.clone(),
+            url: self.url.clone(),
+            favicon: self.favicon.clone(),
+            load_state: self.load_state.clone(),
+            cursor: self.cursor.clone(),
+
             inner: self.inner.clone(),
-            sender: self.sender.clone(),
             state: Arc::clone(&self.state),
         }
     }
 }
 
 impl Browser {
-    pub fn new(width: u32, height: u32, sender: UnboundedSender<CefMessage>) -> Self {
+    pub fn new(width: u32, height: u32, sender: UnboundedSender<TabMessage>) -> Self {
         create_browser(width, height, "", sender)
     }
 
@@ -219,7 +233,7 @@ struct CreateBrowserTaskCallback {
     width: u32,
     height: u32,
     url: String,
-    sender: UnboundedSender<CefMessage>,
+    sender: UnboundedSender<TabMessage>,
 }
 
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
@@ -245,8 +259,13 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
 
         self.tx
             .send(Browser {
+                id: inner.get_identifier().expect("failed to get browser ID"),
+                title: "".to_string(),
+                url: self.url.clone(),
+                favicon: None,
+                load_state: LoadState::Loading,
+                cursor: "Pointer".to_string(),
                 inner,
-                sender: self.sender.clone(),
                 state,
             })
             .expect("failed to send a browser");
@@ -273,7 +292,7 @@ fn create_browser(
     width: u32,
     height: u32,
     url: &str,
-    sender: UnboundedSender<CefMessage>,
+    sender: UnboundedSender<TabMessage>,
 ) -> Browser {
     let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
     let result = cef_ui::post_task(

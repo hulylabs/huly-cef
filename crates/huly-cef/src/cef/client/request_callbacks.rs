@@ -1,15 +1,15 @@
 use cef_ui::{Browser, Frame, RequestHandlerCallbacks, TerminationStatus};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::cef::messages::CefMessage;
+use crate::cef::messages::TabMessage;
 
 pub struct HulyRequestHandlerCallbacks {
     #[allow(unused)]
-    cef_msg_channel: UnboundedSender<CefMessage>,
+    cef_msg_channel: UnboundedSender<TabMessage>,
 }
 
 impl HulyRequestHandlerCallbacks {
-    pub fn new(cef_msg_channel: UnboundedSender<CefMessage>) -> Self {
+    pub fn new(cef_msg_channel: UnboundedSender<TabMessage>) -> Self {
         Self { cef_msg_channel }
     }
 }

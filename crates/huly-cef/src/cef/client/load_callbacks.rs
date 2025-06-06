@@ -1,7 +1,8 @@
 use cef_ui::{Browser, ErrorCode, Frame, LoadHandlerCallbacks, TransitionType};
+use log::error;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::cef::messages::CefMessage;
+use crate::cef::messages::TabMessage;
 
 #[derive(Debug)]
 struct LoadState {
@@ -11,15 +12,21 @@ struct LoadState {
 }
 
 pub struct HulyLoadHandlerCallbacks {
-    cef_message_channel: UnboundedSender<CefMessage>,
+    cef_message_channel: UnboundedSender<TabMessage>,
     load_state: Option<LoadState>,
 }
 
 impl HulyLoadHandlerCallbacks {
-    pub fn new(cef_message_channel: UnboundedSender<CefMessage>) -> Self {
+    pub fn new(cef_message_channel: UnboundedSender<TabMessage>) -> Self {
         Self {
             cef_message_channel,
             load_state: None,
+        }
+    }
+
+    fn send_message(&self, message: TabMessage) {
+        if let Err(e) = self.cef_message_channel.send(message) {
+            error!("Failed to send message: {:?}", e);
         }
     }
 }
@@ -36,26 +43,26 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
             return;
         }
 
-        let mut message = CefMessage::LoadStateChanged {
-            state: crate::messages::LoadState::Loading,
-            can_go_back,
-            can_go_forward,
-            error_code: 0,
-            error_text: String::new(),
-        };
-
-        if !is_loading {
+        let message = if !is_loading {
             let load_state = self.load_state.take().expect("load state can't be None");
-            message = CefMessage::LoadStateChanged {
+            TabMessage::LoadStateChanged {
                 state: load_state.state,
                 can_go_back,
                 can_go_forward,
                 error_code: load_state.error_code,
                 error_text: load_state.error_text,
-            };
-        }
+            }
+        } else {
+            TabMessage::LoadStateChanged {
+                state: crate::cef::messages::LoadState::Loading,
+                can_go_back,
+                can_go_forward,
+                error_code: 0,
+                error_text: String::new(),
+            }
+        };
 
-        _ = self.cef_message_channel.send(message);
+        self.send_message(message);
     }
 
     fn on_load_start(&mut self, _browser: Browser, frame: Frame, _transition_type: TransitionType) {

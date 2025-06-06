@@ -6,7 +6,7 @@ use cef_ui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{browser::BrowserState, messages::CefMessage};
+use super::{browser::BrowserState, messages::TabMessage};
 
 mod display_callbacks;
 mod life_span_callbacks;
@@ -23,7 +23,7 @@ pub struct HulyClientCallbacks {
 }
 
 impl HulyClientCallbacks {
-    pub fn new(sender: UnboundedSender<CefMessage>, state: Arc<Mutex<BrowserState>>) -> Self {
+    pub fn new(sender: UnboundedSender<TabMessage>, state: Arc<Mutex<BrowserState>>) -> Self {
         let render_handler = RenderHandler::new(render_callbacks::HulyRenderHandlerCallbacks::new(
             sender.clone(),
             state.clone(),
@@ -92,6 +92,6 @@ impl ClientCallbacks for HulyClientCallbacks {
     }
 }
 
-pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<CefMessage>) -> cef_ui::Client {
+pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<TabMessage>) -> cef_ui::Client {
     Client::new(HulyClientCallbacks::new(sender, state))
 }
