@@ -1,6 +1,9 @@
 # Ignore build artifacts
 target
 
+# Ignore CEF artifacts
+cef
+
 # Ignore CEF-generated files
 MediaDeviceSalts*
 

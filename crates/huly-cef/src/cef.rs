@@ -26,7 +26,7 @@ pub fn new(port: u16, cache_path: String) -> Result<CefContext> {
     let settings = Settings::new()
         .log_severity(LogSeverity::Verbose)
         .cache_path(&cache_dir)?
-        .no_sandbox(false);
+        .no_sandbox(true);
 
     let app = App::new(application::HulyAppCallbacks::new(port, cache_path));
     let context = Context::new(main_args, settings, Some(app));

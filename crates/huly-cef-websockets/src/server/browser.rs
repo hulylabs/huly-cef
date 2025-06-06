@@ -36,38 +36,26 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         };
 
-        info!("received message: {:?}", msg);
-
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
-        let tab = match tab {
-            Some(tab) => tab,
-            None => {
-                error!("tab with id {} not found", msg.tab_id);
-                continue;
-            }
-        };
 
         let mut resp = None;
-        {
-            let tab = tab.lock().unwrap();
-            match msg.body {
-                BrowserMessageType::Close => break,
-                BrowserMessageType::RestoreSession => resp = Some(restore_session(&state)),
-                BrowserMessageType::OpenTab(url) => {
-                    let tab = tab::create(state.clone(), url);
-                    let id = tab.lock().unwrap().get_id();
-                    let mut state = state.lock().unwrap();
-                    state.tabs.insert(id, tab);
-                    resp = Some(ServerBrowserMessage::Tab(id));
-                }
-                BrowserMessageType::CloseTab(id) => close_tab(&state, id),
-                BrowserMessageType::Resize { width, height } => resize(width, height),
-                BrowserMessageType::GoTo { url } => tab.go_to(&url),
-                BrowserMessageType::MouseMove { x, y } => tab.mouse_move(x, y),
-                BrowserMessageType::MouseClick { x, y, button, down } => {
-                    tab.mouse_click(x, y, button, down)
-                }
-                BrowserMessageType::MouseWheel { x, y, dx, dy } => tab.mouse_wheel(x, y, dx, dy),
+        match (msg.body, tab) {
+            (BrowserMessageType::Close, _) => break,
+            (BrowserMessageType::RestoreSession, _) => resp = Some(restore_session(&state)),
+            (BrowserMessageType::OpenTab(url), _) => resp = Some(open_tab(&state, url)),
+            (BrowserMessageType::CloseTab(id), _) => close_tab(&state, id),
+            (BrowserMessageType::Resize { width, height }, _) => resize(width, height),
+            (BrowserMessageType::GoTo { url }, Some(tab)) => tab.lock().unwrap().go_to(&url),
+            (BrowserMessageType::MouseMove { x, y }, Some(tab)) => {
+                tab.lock().unwrap().mouse_move(x, y)
+            }
+            (BrowserMessageType::MouseClick { x, y, button, down }, Some(tab)) => {
+                tab.lock().unwrap().mouse_click(x, y, button, down)
+            }
+            (BrowserMessageType::MouseWheel { x, y, dx, dy }, Some(tab)) => {
+                tab.lock().unwrap().mouse_wheel(x, y, dx, dy)
+            }
+            (
                 BrowserMessageType::KeyPress {
                     character,
                     code,
@@ -75,14 +63,24 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                     down,
                     ctrl,
                     shift,
-                } => tab.key_press(character, windowscode, code, down, ctrl, shift),
-                BrowserMessageType::StopVideo => tab.start_video(),
-                BrowserMessageType::StartVideo => tab.stop_video(),
-                BrowserMessageType::Reload => tab.reload(),
-                BrowserMessageType::GoBack => tab.go_back(),
-                BrowserMessageType::GoForward => tab.go_forward(),
-                BrowserMessageType::SetFocus(focus) => tab.set_focus(focus),
-            };
+                },
+                Some(tab),
+            ) => tab
+                .lock()
+                .unwrap()
+                .key_press(character, windowscode, code, down, ctrl, shift),
+            (BrowserMessageType::StopVideo, Some(tab)) => tab.lock().unwrap().start_video(),
+            (BrowserMessageType::StartVideo, Some(tab)) => tab.lock().unwrap().stop_video(),
+            (BrowserMessageType::Reload, Some(tab)) => tab.lock().unwrap().reload(),
+            (BrowserMessageType::GoBack, Some(tab)) => tab.lock().unwrap().go_back(),
+            (BrowserMessageType::GoForward, Some(tab)) => tab.lock().unwrap().go_forward(),
+            (BrowserMessageType::SetFocus(focus), Some(tab)) => {
+                tab.lock().unwrap().set_focus(focus)
+            }
+            (_, None) => {
+                error!("tab with id {} not found", msg.tab_id);
+                continue;
+            }
         }
 
         if let Some(resp) = resp {
@@ -140,6 +138,14 @@ fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerBrowserMessage {
         });
 
     ServerBrowserMessage::Session(vec)
+}
+
+fn open_tab(state: &Arc<Mutex<ServerState>>, url: String) -> ServerBrowserMessage {
+    let tab = tab::create(state.clone(), url);
+    let id = tab.lock().unwrap().get_id();
+    let mut state = state.lock().unwrap();
+    state.tabs.insert(id, tab);
+    ServerBrowserMessage::Tab(id)
 }
 
 fn close_tab(state: &Arc<Mutex<ServerState>>, id: i32) {

@@ -65,8 +65,15 @@ pub async fn serve(addr: String, cache_path: String) {
                 Ok(resp)
             },
         )
-        .await
-        .expect("failed to accept a websocket connection");
+        .await;
+
+        let websocket = match websocket {
+            Ok(ws) => ws,
+            Err(e) => {
+                error!("failed to upgrade connection: {:?}", e);
+                continue;
+            }
+        };
 
         match connection_type {
             ConnectionType::Browser => {

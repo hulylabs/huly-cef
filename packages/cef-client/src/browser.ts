@@ -1,3 +1,6 @@
+const REQUEST_TIMEOUT = 5000;
+
+
 export class BrowserClient {
     private websocket: WebSocket;
     private pendingMessages: string[] = [];
@@ -36,13 +39,18 @@ export class BrowserClient {
     openTab(url: string): Promise<number> {
         return new Promise<number>((resolve, reject) => {
             this.pendingTabPromises.set("Tab", { resolve, reject });
-            this.send(JSON.stringify({ OpenTab: url }));
+            this.send(JSON.stringify({
+                body: {
+                    OpenTab: url
+                },
+                tab_id: -1
+            }));
             setTimeout(() => {
                 if (this.pendingTabPromises.has("Tab")) {
                     this.pendingTabPromises.delete("Tab");
                     reject(new Error("Timeout opening tab"));
                 }
-            }, 30000);
+            }, REQUEST_TIMEOUT);
         });
     }
 
