@@ -16,38 +16,25 @@ use super::{
 
 /// Maintains the state of a browser instance.
 pub struct BrowserState {
-    /// The width of the browser in pixels.
-    pub width: u32,
-    /// The height of the browser in pixels.
-    pub height: u32,
-    /// Whether the browser is active or not.
-    pub active: bool,
-
-    pub left_mouse_button_down: bool,
-}
-
-pub struct Browser {
-    pub id: i32,
     pub title: String,
     pub url: String,
     pub favicon: Option<String>,
     pub load_state: LoadState,
     pub cursor: String,
+    pub width: u32,
+    pub height: u32,
+    pub active: bool,
+    pub left_mouse_button_down: bool,
+}
 
+pub struct Browser {
     inner: cef_ui::Browser,
-    state: Arc<Mutex<BrowserState>>,
+    pub state: Arc<Mutex<BrowserState>>,
 }
 
 impl Clone for Browser {
     fn clone(&self) -> Self {
         Browser {
-            id: self.id,
-            title: self.title.clone(),
-            url: self.url.clone(),
-            favicon: self.favicon.clone(),
-            load_state: self.load_state.clone(),
-            cursor: self.cursor.clone(),
-
             inner: self.inner.clone(),
             state: Arc::clone(&self.state),
         }
@@ -55,8 +42,8 @@ impl Clone for Browser {
 }
 
 impl Browser {
-    pub fn new(width: u32, height: u32, sender: UnboundedSender<TabMessage>) -> Self {
-        create_browser(width, height, "", sender)
+    pub fn new(width: u32, height: u32, url: &str, sender: UnboundedSender<TabMessage>) -> Self {
+        create_browser(width, height, url, sender)
     }
 
     pub fn mouse_move(&self, x: i32, y: i32) {
@@ -153,7 +140,6 @@ impl Browser {
     }
 
     pub fn start_video(&self) {
-        log::info!("Starting video for browser {}", self.get_id());
         let mut state = self.state.lock().unwrap();
         state.active = true;
 
@@ -168,7 +154,6 @@ impl Browser {
     }
 
     pub fn stop_video(&self) {
-        log::info!("Stopping video for browser {}", self.get_id());
         let mut state = self.state.lock().unwrap();
         state.active = false;
 
@@ -208,15 +193,6 @@ impl Browser {
         let _ = self.inner.get_host().unwrap().close_browser(true);
     }
 
-    pub fn get_url(&self) -> String {
-        self.inner
-            .get_main_frame()
-            .unwrap()
-            .unwrap()
-            .get_url()
-            .unwrap_or_default()
-    }
-
     pub fn get_id(&self) -> i32 {
         self.inner
             .get_identifier()
@@ -242,11 +218,17 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
         let window_info = WindowInfo::new().windowless_rendering_enabled(true);
         let settings = BrowserSettings::new().windowless_frame_rate(60);
         let state = Arc::new(Mutex::new(BrowserState {
+            title: "".to_string(),
+            url: self.url.clone(),
+            favicon: None,
+            load_state: LoadState::Loading,
+            cursor: "Pointer".to_string(),
             width: self.width,
             height: self.height,
             active: true,
             left_mouse_button_down: false,
         }));
+
         let client = client::new(state.clone(), self.sender.clone());
         let inner = BrowserHost::create_browser_sync(
             &window_info,
@@ -258,16 +240,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
         );
 
         self.tx
-            .send(Browser {
-                id: inner.get_identifier().expect("failed to get browser ID"),
-                title: "".to_string(),
-                url: self.url.clone(),
-                favicon: None,
-                load_state: LoadState::Loading,
-                cursor: "Pointer".to_string(),
-                inner,
-                state,
-            })
+            .send(Browser { inner, state })
             .expect("failed to send a browser");
     }
 }

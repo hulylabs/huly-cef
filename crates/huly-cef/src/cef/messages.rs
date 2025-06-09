@@ -55,6 +55,7 @@ pub enum TabMessage {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BrowserMessage {
+    pub id: String,
     pub tab_id: i32,
     pub body: BrowserMessageType,
 }
@@ -64,7 +65,8 @@ pub enum BrowserMessageType {
     Close,
     RestoreSession,
     OpenTab(String),
-    CloseTab(i32),
+    CloseTab,
+    GetTabs,
     Resize {
         width: u32,
         height: u32,
@@ -105,7 +107,15 @@ pub enum BrowserMessageType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ServerBrowserMessage {
+pub struct ServerMessage {
+    pub id: String,
+    pub tab_id: i32,
+    pub body: ServerMessageType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ServerMessageType {
     Session(Vec<String>),
     Tab(i32),
+    Tabs(Vec<String>),
 }

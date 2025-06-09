@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>URL Navigation</title>
+</head>
+
+<body>
+    <form id="redirectForm">
+        <input type="text" placeholder="Enter URL" autofocus>
+    </form>
+    <script>
+        document.getElementById('redirectForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            let url = this.querySelector('input').value.trim();
+            window.location.href = "https://google.com/search?q=" + url;;
+        });
+    </script>
+</body>
+
+</html>

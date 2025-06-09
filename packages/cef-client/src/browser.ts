@@ -1,20 +1,37 @@
+import { randomUUID } from "crypto";
+import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard";
+
 const REQUEST_TIMEOUT = 5000;
 
+enum Platform {
+    Windows,
+    MacOS,
+    Linux,
+}
+
+function detectPlatform(): Platform {
+    const platform = navigator.userAgent;
+    if (platform.includes("Windows")) {
+        return Platform.Windows;
+    }
+    if (platform.includes("Mac")) {
+        return Platform.MacOS;
+    }
+    return Platform.Linux;
+}
 
 export class BrowserClient {
     private websocket: WebSocket;
     private pendingMessages: string[] = [];
 
-    // TODO: use ids instead of hardcoded "Tab"
-    private pendingTabPromises: Map<string, { resolve: (tabId: number) => void, reject: (error: Error) => void }> = new Map();
+    private pendingPromises: Map<string, { resolve: (value: any) => void, reject: () => void }> = new Map();
 
-    public onSessionRestored: ((tabs: string[]) => void) | undefined;
+    private platform: Platform = detectPlatform();
 
     constructor(url: string) {
         this.websocket = new WebSocket(url);
 
         this.websocket.onopen = () => {
-            console.log("WebSocket connection established.");
             for (const message of this.pendingMessages) {
                 this.websocket.send(message);
             };
@@ -22,52 +39,61 @@ export class BrowserClient {
 
         this.websocket.onmessage = (event) => {
             let msg = JSON.parse(event.data);
-            if (msg.Session) {
-                this.onSessionRestored?.(msg.Session);
+
+            if (msg.body.Tab) {
+                this.resolvePromise<number>(msg.id, msg.body.Tab);
             }
 
-            if (msg.Tab) {
-                const pendingPromise = this.pendingTabPromises.get("Tab");
-                if (pendingPromise) {
-                    pendingPromise.resolve(msg.Tab);
-                    this.pendingTabPromises.delete("Tab");
-                }
+            if (msg.body.Tabs) {
+                this.resolvePromise<string[]>(msg.id, msg.body.Tabs);
             }
         }
     }
 
+    closeBrowser(): void {
+        this.send(JSON.stringify({ id: "", body: "Close", tab_id: -1 }));
+    }
+
+    restoreSession(): Promise<String[]> {
+        const id = randomUUID();
+        return this.sendWithPromise<String[]>(id, JSON.stringify({
+            id: id,
+            tab_id: -1,
+            body: "RestoreSession"
+        }));
+    }
+
     openTab(url: string): Promise<number> {
-        return new Promise<number>((resolve, reject) => {
-            this.pendingTabPromises.set("Tab", { resolve, reject });
-            this.send(JSON.stringify({
-                body: {
-                    OpenTab: url
-                },
-                tab_id: -1
-            }));
-            setTimeout(() => {
-                if (this.pendingTabPromises.has("Tab")) {
-                    this.pendingTabPromises.delete("Tab");
-                    reject(new Error("Timeout opening tab"));
-                }
-            }, REQUEST_TIMEOUT);
-        });
+        const id = randomUUID();
+        return this.sendWithPromise<number>(id, JSON.stringify({
+            id: id,
+            tab_id: -1,
+            body: {
+                OpenTab: url
+            },
+        }));
     }
 
-    restoreSession(): void {
-        this.send(JSON.stringify("RestoreSession"));
+    closeTab(tabId: number): void {
+        this.send(JSON.stringify({
+            id: "",
+            tab_id: tabId,
+            body: "CloseTab"
+        }));
     }
 
-    closeTab(id: number): void {
-        this.send(JSON.stringify({ CloseTab: id }));
-    }
-
-    close(): void {
-        this.send(JSON.stringify({ body: "Close", tab_id: 0 }));
+    getTabs(): Promise<String[]> {
+        const id = randomUUID();
+        return this.sendWithPromise<String[]>(id, JSON.stringify({
+            id: id,
+            tab_id: -1,
+            body: "GetTabs"
+        }));
     }
 
     resize(width: number, height: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: -1,
             body: {
                 Resize: {
@@ -80,6 +106,7 @@ export class BrowserClient {
 
     goTo(tabId: number, url: string): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: {
                 GoTo: {
@@ -91,6 +118,7 @@ export class BrowserClient {
 
     mouseMove(tabId: number, x: number, y: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: {
                 MouseMove: {
@@ -103,6 +131,7 @@ export class BrowserClient {
 
     mouseClick(tabId: number, x: number, y: number, button: string, down: boolean): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: {
                 MouseClick: {
@@ -117,6 +146,7 @@ export class BrowserClient {
 
     mouseWheel(tabId: number, x: number, y: number, dx: number, dy: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: {
                 MouseWheel: {
@@ -129,24 +159,43 @@ export class BrowserClient {
         }));
     }
 
-    keyPress(tabId: number, character: number, code: number, windowscode: number, down: boolean, ctrl: boolean, shift: boolean): void {
+    keyPress(
+        tabId: number,
+        keycode: KeyCode,
+        character: number,
+        down: boolean,
+        ctrl: boolean,
+        shift: boolean,
+    ) {
+        let platformKeyCode = 0;
+        switch (this.platform) {
+            case Platform.Windows:
+            case Platform.Linux:
+                platformKeyCode = keyCodeToWindowsVirtualKey(keycode);
+                break;
+            case Platform.MacOS:
+                platformKeyCode = keyCodeToMacOSVirtualKey(keycode);
+                break;
+        }
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: {
                 KeyPress: {
-                    character,
-                    code,
-                    windowscode,
-                    down,
-                    ctrl,
-                    shift
-                }
+                    character: character,
+                    windowscode: keyCodeToWindowsVirtualKey(keycode),
+                    code: platformKeyCode,
+                    down: down,
+                    ctrl: ctrl,
+                    shift: shift,
+                },
             }
         }));
     }
 
     stopVideo(tabId: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: "StopVideo"
         }));
@@ -154,6 +203,7 @@ export class BrowserClient {
 
     startVideo(tabId: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: "StartVideo"
         }));
@@ -161,6 +211,7 @@ export class BrowserClient {
 
     reload(tabId: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: "Reload"
         }));
@@ -168,6 +219,7 @@ export class BrowserClient {
 
     goBack(tabId: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: "GoBack"
         }));
@@ -175,6 +227,7 @@ export class BrowserClient {
 
     goForward(tabId: number): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: "GoForward"
         }));
@@ -182,11 +235,33 @@ export class BrowserClient {
 
     setFocus(tabId: number, focus: boolean): void {
         this.send(JSON.stringify({
+            id: "",
             tab_id: tabId,
             body: {
                 SetFocus: focus
             }
         }));
+    }
+
+    private sendWithPromise<T>(id: string, message: string): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
+            this.pendingPromises.set(id, { resolve, reject });
+            this.send(message);
+            setTimeout(() => {
+                if (this.pendingPromises.has(id)) {
+                    this.pendingPromises.delete(id);
+                    reject(new Error("Timeout waiting for response"));
+                }
+            }, REQUEST_TIMEOUT);
+        });
+    }
+
+    private resolvePromise<T>(id: string, value: T): void {
+        const pendingPromise = this.pendingPromises.get(id);
+        if (pendingPromise) {
+            pendingPromise.resolve(value);
+            this.pendingPromises.delete(id);
+        }
     }
 
     private send(message: string): void {

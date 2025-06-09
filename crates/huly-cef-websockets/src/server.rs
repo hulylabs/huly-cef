@@ -22,7 +22,7 @@ enum ConnectionType {
 
 struct ServerState {
     cache_path: String,
-    tabs: HashMap<i32, Arc<Mutex<Browser>>>,
+    tabs: HashMap<i32, Browser>,
 
     tab_event_receivers: HashMap<i32, UnboundedSender<TabMessage>>,
 }
@@ -87,7 +87,7 @@ pub async fn serve(addr: String, cache_path: String) {
                 let (tx, rx) = mpsc::unbounded_channel::<TabMessage>();
                 state.tab_event_receivers.insert(id, tx);
 
-                tokio::spawn(tab::translate_tab_messages(rx, websocket));
+                tokio::spawn(tab::transfer_tab_messages(rx, websocket));
             }
             ConnectionType::None => {
                 panic!("unknown connection type, expected /browser or /tab/<id>");

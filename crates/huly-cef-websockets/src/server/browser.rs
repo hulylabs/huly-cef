@@ -5,7 +5,7 @@ use std::{
 };
 
 use futures::{SinkExt, StreamExt};
-use huly_cef::messages::{BrowserMessage, BrowserMessageType, ServerBrowserMessage};
+use huly_cef::messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType};
 use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
@@ -36,24 +36,24 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         };
 
+        info!("received message: {:?}", msg);
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
 
         let mut resp = None;
         match (msg.body, tab) {
             (BrowserMessageType::Close, _) => break,
             (BrowserMessageType::RestoreSession, _) => resp = Some(restore_session(&state)),
-            (BrowserMessageType::OpenTab(url), _) => resp = Some(open_tab(&state, url)),
-            (BrowserMessageType::CloseTab(id), _) => close_tab(&state, id),
+            (BrowserMessageType::OpenTab(url), _) => resp = Some(open_tab(&state, &url)),
+            (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
+            (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
             (BrowserMessageType::Resize { width, height }, _) => resize(width, height),
-            (BrowserMessageType::GoTo { url }, Some(tab)) => tab.lock().unwrap().go_to(&url),
-            (BrowserMessageType::MouseMove { x, y }, Some(tab)) => {
-                tab.lock().unwrap().mouse_move(x, y)
-            }
+            (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
+            (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
             (BrowserMessageType::MouseClick { x, y, button, down }, Some(tab)) => {
-                tab.lock().unwrap().mouse_click(x, y, button, down)
+                tab.mouse_click(x, y, button, down)
             }
             (BrowserMessageType::MouseWheel { x, y, dx, dy }, Some(tab)) => {
-                tab.lock().unwrap().mouse_wheel(x, y, dx, dy)
+                tab.mouse_wheel(x, y, dx, dy)
             }
             (
                 BrowserMessageType::KeyPress {
@@ -65,25 +65,27 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                     shift,
                 },
                 Some(tab),
-            ) => tab
-                .lock()
-                .unwrap()
-                .key_press(character, windowscode, code, down, ctrl, shift),
-            (BrowserMessageType::StopVideo, Some(tab)) => tab.lock().unwrap().start_video(),
-            (BrowserMessageType::StartVideo, Some(tab)) => tab.lock().unwrap().stop_video(),
-            (BrowserMessageType::Reload, Some(tab)) => tab.lock().unwrap().reload(),
-            (BrowserMessageType::GoBack, Some(tab)) => tab.lock().unwrap().go_back(),
-            (BrowserMessageType::GoForward, Some(tab)) => tab.lock().unwrap().go_forward(),
-            (BrowserMessageType::SetFocus(focus), Some(tab)) => {
-                tab.lock().unwrap().set_focus(focus)
-            }
+            ) => tab.key_press(character, windowscode, code, down, ctrl, shift),
+            (BrowserMessageType::StopVideo, Some(tab)) => tab.start_video(),
+            (BrowserMessageType::StartVideo, Some(tab)) => tab.stop_video(),
+            (BrowserMessageType::Reload, Some(tab)) => tab.reload(),
+            (BrowserMessageType::GoBack, Some(tab)) => tab.go_back(),
+            (BrowserMessageType::GoForward, Some(tab)) => tab.go_forward(),
+            (BrowserMessageType::SetFocus(focus), Some(tab)) => tab.set_focus(focus),
             (_, None) => {
                 error!("tab with id {} not found", msg.tab_id);
                 continue;
             }
         }
 
+        info!("response: {:?}", resp);
+
         if let Some(resp) = resp {
+            let resp = ServerMessage {
+                id: msg.id,
+                tab_id: msg.tab_id,
+                body: resp,
+            };
             let resp = serde_json::to_string(&resp).expect("failed to serialize response message");
             websocket
                 .send(tungstenite::Message::Text(resp.into()))
@@ -100,12 +102,12 @@ fn close(state: Arc<Mutex<ServerState>>) {
     let tabs: Vec<String> = state
         .tabs
         .values()
-        .map(|tab| tab.lock().unwrap().get_url())
+        .map(|tab| tab.state.lock().unwrap().url.clone())
         .collect();
     save_session(&state.cache_path, &tabs);
 
     for (_, tab) in state.tabs.iter() {
-        tab.lock().unwrap().close();
+        tab.close();
     }
 }
 
@@ -122,7 +124,7 @@ fn save_session(cache_path: &str, tabs: &[String]) {
     }
 }
 
-fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerBrowserMessage {
+fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
     let state = state.lock().unwrap();
 
     let session_file_path = PathBuf::from(state.cache_path.clone()).join("session.json");
@@ -137,22 +139,46 @@ fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerBrowserMessage {
             Vec::new()
         });
 
-    ServerBrowserMessage::Session(vec)
+    ServerMessageType::Session(vec)
 }
 
-fn open_tab(state: &Arc<Mutex<ServerState>>, url: String) -> ServerBrowserMessage {
+fn open_tab(state: &Arc<Mutex<ServerState>>, url: &str) -> ServerMessageType {
     let tab = tab::create(state.clone(), url);
-    let id = tab.lock().unwrap().get_id();
+    let id = tab.get_id();
     let mut state = state.lock().unwrap();
     state.tabs.insert(id, tab);
-    ServerBrowserMessage::Tab(id)
+    ServerMessageType::Tab(id)
 }
 
 fn close_tab(state: &Arc<Mutex<ServerState>>, id: i32) {
-    let state = state.lock().unwrap();
-    state.tabs.get(&id).map(|tab| tab.lock().unwrap().close());
+    let tab = state.lock().unwrap().tabs.remove(&id);
+    if let Some(tab) = tab {
+        tab.close();
+    } else {
+        error!("tab with id {} not found", id);
+    }
+}
 
-    // TODO: remove tab from state
+fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
+    let urls = {
+        let state_guard = state.lock().unwrap();
+
+        info!(
+            "load_state: {:?}",
+            state_guard.tabs.values().collect::<Vec<_>>()[0]
+                .state
+                .lock()
+                .unwrap()
+                .load_state
+        );
+        state_guard
+            .tabs
+            .values()
+            .map(|tab| tab.state.lock().unwrap().url.clone())
+            .collect::<Vec<_>>()
+    };
+
+    ServerMessageType::Tabs(urls)
 }
 
 fn resize(width: u32, height: u32) {

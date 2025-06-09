@@ -12,9 +12,9 @@ use huly_cef::{browser::Browser, messages::TabMessage};
 
 use crate::server::ServerState;
 
-pub fn create(state: Arc<Mutex<ServerState>>, _url: String) -> Arc<Mutex<Browser>> {
+pub fn create(state: Arc<Mutex<ServerState>>, url: &str) -> Browser {
     let (tab_msg_writer, tab_msg_reader) = mpsc::unbounded_channel::<TabMessage>();
-    let tab = Arc::new(Mutex::new(Browser::new(100, 100, tab_msg_writer)));
+    let tab = Browser::new(100, 100, url, tab_msg_writer);
 
     tokio::spawn(handle_tab_messages(state, tab.clone(), tab_msg_reader));
 
@@ -24,19 +24,25 @@ pub fn create(state: Arc<Mutex<ServerState>>, _url: String) -> Arc<Mutex<Browser
 /// Handles incoming WebSocket messages and processes browser events.
 async fn handle_tab_messages(
     state: Arc<Mutex<ServerState>>,
-    tab: Arc<Mutex<Browser>>,
+    tab: Browser,
     mut msg_channel: mpsc::UnboundedReceiver<TabMessage>,
 ) {
     while let Some(message) = msg_channel.recv().await {
-        let mut tab = tab.lock().unwrap();
-
         trace!("tab" = tab.get_id(); "received a message from tab: {:?}", message);
 
         match &message {
-            TabMessage::CursorChanged(cursor) => tab.cursor = cursor.clone(),
-            TabMessage::TitleChanged(title) => tab.title = title.clone(),
-            TabMessage::UrlChanged(url) => tab.url = url.clone(),
-            TabMessage::FaviconUrlChanged(favicon) => tab.favicon = Some(favicon.clone()),
+            TabMessage::CursorChanged(cursor) => tab.state.lock().unwrap().cursor = cursor.clone(),
+            TabMessage::TitleChanged(title) => tab.state.lock().unwrap().title = title.clone(),
+            TabMessage::UrlChanged(url) => {
+                log::info!("tab" = tab.get_id(); "URL changed to: {}", url);
+                tab.state.lock().unwrap().url = url.clone()
+            }
+            TabMessage::LoadStateChanged { state, .. } => {
+                tab.state.lock().unwrap().load_state = state.clone()
+            }
+            TabMessage::FaviconUrlChanged(favicon) => {
+                tab.state.lock().unwrap().favicon = Some(favicon.clone())
+            }
             _ => {}
         };
 
@@ -49,7 +55,7 @@ async fn handle_tab_messages(
     }
 }
 
-pub async fn translate_tab_messages(
+pub async fn transfer_tab_messages(
     mut rx: UnboundedReceiver<TabMessage>,
     mut websocket: WebSocketStream<TcpStream>,
 ) {
