@@ -1,5 +1,5 @@
-import { randomUUID } from "crypto";
 import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard";
+import { v4 as uuidv4 } from 'uuid';
 
 const REQUEST_TIMEOUT = 5000;
 
@@ -47,6 +47,10 @@ export class BrowserClient {
             if (msg.body.Tabs) {
                 this.resolvePromise<string[]>(msg.id, msg.body.Tabs);
             }
+
+            if (msg.body.Screenshot) {
+                this.resolvePromise<Uint8Array>(msg.id, new Uint8Array(msg.body.Screenshot));
+            }
         }
     }
 
@@ -55,7 +59,7 @@ export class BrowserClient {
     }
 
     restoreSession(): Promise<String[]> {
-        const id = randomUUID();
+        const id = uuidv4();
         return this.sendWithPromise<String[]>(id, JSON.stringify({
             id: id,
             tab_id: -1,
@@ -64,7 +68,7 @@ export class BrowserClient {
     }
 
     openTab(url: string): Promise<number> {
-        const id = randomUUID();
+        const id = uuidv4();
         return this.sendWithPromise<number>(id, JSON.stringify({
             id: id,
             tab_id: -1,
@@ -83,7 +87,7 @@ export class BrowserClient {
     }
 
     getTabs(): Promise<String[]> {
-        const id = randomUUID();
+        const id = uuidv4();
         return this.sendWithPromise<String[]>(id, JSON.stringify({
             id: id,
             tab_id: -1,
@@ -97,10 +101,19 @@ export class BrowserClient {
             tab_id: -1,
             body: {
                 Resize: {
-                    width,
-                    height
+                    width: Math.floor(width),
+                    height: Math.floor(height)
                 }
             }
+        }));
+    }
+
+    takeScreenshot(tabId: number): Promise<Uint8Array> {
+        const id = uuidv4();
+        return this.sendWithPromise<Uint8Array>(id, JSON.stringify({
+            id: id,
+            tab_id: tabId,
+            body: "TakeScreenshot"
         }));
     }
 
@@ -129,7 +142,7 @@ export class BrowserClient {
         }));
     }
 
-    mouseClick(tabId: number, x: number, y: number, button: string, down: boolean): void {
+    mouseClick(tabId: number, x: number, y: number, button: number, down: boolean): void {
         this.send(JSON.stringify({
             id: "",
             tab_id: tabId,

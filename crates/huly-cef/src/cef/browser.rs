@@ -16,6 +16,7 @@ use super::{
 
 /// Maintains the state of a browser instance.
 pub struct BrowserState {
+    pub last_frame: Option<Vec<u8>>,
     pub title: String,
     pub url: String,
     pub favicon: Option<String>,
@@ -218,6 +219,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
         let window_info = WindowInfo::new().windowless_rendering_enabled(true);
         let settings = BrowserSettings::new().windowless_frame_rate(60);
         let state = Arc::new(Mutex::new(BrowserState {
+            last_frame: None,
             title: "".to_string(),
             url: self.url.clone(),
             favicon: None,

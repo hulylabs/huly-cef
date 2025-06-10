@@ -71,6 +71,7 @@ pub enum BrowserMessageType {
         width: u32,
         height: u32,
     },
+    TakeScreenshot,
     GoTo {
         url: String,
     },
@@ -118,4 +119,5 @@ pub enum ServerMessageType {
     Session(Vec<String>),
     Tab(i32),
     Tabs(Vec<String>),
+    Screenshot(Vec<u8>),
 }

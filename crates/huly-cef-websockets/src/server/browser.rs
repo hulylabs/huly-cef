@@ -36,7 +36,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         };
 
-        info!("received message: {:?}", msg);
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
 
         let mut resp = None;
@@ -46,7 +45,16 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::OpenTab(url), _) => resp = Some(open_tab(&state, &url)),
             (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
-            (BrowserMessageType::Resize { width, height }, _) => resize(width, height),
+            (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
+            (BrowserMessageType::TakeScreenshot, Some(tab)) => {
+                resp = tab
+                    .state
+                    .lock()
+                    .unwrap()
+                    .last_frame
+                    .clone()
+                    .map(ServerMessageType::Screenshot);
+            }
             (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
             (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
             (BrowserMessageType::MouseClick { x, y, button, down }, Some(tab)) => {
@@ -66,8 +74,8 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 },
                 Some(tab),
             ) => tab.key_press(character, windowscode, code, down, ctrl, shift),
-            (BrowserMessageType::StopVideo, Some(tab)) => tab.start_video(),
-            (BrowserMessageType::StartVideo, Some(tab)) => tab.stop_video(),
+            (BrowserMessageType::StopVideo, Some(tab)) => tab.stop_video(),
+            (BrowserMessageType::StartVideo, Some(tab)) => tab.start_video(),
             (BrowserMessageType::Reload, Some(tab)) => tab.reload(),
             (BrowserMessageType::GoBack, Some(tab)) => tab.go_back(),
             (BrowserMessageType::GoForward, Some(tab)) => tab.go_forward(),
@@ -77,8 +85,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 continue;
             }
         }
-
-        info!("response: {:?}", resp);
 
         if let Some(resp) = resp {
             let resp = ServerMessage {
@@ -181,10 +187,11 @@ fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
     ServerMessageType::Tabs(urls)
 }
 
-fn resize(width: u32, height: u32) {
-    // This function is not used in the current implementation.
-    // It can be implemented if needed.
-    info!("Resizing browser to {}x{}", width, height);
-
-    // TODO: Resize
+fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
+    state
+        .lock()
+        .unwrap()
+        .tabs
+        .iter()
+        .for_each(|t| t.1.resize(width, height));
 }

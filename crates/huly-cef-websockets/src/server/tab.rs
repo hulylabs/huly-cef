@@ -1,5 +1,5 @@
 use futures::SinkExt;
-use log::{error, trace};
+use log::error;
 use std::sync::{Arc, Mutex};
 use tokio::{
     net::TcpStream,
@@ -28,15 +28,13 @@ async fn handle_tab_messages(
     mut msg_channel: mpsc::UnboundedReceiver<TabMessage>,
 ) {
     while let Some(message) = msg_channel.recv().await {
-        trace!("tab" = tab.get_id(); "received a message from tab: {:?}", message);
-
         match &message {
+            TabMessage::Frame(data) => {
+                tab.state.lock().unwrap().last_frame = Some(data.clone());
+            }
             TabMessage::CursorChanged(cursor) => tab.state.lock().unwrap().cursor = cursor.clone(),
             TabMessage::TitleChanged(title) => tab.state.lock().unwrap().title = title.clone(),
-            TabMessage::UrlChanged(url) => {
-                log::info!("tab" = tab.get_id(); "URL changed to: {}", url);
-                tab.state.lock().unwrap().url = url.clone()
-            }
+            TabMessage::UrlChanged(url) => tab.state.lock().unwrap().url = url.clone(),
             TabMessage::LoadStateChanged { state, .. } => {
                 tab.state.lock().unwrap().load_state = state.clone()
             }
