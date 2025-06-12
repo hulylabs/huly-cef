@@ -26,19 +26,19 @@ impl HulyLifeSpanHandlerCallbacks {
 impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
     unsafe fn on_before_popup(
         &mut self,
-        _browser: Browser,
-        _frame: Frame,
-        _popup_id: i32,
+        _: Browser,
+        _: Frame,
+        _: i32,
         target_url: Option<String>,
-        _target_frame_name: Option<String>,
+        _: Option<String>,
         target_disposition: WindowOpenDisposition,
-        _user_gesture: bool,
-        _popup_features: PopupFeatures,
-        _window_info: &mut WindowInfo,
-        _client: &mut Option<Client>,
-        _settings: &mut BrowserSettings,
-        _extra_info: &mut Option<DictionaryValue>,
-        _no_javascript_access: &mut bool,
+        _: bool,
+        _: PopupFeatures,
+        _: &mut WindowInfo,
+        _: &mut Option<Client>,
+        _: &mut BrowserSettings,
+        _: &mut Option<DictionaryValue>,
+        _: &mut bool,
     ) -> bool {
         match target_disposition {
             WindowOpenDisposition::NewForegroundTab
@@ -53,16 +53,16 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
 
     fn on_before_dev_tools_popup(
         &mut self,
-        _browser: Browser,
-        _window_info: &mut WindowInfo,
-        _client: &mut Option<Client>,
-        _settings: &mut BrowserSettings,
-        _extra_info: &mut Option<DictionaryValue>,
-        _use_default_window: &mut bool,
+        _: Browser,
+        _: &mut WindowInfo,
+        _: &mut Option<Client>,
+        _: &mut BrowserSettings,
+        _: &mut Option<DictionaryValue>,
+        _: &mut bool,
     ) {
     }
 
-    fn on_after_created(&mut self, _browser: Browser) {}
+    fn on_after_created(&mut self, _: Browser) {}
 
     fn do_close(&mut self, browser: Browser) -> bool {
         log::info!(
@@ -74,5 +74,5 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
         false
     }
 
-    fn on_before_close(&mut self, _browser: Browser) {}
+    fn on_before_close(&mut self, _: Browser) {}
 }

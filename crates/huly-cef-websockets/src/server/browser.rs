@@ -4,17 +4,21 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use base64::Engine;
 use futures::{SinkExt, StreamExt};
 use huly_cef::messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType};
+use image::{ImageBuffer, ImageEncoder, Rgba};
 use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
-use crate::server::tab;
+use crate::server::tab::{self, DEFAULT_HEIGHT, DEFAULT_WIDTH};
 
 use super::ServerState;
 
 pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStream<TcpStream>) {
+    let mut count = 0;
+
     while let Some(msg) = websocket.next().await {
         let msg = match msg {
             Ok(msg) => msg,
@@ -36,7 +40,22 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         };
 
+        info!("received message: {:?}", msg);
+
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
+
+        if let Some(tab) = tab.as_ref() {
+            let screenshot_data = tab
+                .state
+                .lock()
+                .unwrap()
+                .last_frame
+                .clone()
+                .unwrap_or_default();
+            save_screenshot(screenshot_data, count);
+
+            count += 1;
+        };
 
         let mut resp = None;
         match (msg.body, tab) {
@@ -47,13 +66,28 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
             (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
             (BrowserMessageType::TakeScreenshot, Some(tab)) => {
-                resp = tab
+                let screenshot_data = tab
                     .state
                     .lock()
                     .unwrap()
                     .last_frame
                     .clone()
-                    .map(ServerMessageType::Screenshot);
+                    .unwrap_or_default();
+
+                let mut png_bytes: Vec<u8> = Vec::new();
+                {
+                    let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
+                    encoder
+                        .write_image(
+                            &screenshot_data,
+                            DEFAULT_WIDTH,
+                            DEFAULT_HEIGHT,
+                            image::ExtendedColorType::Rgba8,
+                        )
+                        .expect("PNG encoding failed");
+                }
+                let encoded = base64::engine::general_purpose::STANDARD.encode(png_bytes);
+                resp = Some(ServerMessageType::Screenshot(encoded));
             }
             (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
             (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
@@ -153,6 +187,9 @@ fn open_tab(state: &Arc<Mutex<ServerState>>, url: &str) -> ServerMessageType {
     let id = tab.get_id();
     let mut state = state.lock().unwrap();
     state.tabs.insert(id, tab);
+
+    info!("tab with id {} opened", id);
+
     ServerMessageType::Tab(id)
 }
 
@@ -194,4 +231,14 @@ fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
         .tabs
         .iter()
         .for_each(|t| t.1.resize(width, height));
+}
+
+fn save_screenshot(data: Vec<u8>, count: i32) {
+    let image =
+        ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(DEFAULT_WIDTH, DEFAULT_HEIGHT, data).unwrap();
+
+    _ = image.save(format!(
+        "/home/nikita/repos/screenshots/screenshot-{}.png",
+        count
+    ));
 }

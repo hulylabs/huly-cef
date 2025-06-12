@@ -90,7 +90,7 @@ pub async fn serve(addr: String, cache_path: String) {
                 tokio::spawn(tab::transfer_tab_messages(rx, websocket));
             }
             ConnectionType::None => {
-                panic!("unknown connection type, expected /browser or /tab/<id>");
+                error!("unknown connection type, expected /browser or /tab/<id>");
             }
         }
     }

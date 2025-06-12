@@ -119,5 +119,5 @@ pub enum ServerMessageType {
     Session(Vec<String>),
     Tab(i32),
     Tabs(Vec<String>),
-    Screenshot(Vec<u8>),
+    Screenshot(String),
 }

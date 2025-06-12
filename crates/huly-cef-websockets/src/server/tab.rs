@@ -12,9 +12,12 @@ use huly_cef::{browser::Browser, messages::TabMessage};
 
 use crate::server::ServerState;
 
+pub const DEFAULT_WIDTH: u32 = 1920;
+pub const DEFAULT_HEIGHT: u32 = 1080;
+
 pub fn create(state: Arc<Mutex<ServerState>>, url: &str) -> Browser {
     let (tab_msg_writer, tab_msg_reader) = mpsc::unbounded_channel::<TabMessage>();
-    let tab = Browser::new(100, 100, url, tab_msg_writer);
+    let tab = Browser::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, url, tab_msg_writer);
 
     tokio::spawn(handle_tab_messages(state, tab.clone(), tab_msg_reader));
 

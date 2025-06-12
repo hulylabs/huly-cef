@@ -1,4 +1,4 @@
-import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard";
+import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard.js";
 import { v4 as uuidv4 } from 'uuid';
 
 const REQUEST_TIMEOUT = 5000;
@@ -49,7 +49,7 @@ export class BrowserClient {
             }
 
             if (msg.body.Screenshot) {
-                this.resolvePromise<Uint8Array>(msg.id, new Uint8Array(msg.body.Screenshot));
+                this.resolvePromise<string>(msg.id, msg.body.Screenshot);
             }
         }
     }
@@ -108,9 +108,9 @@ export class BrowserClient {
         }));
     }
 
-    takeScreenshot(tabId: number): Promise<Uint8Array> {
+    screenshot(tabId: number): Promise<string> {
         const id = uuidv4();
-        return this.sendWithPromise<Uint8Array>(id, JSON.stringify({
+        return this.sendWithPromise<string>(id, JSON.stringify({
             id: id,
             tab_id: tabId,
             body: "TakeScreenshot"
