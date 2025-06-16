@@ -9,7 +9,7 @@ pub enum MouseType {
     Right = 2,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum LoadState {
     Loading,
     Loaded,
@@ -17,7 +17,7 @@ pub enum LoadState {
 }
 
 /// Represents different types of messages that can be sent from CEF to the browser.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
 pub enum TabMessage {
     /// Message to render a frame.
     Frame(Vec<u8>),
@@ -51,6 +51,8 @@ pub enum TabMessage {
         error_code: i32,
         error_text: String,
     },
+    /// Message containin the queried elemnt's center coordinates.
+    ElementCenter { x: i32, y: i32 },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -105,6 +107,9 @@ pub enum BrowserMessageType {
     GoBack,
     GoForward,
     SetFocus(bool),
+    GetElementCenter {
+        selector: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -120,4 +125,5 @@ pub enum ServerMessageType {
     Tab(i32),
     Tabs(Vec<String>),
     Screenshot(String),
+    ElementCenter(i32, i32),
 }

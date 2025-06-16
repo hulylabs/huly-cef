@@ -6,7 +6,9 @@ use std::{
 
 use base64::Engine;
 use futures::{SinkExt, StreamExt};
-use huly_cef::messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType};
+use huly_cef::messages::{
+    BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType, TabMessage,
+};
 use image::{ImageBuffer, ImageEncoder, Rgba};
 use log::{error, info};
 use tokio::net::TcpStream;
@@ -44,18 +46,18 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
 
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
 
-        if let Some(tab) = tab.as_ref() {
-            let screenshot_data = tab
-                .state
-                .lock()
-                .unwrap()
-                .last_frame
-                .clone()
-                .unwrap_or_default();
-            save_screenshot(screenshot_data, count);
+        // if let Some(tab) = tab.as_ref() {
+        //     let screenshot_data = tab
+        //         .state
+        //         .lock()
+        //         .unwrap()
+        //         .last_frame
+        //         .clone()
+        //         .unwrap_or_default();
+        //     save_screenshot(screenshot_data, count);
 
-            count += 1;
-        };
+        //     count += 1;
+        // };
 
         let mut resp = None;
         match (msg.body, tab) {
@@ -74,6 +76,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                     .clone()
                     .unwrap_or_default();
 
+                // TODO: delete it eventually
                 let mut png_bytes: Vec<u8> = Vec::new();
                 {
                     let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
@@ -114,6 +117,12 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::GoBack, Some(tab)) => tab.go_back(),
             (BrowserMessageType::GoForward, Some(tab)) => tab.go_forward(),
             (BrowserMessageType::SetFocus(focus), Some(tab)) => tab.set_focus(focus),
+            (BrowserMessageType::GetElementCenter { selector }, Some(tab)) => {
+                let center = tab.get_element_center(&selector).await;
+                if let Ok(center) = center {
+                    resp = Some(ServerMessageType::ElementCenter(center.0, center.1));
+                }
+            }
             (_, None) => {
                 error!("tab with id {} not found", msg.tab_id);
                 continue;

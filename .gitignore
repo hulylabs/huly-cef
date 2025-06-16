@@ -10,3 +10,6 @@ MediaDeviceSalts*
 # Ignore Node.js modules
 node_modules
 dist
+
+#Ignore CEF artifacts
+cef

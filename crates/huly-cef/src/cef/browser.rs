@@ -1,11 +1,13 @@
+use anyhow::Result;
+
 use std::sync::{Arc, Mutex};
 
 use cef_ui::{
     BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, EventFlags, KeyEvent, KeyEventType,
-    MouseButtonType, MouseEvent, PaintElementType, ThreadId, WindowInfo,
+    MouseButtonType, MouseEvent, PaintElementType, ProcessMessage, ThreadId, WindowInfo,
 };
 use crossbeam_channel::Sender;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 use crate::messages::LoadState;
 
@@ -26,6 +28,8 @@ pub struct BrowserState {
     pub height: u32,
     pub active: bool,
     pub left_mouse_button_down: bool,
+
+    pub get_center_oneshot_channel: Option<oneshot::Sender<Result<(i32, i32)>>>,
 }
 
 pub struct Browser {
@@ -203,6 +207,31 @@ impl Browser {
     pub fn set_focus(&self, focus: bool) {
         let _ = self.inner.get_host().unwrap().set_focus(focus);
     }
+
+    pub async fn get_element_center(&self, selector: &str) -> Result<(i32, i32)> {
+        let (tx, rx) = oneshot::channel::<Result<(i32, i32)>>();
+
+        {
+            let mut state = self.state.lock().unwrap();
+            state.get_center_oneshot_channel = Some(tx);
+        }
+
+        let message = ProcessMessage::new("getElementCenter");
+        _ = message
+            .get_argument_list()
+            .unwrap()
+            .unwrap()
+            .set_string(0, selector);
+
+        _ = self
+            .inner
+            .get_main_frame()
+            .unwrap()
+            .unwrap()
+            .send_process_message(cef_ui::ProcessId::Renderer, message);
+
+        rx.await.unwrap()
+    }
 }
 
 struct CreateBrowserTaskCallback {
@@ -229,6 +258,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             height: self.height,
             active: true,
             left_mouse_button_down: false,
+            get_center_oneshot_channel: None,
         }));
 
         let client = client::new(state.clone(), self.sender.clone());

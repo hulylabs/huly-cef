@@ -51,6 +51,10 @@ export class BrowserClient {
             if (msg.body.Screenshot) {
                 this.resolvePromise<string>(msg.id, msg.body.Screenshot);
             }
+
+            if (msg.body.ElementCenter) {
+                this.resolvePromise<{ x: number, y: number }>(msg.id, msg.body.ElementCenter);
+            }
         }
     }
 
@@ -252,6 +256,17 @@ export class BrowserClient {
             tab_id: tabId,
             body: {
                 SetFocus: focus
+            }
+        }));
+    }
+
+    getElementCenter(tabId: number, selector: string): Promise<{ x: number, y: number }> {
+        const id = uuidv4();
+        return this.sendWithPromise<{ x: number, y: number }>(id, JSON.stringify({
+            id: id,
+            tab_id: tabId,
+            body: {
+                GetElementCenter: { selector: selector }
             }
         }));
     }

@@ -4,6 +4,7 @@ use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
+use log::error;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{browser::BrowserState, messages::TabMessage};
@@ -15,6 +16,7 @@ mod render_callbacks;
 mod request_callbacks;
 
 pub struct HulyClientCallbacks {
+    state: Arc<Mutex<BrowserState>>,
     render_handler: RenderHandler,
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
@@ -43,6 +45,7 @@ impl HulyClientCallbacks {
         );
 
         Self {
+            state: state,
             render_handler,
             load_handler,
             display_handler,
@@ -82,8 +85,23 @@ impl ClientCallbacks for HulyClientCallbacks {
         _browser: Browser,
         _frame: Frame,
         _source_process: ProcessId,
-        _message: ProcessMessage,
+        message: ProcessMessage,
     ) -> bool {
+        let message_name = message.get_name().unwrap_or_default();
+        if message_name == "getElementCenterResponse" {
+            let args = message.get_argument_list().unwrap_or_default().unwrap();
+            let (x, y) = (args.get_int(0).unwrap(), args.get_int(1).unwrap());
+
+            let mut state = self.state.lock().unwrap();
+            if let Some(tx) = state.get_center_oneshot_channel.take() {
+                if tx.send(Ok((x, y))).is_err() {
+                    error!("Failed to send getElementCenter response");
+                }
+            } else {
+                error!("No channel to send getElementCenter response");
+            }
+        }
+
         true
     }
 
