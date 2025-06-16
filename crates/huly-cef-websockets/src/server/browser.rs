@@ -6,9 +6,7 @@ use std::{
 
 use base64::Engine;
 use futures::{SinkExt, StreamExt};
-use huly_cef::messages::{
-    BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType, TabMessage,
-};
+use huly_cef::messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType};
 use image::{ImageBuffer, ImageEncoder, Rgba};
 use log::{error, info};
 use tokio::net::TcpStream;
@@ -117,6 +115,9 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::GoBack, Some(tab)) => tab.go_back(),
             (BrowserMessageType::GoForward, Some(tab)) => tab.go_forward(),
             (BrowserMessageType::SetFocus(focus), Some(tab)) => tab.set_focus(focus),
+            (BrowserMessageType::GetDOM, Some(tab)) => {
+                resp = Some(ServerMessageType::DOM(tab.get_dom().await));
+            }
             (BrowserMessageType::GetElementCenter { selector }, Some(tab)) => {
                 let center = tab.get_element_center(&selector).await;
                 if let Ok(center) = center {

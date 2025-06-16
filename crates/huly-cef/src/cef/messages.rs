@@ -107,6 +107,7 @@ pub enum BrowserMessageType {
     GoBack,
     GoForward,
     SetFocus(bool),
+    GetDOM,
     GetElementCenter {
         selector: String,
     },
@@ -125,5 +126,6 @@ pub enum ServerMessageType {
     Tab(i32),
     Tabs(Vec<String>),
     Screenshot(String),
+    DOM(String),
     ElementCenter(i32, i32),
 }

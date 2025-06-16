@@ -52,6 +52,10 @@ export class BrowserClient {
                 this.resolvePromise<string>(msg.id, msg.body.Screenshot);
             }
 
+            if (msg.body.DOM) {
+                this.resolvePromise<string>(msg.id, msg.body.DOM);
+            }
+
             if (msg.body.ElementCenter) {
                 this.resolvePromise<{ x: number, y: number }>(msg.id, msg.body.ElementCenter);
             }
@@ -257,6 +261,15 @@ export class BrowserClient {
             body: {
                 SetFocus: focus
             }
+        }));
+    }
+
+    getDOM(tabId: number): Promise<string> {
+        const id = uuidv4();
+        return this.sendWithPromise<string>(id, JSON.stringify({
+            id: id,
+            tab_id: tabId,
+            body: "GetDOM"
         }));
     }
 

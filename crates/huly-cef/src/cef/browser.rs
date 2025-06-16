@@ -1,10 +1,12 @@
 use anyhow::Result;
+use log::error;
 
 use std::sync::{Arc, Mutex};
 
 use cef_ui::{
     BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, EventFlags, KeyEvent, KeyEventType,
-    MouseButtonType, MouseEvent, PaintElementType, ProcessMessage, ThreadId, WindowInfo,
+    MouseButtonType, MouseEvent, PaintElementType, ProcessMessage, StringVisitor,
+    StringVisitorCallbacks, ThreadId, WindowInfo,
 };
 use crossbeam_channel::Sender;
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
@@ -231,6 +233,36 @@ impl Browser {
             .send_process_message(cef_ui::ProcessId::Renderer, message);
 
         rx.await.unwrap()
+    }
+
+    pub async fn get_dom(&self) -> String {
+        let (tx, rx) = oneshot::channel::<String>();
+        _ = self
+            .inner
+            .get_main_frame()
+            .unwrap()
+            .unwrap()
+            .get_source(StringVisitor::new(DOMVisitor::new(tx)));
+
+        rx.await.unwrap()
+    }
+}
+
+struct DOMVisitor {
+    tx: Option<oneshot::Sender<String>>,
+}
+
+impl DOMVisitor {
+    pub fn new(tx: oneshot::Sender<String>) -> Self {
+        DOMVisitor { tx: Some(tx) }
+    }
+}
+
+impl StringVisitorCallbacks for DOMVisitor {
+    fn visit(&mut self, string: &str) {
+        if let Err(e) = self.tx.take().unwrap().send(string.to_string()) {
+            error!("failed to get DOM: {}", e);
+        }
     }
 }
 
