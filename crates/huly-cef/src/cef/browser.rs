@@ -246,6 +246,17 @@ impl Browser {
 
         rx.await.unwrap()
     }
+
+    pub fn set_text(&self, selector: &str, text: &str) {
+        let code = format!("document.querySelector('{}').value = '{}';", selector, text);
+        log::info!("Executing JavaScript to set text: {}", code);
+        _ = self
+            .inner
+            .get_main_frame()
+            .unwrap()
+            .unwrap()
+            .execute_java_script(&code, "", 0);
+    }
 }
 
 struct DOMVisitor {

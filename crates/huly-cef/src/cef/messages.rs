@@ -111,6 +111,10 @@ pub enum BrowserMessageType {
     GetElementCenter {
         selector: String,
     },
+    SetText {
+        selector: String,
+        text: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

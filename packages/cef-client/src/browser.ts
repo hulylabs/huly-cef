@@ -284,6 +284,19 @@ export class BrowserClient {
         }));
     }
 
+    setText(tabId: number, selector: string, text: string): void {
+        this.send(JSON.stringify({
+            id: "",
+            tab_id: tabId,
+            body: {
+                SetText: {
+                    selector: selector,
+                    text: text
+                }
+            }
+        }));
+    }
+
     private sendWithPromise<T>(id: string, message: string): Promise<T> {
         return new Promise<T>((resolve, reject) => {
             this.pendingPromises.set(id, { resolve, reject });

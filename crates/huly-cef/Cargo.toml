@@ -13,5 +13,4 @@ url = "2.5"
 serde_repr = "0.1"
 crossbeam-channel = "0.5.14"
 
-# cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }
-cef-ui = { path = "/home/nikita/repos/cef-ui/crates/cef-ui" }
+cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }

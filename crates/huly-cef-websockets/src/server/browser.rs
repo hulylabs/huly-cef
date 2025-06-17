@@ -44,18 +44,18 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
 
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
 
-        // if let Some(tab) = tab.as_ref() {
-        //     let screenshot_data = tab
-        //         .state
-        //         .lock()
-        //         .unwrap()
-        //         .last_frame
-        //         .clone()
-        //         .unwrap_or_default();
-        //     save_screenshot(screenshot_data, count);
+        if let Some(tab) = tab.as_ref() {
+            let screenshot_data = tab
+                .state
+                .lock()
+                .unwrap()
+                .last_frame
+                .clone()
+                .unwrap_or_default();
+            save_screenshot(screenshot_data, count);
 
-        //     count += 1;
-        // };
+            count += 1;
+        };
 
         let mut resp = None;
         match (msg.body, tab) {
@@ -73,6 +73,15 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                     .last_frame
                     .clone()
                     .unwrap_or_default();
+
+                if screenshot_data.len() != (DEFAULT_WIDTH * DEFAULT_HEIGHT * 4) as usize {
+                    error!(
+                        "screenshot data length {} does not match expected size {}",
+                        screenshot_data.len(),
+                        DEFAULT_WIDTH * DEFAULT_HEIGHT * 4
+                    );
+                    continue;
+                }
 
                 // TODO: delete it eventually
                 let mut png_bytes: Vec<u8> = Vec::new();
@@ -123,6 +132,9 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 if let Ok(center) = center {
                     resp = Some(ServerMessageType::ElementCenter(center.0, center.1));
                 }
+            }
+            (BrowserMessageType::SetText { selector, text }, Some(tab)) => {
+                tab.set_text(&selector, &text);
             }
             (_, None) => {
                 error!("tab with id {} not found", msg.tab_id);
@@ -244,6 +256,14 @@ fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
 }
 
 fn save_screenshot(data: Vec<u8>, count: i32) {
+    if data.len() != (DEFAULT_WIDTH * DEFAULT_HEIGHT * 4) as usize {
+        error!(
+            "screenshot data length {} does not match expected size {}",
+            data.len(),
+            DEFAULT_WIDTH * DEFAULT_HEIGHT * 4
+        );
+        return;
+    }
     let image =
         ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(DEFAULT_WIDTH, DEFAULT_HEIGHT, data).unwrap();
 
