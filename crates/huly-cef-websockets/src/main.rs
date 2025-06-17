@@ -82,7 +82,7 @@ fn main() -> Result<()> {
     }
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.spawn(websocket::serve(format!("127.0.0.1:{}", args.port)));
+    rt.spawn(websocket::serve(format!("0.0.0.0:{}", args.port)));
 
     _ = cef.initialize();
 
