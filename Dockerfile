@@ -1,4 +1,4 @@
-FROM rust AS builder
+FROM rust AS build
 
 RUN apt-get update && apt-get install -y \
     libnss3 \
@@ -22,9 +22,9 @@ COPY . /huly-cef
 WORKDIR /huly-cef
 RUN cargo build --bin huly-cef-websockets --release
 
-FROM debian:bookworm-slim
-COPY --from=builder /huly-cef/target/release/huly-cef-websockets /app/huly-cef-websockets
-COPY --from=builder /huly-cef/cef /app/cef
+FROM debian:bookworm-slim AS runtime
+COPY --from=build /huly-cef/target/release/huly-cef-websockets /app/huly-cef-websockets
+COPY --from=build /huly-cef/cef /app/cef
 
 RUN apt-get update && apt-get install -y \
     libnss3 \
@@ -55,6 +55,10 @@ RUN apt-get update && apt-get install -y \
     libgbm1 \
     libdrm2 \
     fonts-liberation \
-    libudev1
+    libudev1 \
+    xvfb
 
-CMD ["/app/huly-cef-websockets", "--headless", "--no-sandbox"]
+ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /tini
+
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--", "xvfb-run", "-a", "/app/huly-cef-websockets", "--no-sandbox", "--disable-gpu"]
