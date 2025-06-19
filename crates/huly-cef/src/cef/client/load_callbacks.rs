@@ -6,26 +6,26 @@ use crate::cef::messages::TabMessage;
 
 #[derive(Debug)]
 struct LoadState {
-    state: crate::messages::LoadState,
+    status: crate::messages::LoadStatus,
     error_code: i32,
     error_text: String,
 }
 
 pub struct HulyLoadHandlerCallbacks {
-    cef_message_channel: UnboundedSender<TabMessage>,
+    event_channel: UnboundedSender<TabMessage>,
     load_state: Option<LoadState>,
 }
 
 impl HulyLoadHandlerCallbacks {
-    pub fn new(cef_message_channel: UnboundedSender<TabMessage>) -> Self {
+    pub fn new(event_channel: UnboundedSender<TabMessage>) -> Self {
         Self {
-            cef_message_channel,
+            event_channel,
             load_state: None,
         }
     }
 
     fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.cef_message_channel.send(message) {
+        if let Err(e) = self.event_channel.send(message) {
             error!("Failed to send message: {:?}", e);
         }
     }
@@ -34,11 +34,12 @@ impl HulyLoadHandlerCallbacks {
 impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
     fn on_loading_state_change(
         &mut self,
-        _browser: Browser,
+        _: Browser,
         is_loading: bool,
         can_go_back: bool,
         can_go_forward: bool,
     ) {
+        // TODO: Why do we need it here?
         if !is_loading && self.load_state.is_none() {
             return;
         }
@@ -46,7 +47,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         let message = if !is_loading {
             let load_state = self.load_state.take().expect("load state can't be None");
             TabMessage::LoadStateChanged {
-                state: load_state.state,
+                status: load_state.status,
                 can_go_back,
                 can_go_forward,
                 error_code: load_state.error_code,
@@ -54,7 +55,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
             }
         } else {
             TabMessage::LoadStateChanged {
-                state: crate::cef::messages::LoadState::Loading,
+                status: crate::cef::messages::LoadStatus::Loading,
                 can_go_back,
                 can_go_forward,
                 error_code: 0,
@@ -65,10 +66,10 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         self.send_message(message);
     }
 
-    fn on_load_start(&mut self, _browser: Browser, frame: Frame, _transition_type: TransitionType) {
+    fn on_load_start(&mut self, _: Browser, frame: Frame, _: TransitionType) {
         if frame.is_main().unwrap() {
             self.load_state = Some(LoadState {
-                state: crate::messages::LoadState::Loading,
+                status: crate::messages::LoadStatus::Loading,
                 error_code: 0,
                 error_text: String::new(),
             });
@@ -79,7 +80,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         if frame.is_main().unwrap() {
             if http_status_code == 200 || http_status_code == 0 {
                 self.load_state = Some(LoadState {
-                    state: crate::messages::LoadState::Loaded,
+                    status: crate::messages::LoadStatus::Loaded,
                     error_code: 0,
                     error_text: String::new(),
                 });
@@ -89,15 +90,15 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
 
     fn on_load_error(
         &mut self,
-        _browser: Browser,
+        _: Browser,
         frame: Frame,
         error_code: ErrorCode,
         error_text: &str,
-        _failed_url: &str,
+        _: &str,
     ) {
         if frame.is_main().unwrap() {
             self.load_state = Some(LoadState {
-                state: crate::messages::LoadState::LoadError,
+                status: crate::messages::LoadStatus::LoadError,
                 error_code: error_code as i32,
                 error_text: error_text.to_string(),
             });

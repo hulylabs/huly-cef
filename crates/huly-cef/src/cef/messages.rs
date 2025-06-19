@@ -10,7 +10,7 @@ pub enum MouseType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
-pub enum LoadState {
+pub enum LoadStatus {
     Loading,
     Loaded,
     LoadError,
@@ -45,7 +45,7 @@ pub enum TabMessage {
     NewTabRequested(String),
     /// Message indicating that load state has changed.
     LoadStateChanged {
-        state: LoadState,
+        status: LoadStatus,
         can_go_back: bool,
         can_go_forward: bool,
         error_code: i32,

@@ -6,19 +6,21 @@ use std::{
 
 use base64::Engine;
 use futures::{SinkExt, StreamExt};
-use huly_cef::messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType};
-use image::{ImageBuffer, ImageEncoder, Rgba};
+use huly_cef::{
+    browser::Browser,
+    messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType},
+};
+use image::ImageEncoder;
 use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
-use crate::server::tab::{self, DEFAULT_HEIGHT, DEFAULT_WIDTH};
-
-use super::ServerState;
+use super::{
+    tab::{self, DEFAULT_HEIGHT, DEFAULT_WIDTH},
+    ServerState,
+};
 
 pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStream<TcpStream>) {
-    let mut count = 0;
-
     while let Some(msg) = websocket.next().await {
         let msg = match msg {
             Ok(msg) => msg,
@@ -43,20 +45,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
         info!("received message: {:?}", msg);
 
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
-
-        if let Some(tab) = tab.as_ref() {
-            let screenshot_data = tab
-                .state
-                .lock()
-                .unwrap()
-                .last_frame
-                .clone()
-                .unwrap_or_default();
-            save_screenshot(screenshot_data, count);
-
-            count += 1;
-        };
-
         let mut resp = None;
         match (msg.body, tab) {
             (BrowserMessageType::Close, _) => break,
@@ -66,38 +54,9 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
             (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
             (BrowserMessageType::TakeScreenshot, Some(tab)) => {
-                let screenshot_data = tab
-                    .state
-                    .lock()
-                    .unwrap()
-                    .last_frame
-                    .clone()
-                    .unwrap_or_default();
-
-                if screenshot_data.len() != (DEFAULT_WIDTH * DEFAULT_HEIGHT * 4) as usize {
-                    error!(
-                        "screenshot data length {} does not match expected size {}",
-                        screenshot_data.len(),
-                        DEFAULT_WIDTH * DEFAULT_HEIGHT * 4
-                    );
-                    continue;
+                if let Some(screenshot) = get_screenshot(tab) {
+                    resp = Some(ServerMessageType::Screenshot(screenshot));
                 }
-
-                // TODO: delete it eventually
-                let mut png_bytes: Vec<u8> = Vec::new();
-                {
-                    let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
-                    encoder
-                        .write_image(
-                            &screenshot_data,
-                            DEFAULT_WIDTH,
-                            DEFAULT_HEIGHT,
-                            image::ExtendedColorType::Rgba8,
-                        )
-                        .expect("PNG encoding failed");
-                }
-                let encoded = base64::engine::general_purpose::STANDARD.encode(png_bytes);
-                resp = Some(ServerMessageType::Screenshot(encoded));
             }
             (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
             (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
@@ -128,8 +87,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 resp = Some(ServerMessageType::DOM(tab.get_dom().await));
             }
             (BrowserMessageType::GetElementCenter { selector }, Some(tab)) => {
-                let center = tab.get_element_center(&selector).await;
-                if let Ok(center) = center {
+                if let Ok(center) = tab.get_element_center(&selector).await {
                     resp = Some(ServerMessageType::ElementCenter(center.0, center.1));
                 }
             }
@@ -142,12 +100,15 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         }
 
+        info!("sending response: {:?}", resp);
+
         if let Some(resp) = resp {
             let resp = ServerMessage {
                 id: msg.id,
                 tab_id: msg.tab_id,
                 body: resp,
             };
+
             let resp = serde_json::to_string(&resp).expect("failed to serialize response message");
             websocket
                 .send(tungstenite::Message::Text(resp.into()))
@@ -155,8 +116,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 .expect("failed to send session message");
         }
     }
-
-    close(state);
 }
 
 fn close(state: Arc<Mutex<ServerState>>) {
@@ -226,17 +185,8 @@ fn close_tab(state: &Arc<Mutex<ServerState>>, id: i32) {
 
 fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
     let urls = {
-        let state_guard = state.lock().unwrap();
-
-        info!(
-            "load_state: {:?}",
-            state_guard.tabs.values().collect::<Vec<_>>()[0]
-                .state
-                .lock()
-                .unwrap()
-                .load_state
-        );
-        state_guard
+        let state = state.lock().unwrap();
+        state
             .tabs
             .values()
             .map(|tab| tab.state.lock().unwrap().url.clone())
@@ -255,20 +205,36 @@ fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
         .for_each(|t| t.1.resize(width, height));
 }
 
-fn save_screenshot(data: Vec<u8>, count: i32) {
-    if data.len() != (DEFAULT_WIDTH * DEFAULT_HEIGHT * 4) as usize {
+fn get_screenshot(tab: Browser) -> Option<String> {
+    let screenshot_data = tab
+        .state
+        .lock()
+        .unwrap()
+        .last_frame
+        .clone()
+        .unwrap_or_default();
+
+    if screenshot_data.len() != (DEFAULT_WIDTH * DEFAULT_HEIGHT * 4) as usize {
         error!(
             "screenshot data length {} does not match expected size {}",
-            data.len(),
+            screenshot_data.len(),
             DEFAULT_WIDTH * DEFAULT_HEIGHT * 4
         );
-        return;
+        return None;
     }
-    let image =
-        ImageBuffer::<Rgba<u8>, Vec<u8>>::from_vec(DEFAULT_WIDTH, DEFAULT_HEIGHT, data).unwrap();
 
-    _ = image.save(format!(
-        "/home/nikita/repos/screenshots/screenshot-{}.png",
-        count
-    ));
+    let mut png_bytes: Vec<u8> = Vec::new();
+    {
+        let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
+        encoder
+            .write_image(
+                &screenshot_data,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
+                image::ExtendedColorType::Rgba8,
+            )
+            .expect("PNG encoding failed");
+    }
+
+    Some(base64::engine::general_purpose::STANDARD.encode(png_bytes))
 }

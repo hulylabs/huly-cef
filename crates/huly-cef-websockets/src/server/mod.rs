@@ -54,10 +54,13 @@ pub async fn serve(addr: String, cache_path: String) {
                 }
 
                 if req.uri().path().contains("/tab/") {
-                    if let Some(tab_id) = req.uri().path().strip_prefix("/tab/") {
-                        if let Ok(id) = tab_id.parse::<i32>() {
-                            connection_type = ConnectionType::Tab(id);
-                        }
+                    if let Some(id) = req
+                        .uri()
+                        .path()
+                        .strip_prefix("/tab/")
+                        .and_then(|s| s.parse::<i32>().ok())
+                    {
+                        connection_type = ConnectionType::Tab(id);
                     } else {
                         error!("Invalid path for tab connection: {}", req.uri().path());
                     }

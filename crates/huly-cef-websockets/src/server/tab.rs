@@ -1,5 +1,5 @@
 use futures::SinkExt;
-use log::error;
+use log::{error, info};
 use std::sync::{Arc, Mutex};
 use tokio::{
     net::TcpStream,
@@ -12,20 +12,20 @@ use huly_cef::{browser::Browser, messages::TabMessage};
 
 use crate::server::ServerState;
 
-pub const DEFAULT_WIDTH: u32 = 1920;
-pub const DEFAULT_HEIGHT: u32 = 1080;
+pub const DEFAULT_WIDTH: u32 = 1280;
+pub const DEFAULT_HEIGHT: u32 = 720;
 
 pub fn create(state: Arc<Mutex<ServerState>>, url: &str) -> Browser {
     let (tab_msg_writer, tab_msg_reader) = mpsc::unbounded_channel::<TabMessage>();
     let tab = Browser::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, url, tab_msg_writer);
 
-    tokio::spawn(handle_tab_messages(state, tab.clone(), tab_msg_reader));
+    tokio::spawn(process_tab_events(state, tab.clone(), tab_msg_reader));
 
     tab
 }
 
 /// Handles incoming WebSocket messages and processes browser events.
-async fn handle_tab_messages(
+async fn process_tab_events(
     state: Arc<Mutex<ServerState>>,
     tab: Browser,
     mut msg_channel: mpsc::UnboundedReceiver<TabMessage>,
@@ -38,8 +38,8 @@ async fn handle_tab_messages(
             TabMessage::CursorChanged(cursor) => tab.state.lock().unwrap().cursor = cursor.clone(),
             TabMessage::TitleChanged(title) => tab.state.lock().unwrap().title = title.clone(),
             TabMessage::UrlChanged(url) => tab.state.lock().unwrap().url = url.clone(),
-            TabMessage::LoadStateChanged { state, .. } => {
-                tab.state.lock().unwrap().load_state = state.clone()
+            TabMessage::LoadStateChanged { status, .. } => {
+                tab.state.lock().unwrap().load_status = status.clone()
             }
             TabMessage::FaviconUrlChanged(favicon) => {
                 tab.state.lock().unwrap().favicon = Some(favicon.clone())
@@ -60,8 +60,21 @@ pub async fn transfer_tab_messages(
     mut rx: UnboundedReceiver<TabMessage>,
     mut websocket: WebSocketStream<TcpStream>,
 ) {
-    while let Some(msg) = rx.recv().await {
-        let msg = match msg {
+    while let Some(message) = rx.recv().await {
+        match &message {
+            TabMessage::Frame(_) => info!("Frame"),
+            TabMessage::CursorChanged(_) => info!("CursorChanged"),
+            TabMessage::TitleChanged(_) => info!("TitleChanged"),
+            TabMessage::UrlChanged(_) => info!("UrlChanged"),
+            TabMessage::LoadStateChanged { .. } => info!("LoadStateChanged"),
+            TabMessage::FaviconUrlChanged(_) => info!("FaviconUrlChanged"),
+            TabMessage::Popup { .. } => info!("Popup"),
+            TabMessage::Closed => info!("Closed"),
+            _ => info!("Other message received"),
+            // Add other variants as needed
+        }
+
+        let message = match message {
             TabMessage::Frame(data) => {
                 let mut buffer = Vec::new();
                 buffer.extend(0_i8.to_ne_bytes());
@@ -93,7 +106,7 @@ pub async fn transfer_tab_messages(
                 .into(),
         };
 
-        if let Err(e) = websocket.send(msg).await {
+        if let Err(e) = websocket.send(message).await {
             error!("failed to send message: {:?}", e);
             break;
         }

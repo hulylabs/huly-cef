@@ -1,17 +1,17 @@
 const HEARTBEAT_INTERVAL = 5000;
 
-export enum LoadStateKind {
+export enum LoadStatus {
     Loading,
     Loaded,
     Error,
 }
 
 export type LoadState = {
-    LoadStateKind: LoadStateKind;
+    status: LoadStatus;
     canGoBack: boolean;
     canGoForward: boolean;
-    error_code?: number;
-    error_message?: string;
+    errorCode?: number;
+    errorMessage?: string;
 };
 
 // export enum CursorType {
@@ -101,29 +101,29 @@ export class TabEventStream {
                 if (parsed.LoadStateChanged) {
                     let state = parsed.LoadStateChanged;
                     let loadState: LoadState = {
-                        LoadStateKind: LoadStateKind.Loading,
+                        status: LoadStatus.Loading,
                         canGoBack: state.can_go_back,
                         canGoForward: state.can_go_forward,
                     };
 
                     switch (state.state) {
                         case "Loading":
-                            loadState.LoadStateKind = LoadStateKind.Loading;
+                            loadState.status = LoadStatus.Loading;
                             break;
                         case "Loaded":
-                            loadState.LoadStateKind = LoadStateKind.Loaded;
+                            loadState.status = LoadStatus.Loaded;
                             break;
                         case "LoadError":
-                            loadState.LoadStateKind = LoadStateKind.Error;
+                            loadState.status = LoadStatus.Error;
                             break;
                     }
 
                     if (state.error_code != 0) {
-                        loadState.error_code = state.error_code;
+                        loadState.errorCode = state.error_code;
                     }
 
                     if (state.error_message != "") {
-                        loadState.error_message = state.error_message;
+                        loadState.errorMessage = state.error_message;
                     }
 
                     this.onLoadStateChanged?.(loadState);

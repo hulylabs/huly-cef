@@ -11,7 +11,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::cef::{browser::BrowserState, messages::TabMessage};
 
 pub struct HulyRenderHandlerCallbacks {
-    cef_message_channel: UnboundedSender<TabMessage>,
+    event_channel: UnboundedSender<TabMessage>,
     browser_state: Arc<Mutex<BrowserState>>,
 
     popup_rect: Option<Rect>,
@@ -20,11 +20,11 @@ pub struct HulyRenderHandlerCallbacks {
 
 impl HulyRenderHandlerCallbacks {
     pub fn new(
-        cef_message_channel: UnboundedSender<TabMessage>,
+        event_channel: UnboundedSender<TabMessage>,
         browser_state: Arc<Mutex<BrowserState>>,
     ) -> Self {
         Self {
-            cef_message_channel,
+            event_channel,
             browser_state,
             popup_rect: None,
             popup_data: None,
@@ -32,7 +32,7 @@ impl HulyRenderHandlerCallbacks {
     }
 
     fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.cef_message_channel.send(message) {
+        if let Err(e) = self.event_channel.send(message) {
             error!("Failed to send message: {:?}", e);
         }
     }
@@ -66,7 +66,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         None
     }
 
-    fn get_root_screen_rect(&mut self, _browser: Browser) -> Option<Rect> {
+    fn get_root_screen_rect(&mut self, _: Browser) -> Option<Rect> {
         let state = self.browser_state.lock().unwrap();
         Some(Rect {
             x: 0,
@@ -76,7 +76,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         })
     }
 
-    fn get_view_rect(&mut self, _browser: Browser) -> Rect {
+    fn get_view_rect(&mut self, _: Browser) -> Rect {
         let state = self.browser_state.lock().unwrap();
         Rect {
             x: 0,
@@ -86,11 +86,11 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         }
     }
 
-    fn get_screen_point(&mut self, _browser: Browser, _view: &Point) -> Option<Point> {
+    fn get_screen_point(&mut self, _: Browser, _: &Point) -> Option<Point> {
         Some(Point { x: 0, y: 0 })
     }
 
-    fn get_screen_info(&mut self, _browser: Browser) -> Option<ScreenInfo> {
+    fn get_screen_info(&mut self, _: Browser) -> Option<ScreenInfo> {
         let state = self.browser_state.lock().unwrap();
 
         Some(ScreenInfo {
@@ -113,22 +113,22 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         })
     }
 
-    fn on_popup_show(&mut self, _browser: Browser, show: bool) {
+    fn on_popup_show(&mut self, _: Browser, show: bool) {
         if !show {
             self.popup_rect = None;
             self.popup_data = None;
         }
     }
 
-    fn on_popup_size(&mut self, _browser: Browser, rect: &Rect) {
+    fn on_popup_size(&mut self, _: Browser, rect: &Rect) {
         self.popup_rect = Some(rect.clone());
     }
 
     fn on_paint(
         &mut self,
-        _browser: Browser,
+        _: Browser,
         paint_element_type: PaintElementType,
-        _dirty_rects: &[Rect],
+        _: &[Rect],
         buffer: &[u8],
         width: usize,
         height: usize,
@@ -152,56 +152,28 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         }
     }
 
-    fn on_accelerated_paint(
-        &mut self,
-        _browser: Browser,
-        _paint_element_type: PaintElementType,
-        _dirty_rects: &[Rect],
-    ) {
-    }
+    fn on_accelerated_paint(&mut self, _: Browser, _: PaintElementType, _: &[Rect]) {}
 
-    fn get_touch_handle_size(
-        &mut self,
-        _browser: Browser,
-        _orientation: HorizontalAlignment,
-    ) -> Size {
+    fn get_touch_handle_size(&mut self, _: Browser, _: HorizontalAlignment) -> Size {
         Size {
             width: 0,
             height: 0,
         }
     }
 
-    fn on_touch_handle_state_changed(&mut self, _browser: Browser, _state: &TouchHandleState) {}
+    fn on_touch_handle_state_changed(&mut self, _: Browser, _: &TouchHandleState) {}
 
-    fn start_dragging(
-        &mut self,
-        _browser: Browser,
-        _drag_data: DragData,
-        _allowed_ops: DragOperations,
-        _drag_start: &Point,
-    ) -> bool {
+    fn start_dragging(&mut self, _: Browser, _: DragData, _: DragOperations, _: &Point) -> bool {
         false
     }
 
-    fn update_drag_cursor(&mut self, _browser: Browser, _operation: DragOperations) {}
+    fn update_drag_cursor(&mut self, _: Browser, _: DragOperations) {}
 
-    fn on_scroll_offset_changed(&mut self, _browser: Browser, _x: f64, _y: f64) {}
+    fn on_scroll_offset_changed(&mut self, _: Browser, _x: f64, _y: f64) {}
 
-    fn on_ime_composition_range_changed(
-        &mut self,
-        _browser: Browser,
-        _selected_range: &Range,
-        _character_bounds: &[Rect],
-    ) {
-    }
+    fn on_ime_composition_range_changed(&mut self, _: Browser, _: &Range, _: &[Rect]) {}
 
-    fn on_text_selection_changed(
-        &mut self,
-        _browser: Browser,
-        _selected_text: Option<String>,
-        _selected_range: &Range,
-    ) {
-    }
+    fn on_text_selection_changed(&mut self, _: Browser, _: Option<String>, _: &Range) {}
 
-    fn on_virtual_keyboard_requested(&mut self, _browser: Browser, _input_mode: TextInputMode) {}
+    fn on_virtual_keyboard_requested(&mut self, _: Browser, _: TextInputMode) {}
 }

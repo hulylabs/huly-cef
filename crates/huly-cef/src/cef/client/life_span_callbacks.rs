@@ -8,16 +8,16 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::cef::messages::TabMessage;
 
 pub struct HulyLifeSpanHandlerCallbacks {
-    cef_msg_channel: UnboundedSender<TabMessage>,
+    event_channel: UnboundedSender<TabMessage>,
 }
 
 impl HulyLifeSpanHandlerCallbacks {
-    pub fn new(cef_msg_channel: UnboundedSender<TabMessage>) -> Self {
-        Self { cef_msg_channel }
+    pub fn new(event_channel: UnboundedSender<TabMessage>) -> Self {
+        Self { event_channel }
     }
 
     fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.cef_msg_channel.send(message) {
+        if let Err(e) = self.event_channel.send(message) {
             error!("Failed to send message: {:?}", e);
         }
     }

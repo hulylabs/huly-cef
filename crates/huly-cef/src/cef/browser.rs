@@ -11,11 +11,9 @@ use cef_ui::{
 use crossbeam_channel::Sender;
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
-use crate::messages::LoadState;
-
 use super::{
     client,
-    messages::{MouseType, TabMessage},
+    messages::{LoadStatus, MouseType, TabMessage},
 };
 
 /// Maintains the state of a browser instance.
@@ -24,7 +22,11 @@ pub struct BrowserState {
     pub title: String,
     pub url: String,
     pub favicon: Option<String>,
-    pub load_state: LoadState,
+    pub load_status: LoadStatus,
+    pub can_go_back: bool,
+    pub can_go_forward: bool,
+    pub error_code: i32,
+    pub error_text: String,
     pub cursor: String,
     pub width: u32,
     pub height: u32,
@@ -282,7 +284,7 @@ struct CreateBrowserTaskCallback {
     width: u32,
     height: u32,
     url: String,
-    sender: UnboundedSender<TabMessage>,
+    event_channel: UnboundedSender<TabMessage>,
 }
 
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
@@ -295,7 +297,11 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             title: "".to_string(),
             url: self.url.clone(),
             favicon: None,
-            load_state: LoadState::Loading,
+            load_status: LoadStatus::Loading,
+            can_go_back: false,
+            can_go_forward: false,
+            error_code: 0,
+            error_text: "".to_string(),
             cursor: "Pointer".to_string(),
             width: self.width,
             height: self.height,
@@ -304,7 +310,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             get_center_oneshot_channel: None,
         }));
 
-        let client = client::new(state.clone(), self.sender.clone());
+        let client = client::new(state.clone(), self.event_channel.clone());
         let inner = BrowserHost::create_browser_sync(
             &window_info,
             client,
@@ -340,7 +346,7 @@ fn create_browser(
     width: u32,
     height: u32,
     url: &str,
-    sender: UnboundedSender<TabMessage>,
+    event_channel: UnboundedSender<TabMessage>,
 ) -> Browser {
     let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
     let result = cef_ui::post_task(
@@ -350,9 +356,10 @@ fn create_browser(
             width,
             height,
             url: url.to_string(),
-            sender,
+            event_channel,
         }),
     );
+
     if !result {
         panic!("failed to create a browser in the UI thread");
     }
