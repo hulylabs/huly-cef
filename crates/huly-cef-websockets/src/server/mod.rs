@@ -24,6 +24,8 @@ struct ServerState {
     cache_path: String,
     tabs: HashMap<i32, Browser>,
 
+    size: (u32, u32),
+
     tab_event_receivers: HashMap<i32, UnboundedSender<TabMessage>>,
 }
 
@@ -36,6 +38,7 @@ pub async fn serve(addr: String, cache_path: String) {
     let state = Arc::new(Mutex::new(ServerState {
         cache_path: cache_path,
         tabs: HashMap::new(),
+        size: (tab::DEFAULT_WIDTH, tab::DEFAULT_HEIGHT),
         tab_event_receivers: HashMap::new(),
     }));
 

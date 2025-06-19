@@ -26,7 +26,7 @@ impl HulyAppCallbacks {
 impl AppCallbacks for HulyAppCallbacks {
     fn on_before_command_line_processing(
         &mut self,
-        _process_type: Option<&str>,
+        _: Option<&str>,
         command_line: Option<CommandLine>,
     ) {
         if let Some(command_line) = command_line {

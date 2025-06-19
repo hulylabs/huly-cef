@@ -42,8 +42,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         };
 
-        info!("received message: {:?}", msg);
-
         let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
         let mut resp = None;
         match (msg.body, tab) {
@@ -99,8 +97,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 continue;
             }
         }
-
-        info!("sending response: {:?}", resp);
 
         if let Some(resp) = resp {
             let resp = ServerMessage {
@@ -164,7 +160,11 @@ fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
 }
 
 fn open_tab(state: &Arc<Mutex<ServerState>>, url: &str) -> ServerMessageType {
-    let tab = tab::create(state.clone(), url);
+    let (width, height) = {
+        let state = state.lock().unwrap();
+        state.size
+    };
+    let tab = tab::create(state.clone(), width, height, url);
     let id = tab.get_id();
     let mut state = state.lock().unwrap();
     state.tabs.insert(id, tab);
@@ -197,12 +197,9 @@ fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
 }
 
 fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
-    state
-        .lock()
-        .unwrap()
-        .tabs
-        .iter()
-        .for_each(|t| t.1.resize(width, height));
+    let mut state = state.lock().unwrap();
+    state.size = (width, height);
+    state.tabs.iter().for_each(|t| t.1.resize(width, height));
 }
 
 fn get_screenshot(tab: Browser) -> Option<String> {

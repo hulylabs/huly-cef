@@ -15,9 +15,9 @@ use crate::server::ServerState;
 pub const DEFAULT_WIDTH: u32 = 1280;
 pub const DEFAULT_HEIGHT: u32 = 720;
 
-pub fn create(state: Arc<Mutex<ServerState>>, url: &str) -> Browser {
+pub fn create(state: Arc<Mutex<ServerState>>, width: u32, height: u32, url: &str) -> Browser {
     let (tab_msg_writer, tab_msg_reader) = mpsc::unbounded_channel::<TabMessage>();
-    let tab = Browser::new(DEFAULT_WIDTH, DEFAULT_HEIGHT, url, tab_msg_writer);
+    let tab = Browser::new(width, height, url, tab_msg_writer);
 
     tokio::spawn(process_tab_events(state, tab.clone(), tab_msg_reader));
 
@@ -61,19 +61,6 @@ pub async fn transfer_tab_messages(
     mut websocket: WebSocketStream<TcpStream>,
 ) {
     while let Some(message) = rx.recv().await {
-        match &message {
-            TabMessage::Frame(_) => info!("Frame"),
-            TabMessage::CursorChanged(_) => info!("CursorChanged"),
-            TabMessage::TitleChanged(_) => info!("TitleChanged"),
-            TabMessage::UrlChanged(_) => info!("UrlChanged"),
-            TabMessage::LoadStateChanged { .. } => info!("LoadStateChanged"),
-            TabMessage::FaviconUrlChanged(_) => info!("FaviconUrlChanged"),
-            TabMessage::Popup { .. } => info!("Popup"),
-            TabMessage::Closed => info!("Closed"),
-            _ => info!("Other message received"),
-            // Add other variants as needed
-        }
-
         let message = match message {
             TabMessage::Frame(data) => {
                 let mut buffer = Vec::new();

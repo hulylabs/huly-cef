@@ -19,24 +19,15 @@ impl BrowserProcessHandlerCallbacks for HulyBrowserProcessHandlerCallbacks {
         _ = command_line.append_switch_with_value("cache-path", Some(&self.cache_path));
     }
 
-    fn on_register_custom_preferences(
-        &mut self,
-        _preferences_type: PreferencesType,
-        _registrar: &mut PreferenceRegistrar,
-    ) {
-    }
+    fn on_register_custom_preferences(&mut self, _: PreferencesType, _: &mut PreferenceRegistrar) {}
 
     fn on_context_initialized(&mut self) {}
 
-    fn on_already_running_app_relaunch(
-        &mut self,
-        _command_line: cef_ui::CommandLine,
-        _current_directory: &str,
-    ) -> bool {
+    fn on_already_running_app_relaunch(&mut self, _: CommandLine, _: &str) -> bool {
         false
     }
 
-    fn on_schedule_message_pump_work(&mut self, _delay_ms: i64) {}
+    fn on_schedule_message_pump_work(&mut self, _: i64) {}
 
     fn get_default_client(&mut self) -> Option<Client> {
         None
