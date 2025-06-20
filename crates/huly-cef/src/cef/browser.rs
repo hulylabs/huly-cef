@@ -148,6 +148,21 @@ impl Browser {
         }
     }
 
+    pub fn char(&self, character: u16) {
+        let event = KeyEvent {
+            event_type: KeyEventType::Char,
+            modifiers: EventFlags::empty(),
+            windows_key_code: 0.into(),
+            native_key_code: 0,
+            is_system_key: false,
+            character,
+            unmodified_character: character,
+            focus_on_editable_field: false,
+        };
+
+        _ = self.inner.get_host().unwrap().send_key_event(event);
+    }
+
     pub fn start_video(&self) {
         let mut state = self.state.lock().unwrap();
         state.active = true;

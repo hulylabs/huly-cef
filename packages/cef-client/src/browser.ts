@@ -214,6 +214,16 @@ export class BrowserClient {
         }));
     }
 
+    char(tabId: number, character: number): void {
+        this.send(JSON.stringify({
+            id: "",
+            tab_id: tabId,
+            body: {
+                Char: character
+            }
+        }));
+    }
+
     stopVideo(tabId: number): void {
         this.send(JSON.stringify({
             id: "",

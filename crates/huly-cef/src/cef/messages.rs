@@ -101,6 +101,7 @@ pub enum BrowserMessageType {
         ctrl: bool,
         shift: bool,
     },
+    Char(u16),
     StopVideo,
     StartVideo,
     Reload,

@@ -74,6 +74,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 },
                 Some(tab),
             ) => tab.key_press(character, windowscode, code, down, ctrl, shift),
+            (BrowserMessageType::Char(char), Some(tab)) => tab.char(char),
             (BrowserMessageType::StopVideo, Some(tab)) => tab.stop_video(),
             (BrowserMessageType::StartVideo, Some(tab)) => tab.start_video(),
             (BrowserMessageType::Reload, Some(tab)) => tab.reload(),
