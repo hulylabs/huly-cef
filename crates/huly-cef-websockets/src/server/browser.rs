@@ -15,10 +15,9 @@ use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
-use super::{
-    tab::{self, DEFAULT_HEIGHT, DEFAULT_WIDTH},
-    ServerState,
-};
+use crate::server::tab;
+
+use super::ServerState;
 
 pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStream<TcpStream>) {
     while let Some(msg) = websocket.next().await {
