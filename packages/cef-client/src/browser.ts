@@ -75,7 +75,7 @@ export class BrowserClient {
         }));
     }
 
-    openTab(url: string): Promise<number> {
+    openTab(url?: string): Promise<number> {
         const id = uuidv4();
         return this.sendWithPromise<number>(id, JSON.stringify({
             id: id,
@@ -94,9 +94,9 @@ export class BrowserClient {
         }));
     }
 
-    getTabs(): Promise<String[]> {
+    getTabs(): Promise<number[]> {
         const id = uuidv4();
-        return this.sendWithPromise<String[]>(id, JSON.stringify({
+        return this.sendWithPromise<number[]>(id, JSON.stringify({
             id: id,
             tab_id: -1,
             body: "GetTabs"

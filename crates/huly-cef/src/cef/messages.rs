@@ -128,7 +128,7 @@ pub struct ServerMessage {
 pub enum ServerMessageType {
     Session(Vec<String>),
     Tab(i32),
-    Tabs(Vec<String>),
+    Tabs(Vec<i32>),
     Screenshot(String),
     DOM(String),
     ElementCenter(i32, i32),

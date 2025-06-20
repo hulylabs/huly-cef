@@ -184,16 +184,16 @@ fn close_tab(state: &Arc<Mutex<ServerState>>, id: i32) {
 }
 
 fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
-    let urls = {
+    let ids = {
         let state = state.lock().unwrap();
         state
             .tabs
             .values()
-            .map(|tab| tab.state.lock().unwrap().url.clone())
+            .map(|tab| tab.get_id().clone())
             .collect::<Vec<_>>()
     };
 
-    ServerMessageType::Tabs(urls)
+    ServerMessageType::Tabs(ids)
 }
 
 fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
@@ -203,22 +203,14 @@ fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
 }
 
 fn get_screenshot(tab: Browser) -> Option<String> {
-    let screenshot_data = tab
-        .state
-        .lock()
-        .unwrap()
-        .last_frame
-        .clone()
-        .unwrap_or_default();
-
-    if screenshot_data.len() != (DEFAULT_WIDTH * DEFAULT_HEIGHT * 4) as usize {
-        error!(
-            "screenshot data length {} does not match expected size {}",
-            screenshot_data.len(),
-            DEFAULT_WIDTH * DEFAULT_HEIGHT * 4
-        );
+    let state = tab.state.lock().unwrap();
+    let Some(screenshot_data) = state.last_frame.clone() else {
+        error!("no screenshot data available for tab {}", tab.get_id());
         return None;
-    }
+    };
+
+    let width = state.width;
+    let height = state.height;
 
     let mut png_bytes: Vec<u8> = Vec::new();
     {
@@ -226,8 +218,8 @@ fn get_screenshot(tab: Browser) -> Option<String> {
         encoder
             .write_image(
                 &screenshot_data,
-                DEFAULT_WIDTH,
-                DEFAULT_HEIGHT,
+                width,
+                height,
                 image::ExtendedColorType::Rgba8,
             )
             .expect("PNG encoding failed");

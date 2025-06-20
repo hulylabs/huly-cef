@@ -3,7 +3,7 @@ use log::{error, info};
 use std::sync::{Arc, Mutex};
 use tokio::{
     net::TcpStream,
-    sync::mpsc::{self, UnboundedReceiver},
+    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
 };
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
@@ -50,7 +50,7 @@ async fn process_tab_events(
         state
             .lock()
             .unwrap()
-            .tab_event_receivers
+            .event_consumers
             .get(&tab.get_id())
             .map(|rx| rx.send(message));
     }
@@ -98,4 +98,28 @@ pub async fn transfer_tab_messages(
             break;
         }
     }
+}
+
+pub fn generate_events(tab: &Browser, tx: UnboundedSender<TabMessage>) {
+    let state = tab.state.lock().unwrap();
+
+    _ = tx.send(TabMessage::UrlChanged(state.url.clone()));
+    _ = tx.send(TabMessage::TitleChanged(state.title.clone()));
+    _ = tx.send(TabMessage::CursorChanged(state.cursor.clone()));
+    _ = tx.send(TabMessage::LoadStateChanged {
+        status: state.load_status.clone(),
+        can_go_back: state.can_go_back,
+        can_go_forward: state.can_go_forward,
+        error_code: state.error_code,
+        error_text: state.error_text.clone(),
+    });
+
+    if let Some(favicon) = &state.favicon {
+        _ = tx.send(TabMessage::FaviconUrlChanged(favicon.clone()));
+    }
+    if let Some(frame_data) = &state.last_frame {
+        _ = tx.send(TabMessage::Frame(frame_data.clone()));
+    }
+
+    info!("Generated initial state events for tab {}", tab.get_id());
 }
