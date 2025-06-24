@@ -32,9 +32,6 @@ async fn process_tab_events(
 ) {
     while let Some(message) = msg_channel.recv().await {
         match &message {
-            TabMessage::Frame(data) => {
-                tab.state.lock().unwrap().last_frame = Some(data.clone());
-            }
             TabMessage::CursorChanged(cursor) => tab.state.lock().unwrap().cursor = cursor.clone(),
             TabMessage::TitleChanged(title) => tab.state.lock().unwrap().title = title.clone(),
             TabMessage::UrlChanged(url) => tab.state.lock().unwrap().url = url.clone(),
@@ -116,9 +113,6 @@ pub fn generate_events(tab: &Browser, tx: UnboundedSender<TabMessage>) {
 
     if let Some(favicon) = &state.favicon {
         _ = tx.send(TabMessage::FaviconUrlChanged(favicon.clone()));
-    }
-    if let Some(frame_data) = &state.last_frame {
-        _ = tx.send(TabMessage::Frame(frame_data.clone()));
     }
 
     info!("Generated initial state events for tab {}", tab.get_id());

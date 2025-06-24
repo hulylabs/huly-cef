@@ -50,10 +50,10 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
             (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
-            (BrowserMessageType::TakeScreenshot, Some(tab)) => {
-                if let Some(screenshot) = get_screenshot(tab) {
-                    resp = Some(ServerMessageType::Screenshot(screenshot));
-                }
+            (BrowserMessageType::Screenshot { width, height }, Some(tab)) => {
+                resp = Some(ServerMessageType::Screenshot(
+                    get_screenshot(tab, width, height).await,
+                ));
             }
             (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
             (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
@@ -169,8 +169,6 @@ fn open_tab(state: &Arc<Mutex<ServerState>>, url: &str) -> ServerMessageType {
     let mut state = state.lock().unwrap();
     state.tabs.insert(id, tab);
 
-    info!("tab with id {} opened", id);
-
     ServerMessageType::Tab(id)
 }
 
@@ -202,28 +200,16 @@ fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
     state.tabs.iter().for_each(|t| t.1.resize(width, height));
 }
 
-fn get_screenshot(tab: Browser) -> Option<String> {
-    let state = tab.state.lock().unwrap();
-    let Some(screenshot_data) = state.last_frame.clone() else {
-        error!("no screenshot data available for tab {}", tab.get_id());
-        return None;
-    };
+async fn get_screenshot(tab: Browser, width: u32, height: u32) -> String {
+    let data = tab.screenshot(width, height).await;
 
-    let width = state.width;
-    let height = state.height;
-
-    let mut png_bytes: Vec<u8> = Vec::new();
+    let mut bytes: Vec<u8> = Vec::new();
     {
-        let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
+        let encoder = image::codecs::png::PngEncoder::new(&mut bytes);
         encoder
-            .write_image(
-                &screenshot_data,
-                width,
-                height,
-                image::ExtendedColorType::Rgba8,
-            )
+            .write_image(&data, width, height, image::ExtendedColorType::Rgba8)
             .expect("PNG encoding failed");
     }
 
-    Some(base64::engine::general_purpose::STANDARD.encode(png_bytes))
+    base64::engine::general_purpose::STANDARD.encode(bytes)
 }

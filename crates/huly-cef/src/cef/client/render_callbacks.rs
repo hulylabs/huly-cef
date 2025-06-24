@@ -12,7 +12,7 @@ use crate::cef::{browser::BrowserState, messages::TabMessage};
 
 pub struct HulyRenderHandlerCallbacks {
     event_channel: UnboundedSender<TabMessage>,
-    browser_state: Arc<Mutex<BrowserState>>,
+    state: Arc<Mutex<BrowserState>>,
 
     popup_rect: Option<Rect>,
     popup_data: Option<Vec<u8>>,
@@ -21,11 +21,11 @@ pub struct HulyRenderHandlerCallbacks {
 impl HulyRenderHandlerCallbacks {
     pub fn new(
         event_channel: UnboundedSender<TabMessage>,
-        browser_state: Arc<Mutex<BrowserState>>,
+        state: Arc<Mutex<BrowserState>>,
     ) -> Self {
         Self {
             event_channel,
-            browser_state,
+            state,
             popup_rect: None,
             popup_data: None,
         }
@@ -59,6 +59,21 @@ impl HulyRenderHandlerCallbacks {
 
         rgba_buffer
     }
+
+    fn try_send_screenshot(&self, buffer: &[u8], width: u32, height: u32) -> bool {
+        let mut state = self.state.lock().unwrap();
+
+        if state.screenshot_channel.is_some()
+            && width == state.screenshot_width
+            && height == state.screenshot_height
+        {
+            let tx = state.screenshot_channel.take().unwrap();
+            _ = tx.send(buffer.to_vec());
+            return true;
+        }
+
+        false
+    }
 }
 
 impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
@@ -67,31 +82,32 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     }
 
     fn get_root_screen_rect(&mut self, _: Browser) -> Option<Rect> {
-        let state = self.browser_state.lock().unwrap();
-        Some(Rect {
-            x: 0,
-            y: 0,
-            width: state.width as i32,
-            height: state.height as i32,
-        })
+        None
     }
 
     fn get_view_rect(&mut self, _: Browser) -> Rect {
-        let state = self.browser_state.lock().unwrap();
-        Rect {
+        let state = self.state.lock().unwrap();
+        let mut rect = Rect {
             x: 0,
             y: 0,
             width: state.width as i32,
             height: state.height as i32,
+        };
+
+        if state.screenshot_channel.is_some() {
+            rect.width = state.screenshot_width as i32;
+            rect.height = state.screenshot_height as i32;
         }
+
+        rect
     }
 
     fn get_screen_point(&mut self, _: Browser, _: &Point) -> Option<Point> {
-        Some(Point { x: 0, y: 0 })
+        None
     }
 
     fn get_screen_info(&mut self, _: Browser) -> Option<ScreenInfo> {
-        let state = self.browser_state.lock().unwrap();
+        let state = self.state.lock().unwrap();
 
         Some(ScreenInfo {
             device_scale_factor: 1.0,
@@ -133,9 +149,15 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         width: usize,
         height: usize,
     ) {
-        let state = self.browser_state.lock().unwrap();
-        if !state.active {
+        if self.try_send_screenshot(buffer, width as u32, height as u32) {
             return;
+        }
+
+        {
+            let state = self.state.lock().unwrap();
+            if !(state.active && state.width == width as u32 && state.height == height as u32) {
+                return;
+            }
         }
 
         match paint_element_type {

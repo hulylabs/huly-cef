@@ -116,12 +116,17 @@ export class BrowserClient {
         }));
     }
 
-    screenshot(tabId: number): Promise<string> {
+    screenshot(tabId: number, width: number, height: number): Promise<string> {
         const id = uuidv4();
         return this.sendWithPromise<string>(id, JSON.stringify({
             id: id,
             tab_id: tabId,
-            body: "TakeScreenshot"
+            body: {
+                Screenshot: {
+                    width: Math.floor(width),
+                    height: Math.floor(height)
+                }
+            }
         }));
     }
 

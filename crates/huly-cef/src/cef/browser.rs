@@ -18,7 +18,6 @@ use super::{
 
 /// Maintains the state of a browser instance.
 pub struct BrowserState {
-    pub last_frame: Option<Vec<u8>>,
     pub title: String,
     pub url: String,
     pub favicon: Option<String>,
@@ -34,6 +33,10 @@ pub struct BrowserState {
     pub left_mouse_button_down: bool,
 
     pub get_center_oneshot_channel: Option<oneshot::Sender<Result<(i32, i32)>>>,
+
+    pub screenshot_width: u32,
+    pub screenshot_height: u32,
+    pub screenshot_channel: Option<oneshot::Sender<Vec<u8>>>,
 }
 
 pub struct Browser {
@@ -274,6 +277,20 @@ impl Browser {
             .unwrap()
             .execute_java_script(&code, "", 0);
     }
+
+    pub async fn screenshot(&self, width: u32, height: u32) -> Vec<u8> {
+        let (tx, rx) = oneshot::channel::<Vec<u8>>();
+
+        {
+            let mut state = self.state.lock().unwrap();
+            state.screenshot_width = width;
+            state.screenshot_height = height;
+            state.screenshot_channel = Some(tx);
+        }
+
+        _ = self.inner.get_host().unwrap().was_resized();
+        rx.await.unwrap()
+    }
 }
 
 struct DOMVisitor {
@@ -308,7 +325,6 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
         let window_info = WindowInfo::new().windowless_rendering_enabled(true);
         let settings = BrowserSettings::new().windowless_frame_rate(60);
         let state = Arc::new(Mutex::new(BrowserState {
-            last_frame: None,
             title: "".to_string(),
             url: self.url.clone(),
             favicon: None,
@@ -323,6 +339,9 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             active: true,
             left_mouse_button_down: false,
             get_center_oneshot_channel: None,
+            screenshot_width: 0,
+            screenshot_height: 0,
+            screenshot_channel: None,
         }));
 
         let client = client::new(state.clone(), self.event_channel.clone());
