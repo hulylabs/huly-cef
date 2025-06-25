@@ -8,7 +8,10 @@ use tokio::{
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
-use huly_cef::{browser::Browser, messages::TabMessage};
+use huly_cef::{
+    browser::Browser,
+    messages::{TabEventType, TabMessage},
+};
 
 use crate::server::ServerState;
 
@@ -43,6 +46,14 @@ async fn process_tab_events(
             }
             _ => {}
         };
+
+        let event_type = TabEventType::from(&message);
+        tab.state
+            .lock()
+            .unwrap()
+            .tab_events_subscribers
+            .get(&event_type)
+            .and_then(|ch| ch.send(message.clone()).ok());
 
         state
             .lock()

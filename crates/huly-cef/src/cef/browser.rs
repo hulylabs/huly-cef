@@ -1,7 +1,10 @@
 use log::error;
 use serde::{Deserialize, Serialize};
 
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use cef_ui::{
     BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, EventFlags, KeyEvent, KeyEventType,
@@ -9,7 +12,12 @@ use cef_ui::{
     WindowInfo,
 };
 use crossbeam_channel::Sender;
-use tokio::sync::{mpsc::UnboundedSender, oneshot};
+use tokio::sync::{
+    mpsc::{self, UnboundedSender},
+    oneshot,
+};
+
+use crate::messages::TabEventType;
 
 use super::{
     client,
@@ -39,6 +47,8 @@ pub struct BrowserState {
     pub height: u32,
     pub active: bool,
     pub left_mouse_button_down: bool,
+
+    pub tab_events_subscribers: HashMap<TabEventType, UnboundedSender<TabMessage>>,
 
     pub clickable_elements: Option<Vec<ClickableElement>>,
     pub clickable_elements_channel: Option<oneshot::Sender<Vec<ClickableElement>>>,
@@ -297,6 +307,34 @@ impl Browser {
 
         clickable_elements
     }
+
+    pub async fn wait_until_loaded(&self) -> LoadStatus {
+        {
+            let state = self.state.lock().unwrap();
+            if state.load_status != LoadStatus::Loading {
+                return state.load_status.clone();
+            }
+        }
+
+        let (tx, mut rx) = mpsc::unbounded_channel::<TabMessage>();
+        {
+            let mut state = self.state.lock().unwrap();
+            state
+                .tab_events_subscribers
+                .insert(TabEventType::LoadStateChanged, tx);
+        }
+
+        // TODO: use timeout here to avoid running indefinitely
+        while let Some(message) = rx.recv().await {
+            if let TabMessage::LoadStateChanged { status, .. } = message {
+                if status != LoadStatus::Loading {
+                    return status;
+                }
+            }
+        }
+
+        LoadStatus::Loading
+    }
 }
 
 struct DOMVisitor {
@@ -344,6 +382,8 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             height: self.height,
             active: true,
             left_mouse_button_down: false,
+            tab_events_subscribers: HashMap::new(),
+
             clickable_elements: None,
             clickable_elements_channel: None,
             screenshot_width: 0,
@@ -389,6 +429,7 @@ fn create_browser(
     url: &str,
     event_channel: UnboundedSender<TabMessage>,
 ) -> Browser {
+    // TODO: use oneshot
     let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
     let result = cef_ui::post_task(
         ThreadId::UI,

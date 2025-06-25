@@ -20,6 +20,37 @@ pub enum LoadStatus {
     LoadError,
 }
 
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub enum TabEventType {
+    Frame,
+    Popup,
+    CursorChanged,
+    TitleChanged,
+    UrlChanged,
+    FaviconUrlChanged,
+    Closed,
+    UrlHovered,
+    NewTabRequested,
+    LoadStateChanged,
+}
+
+impl From<&TabMessage> for TabEventType {
+    fn from(message: &TabMessage) -> Self {
+        match message {
+            TabMessage::Frame(_) => TabEventType::Frame,
+            TabMessage::Popup { .. } => TabEventType::Popup,
+            TabMessage::CursorChanged(_) => TabEventType::CursorChanged,
+            TabMessage::TitleChanged(_) => TabEventType::TitleChanged,
+            TabMessage::UrlChanged(_) => TabEventType::UrlChanged,
+            TabMessage::FaviconUrlChanged(_) => TabEventType::FaviconUrlChanged,
+            TabMessage::Closed => TabEventType::Closed,
+            TabMessage::UrlHovered { .. } => TabEventType::UrlHovered,
+            TabMessage::NewTabRequested(_) => TabEventType::NewTabRequested,
+            TabMessage::LoadStateChanged { .. } => TabEventType::LoadStateChanged,
+        }
+    }
+}
+
 /// Represents different types of messages that can be sent from CEF to the browser.
 #[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
 pub enum TabMessage {
@@ -55,8 +86,6 @@ pub enum TabMessage {
         error_code: i32,
         error_text: String,
     },
-    /// Message containin the queried elemnt's center coordinates.
-    ElementCenter { x: i32, y: i32 },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -46,7 +46,9 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
         match (msg.body, tab) {
             (BrowserMessageType::Close, _) => break,
             (BrowserMessageType::RestoreSession, _) => resp = Some(restore_session(&state)),
-            (BrowserMessageType::OpenTab(url), _) => resp = Some(open_tab(&state, &url)),
+            (BrowserMessageType::OpenTab(url), _) => {
+                resp = Some(open_tab(&state, &url, true).await)
+            }
             (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
             (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
@@ -158,15 +160,25 @@ fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
     ServerMessageType::Session(vec)
 }
 
-fn open_tab(state: &Arc<Mutex<ServerState>>, url: &str) -> ServerMessageType {
+async fn open_tab(
+    state: &Arc<Mutex<ServerState>>,
+    url: &str,
+    wait_until_loaded: bool,
+) -> ServerMessageType {
     let (width, height) = {
         let state = state.lock().unwrap();
         state.size
     };
     let tab = tab::create(state.clone(), width, height, url);
     let id = tab.get_id();
-    let mut state = state.lock().unwrap();
-    state.tabs.insert(id, tab);
+    {
+        let mut state = state.lock().unwrap();
+        state.tabs.insert(id, tab.clone());
+    }
+
+    if wait_until_loaded {
+        tab.wait_until_loaded().await;
+    }
 
     ServerMessageType::Tab(id)
 }
