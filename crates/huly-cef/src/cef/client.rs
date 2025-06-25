@@ -4,10 +4,12 @@ use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
-use log::error;
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{browser::BrowserState, messages::TabMessage};
+use super::{
+    browser::{BrowserState, ClickableElement},
+    messages::TabMessage,
+};
 
 mod display_callbacks;
 mod life_span_callbacks;
@@ -82,34 +84,46 @@ impl ClientCallbacks for HulyClientCallbacks {
 
     fn on_process_message_received(
         &mut self,
-        _browser: Browser,
-        _frame: Frame,
-        _source_process: ProcessId,
+        _: Browser,
+        _: Frame,
+        _: ProcessId,
         message: ProcessMessage,
     ) -> bool {
         let message_name = message.get_name().unwrap_or_default();
-        if message_name == "getElementCenterResponse" {
+        if message_name == "clickable_elements" {
+            let mut elements = Vec::new();
             let args = message.get_argument_list().unwrap_or_default().unwrap();
-            let (x, y) = (args.get_int(0).unwrap(), args.get_int(1).unwrap());
+            let len = args.len().unwrap();
+            for i in 0..len / 4 {
+                let tag = args.get_string(i * 4 + 0).unwrap().unwrap();
+                let text = args
+                    .get_string(i * 4 + 1)
+                    .unwrap_or_default()
+                    .unwrap_or_default();
+                let x = args.get_int(i * 4 + 2).unwrap();
+                let y = args.get_int(i * 4 + 3).unwrap();
 
-            let mut state = self.state.lock().unwrap();
-            if let Some(tx) = state.get_center_oneshot_channel.take() {
-                if tx.send(Ok((x, y))).is_err() {
-                    error!("Failed to send getElementCenter response");
-                }
-            } else {
-                error!("No channel to send getElementCenter response");
+                elements.push(ClickableElement { tag, text, x, y });
             }
+
+            _ = self
+                .state
+                .lock()
+                .unwrap()
+                .clickable_elements_channel
+                .take()
+                .unwrap()
+                .send(elements);
         }
 
         true
     }
 
-    fn get_request_handler(&mut self) -> Option<cef_ui::RequestHandler> {
+    fn get_request_handler(&mut self) -> Option<RequestHandler> {
         Some(self.request_handler.clone())
     }
 }
 
-pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<TabMessage>) -> cef_ui::Client {
+pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<TabMessage>) -> Client {
     Client::new(HulyClientCallbacks::new(sender, state))
 }

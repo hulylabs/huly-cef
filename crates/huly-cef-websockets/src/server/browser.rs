@@ -84,10 +84,9 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::GetDOM, Some(tab)) => {
                 resp = Some(ServerMessageType::DOM(tab.get_dom().await));
             }
-            (BrowserMessageType::GetElementCenter { selector }, Some(tab)) => {
-                if let Ok(center) = tab.get_element_center(&selector).await {
-                    resp = Some(ServerMessageType::ElementCenter(center.0, center.1));
-                }
+            (BrowserMessageType::GetClickableElements, Some(tab)) => {
+                let elements = tab.get_clickable_elements().await;
+                resp = Some(ServerMessageType::ClickableElements(elements));
             }
             (BrowserMessageType::SetText { selector, text }, Some(tab)) => {
                 tab.set_text(&selector, &text);

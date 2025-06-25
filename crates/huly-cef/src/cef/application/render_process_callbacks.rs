@@ -1,96 +1,136 @@
+use anyhow::Result;
+
 use cef_ui::{
     Browser, DictionaryValue, Frame, ProcessId, ProcessMessage, RenderProcessHandlerCallbacks,
-    V8Context, V8Value,
+    V8Context, V8Handler, V8HandlerCallbacks, V8Value,
 };
+use log::error;
 
 pub struct HulyRenderProcessHandlerCallbacks;
 
-impl HulyRenderProcessHandlerCallbacks {
-    fn construct_error_message(error: &str) -> ProcessMessage {
-        let message = ProcessMessage::new("error");
-        _ = message
-            .get_argument_list()
-            .unwrap()
-            .unwrap()
-            .set_string(0, error);
-        message
-    }
-
-    pub fn process_get_center_message(frame: &Frame, message: &ProcessMessage) -> ProcessMessage {
-        let args = message.get_argument_list().unwrap_or_default();
-        let Some(selector) = args
-            .and_then(|args| args.get_string(0).ok().flatten())
-            .map(|s| s.to_string())
-        else {
-            return Self::construct_error_message(
-                "selector is missing in getElementCenter message",
-            );
-        };
-
-        let context = frame.get_v8context().expect("failed to get V8 context");
-        context.enter().expect("failed to enter V8 context");
-        let mut retval = V8Value::create_object();
-        _ = context.eval(&format!("getCenter('{selector}')"), "", 0, &mut retval);
-        let (Ok(x), Ok(y)) = (
-            retval
-                .get_value_by_key("x")
-                .and_then(|v| v.get_double_value()),
-            retval
-                .get_value_by_key("y")
-                .and_then(|v| v.get_double_value()),
-        ) else {
-            return Self::construct_error_message("failed to get x or y from getCenter result");
-        };
-        context.exit().expect("failed to exit V8 context");
-
-        let response = ProcessMessage::new("getElementCenterResponse");
-        let args = response.get_argument_list().unwrap().unwrap();
-        _ = args.set_int(0, x as i32);
-        _ = args.set_int(1, y as i32);
-        response
-    }
-}
-
 impl RenderProcessHandlerCallbacks for HulyRenderProcessHandlerCallbacks {
-    fn on_web_kit_initialized(&mut self) {
-        _ = cef_ui::register_extension(
-            "utility",
-            "let getCenter = function(selector) {
-                let element = document.querySelector(selector);
-                if (!element) {
-                    return null;
-                }
-                let rect = element.getBoundingClientRect();
-                return {
-                    x: rect.left + (rect.width / 2),
-                    y: rect.top + (rect.height / 2)
-                };
-            };",
-            None,
-        );
-    }
+    fn on_web_kit_initialized(&mut self) {}
 
     fn on_browser_created(&mut self, _: Browser, _: Option<DictionaryValue>) {}
 
     fn on_browser_destroyed(&mut self, _: Browser) {}
 
-    fn on_context_created(&mut self, _: Browser, _: Frame, _: V8Context) {}
+    fn on_context_created(&mut self, browser: Browser, _: Frame, context: V8Context) {
+        let handler = V8Handler::new(GetClickableElementsCallback::new(browser));
+        let func = V8Value::create_function("getClickableElements", handler)
+            .expect("failed to create func getClickableElements");
+
+        context
+            .get_global()
+            .expect("failed to get global context object")
+            .set_value_by_key("getClickableElements", func)
+            .expect("failed to set getClickableElements function");
+    }
 
     fn on_process_message_received(
         &mut self,
         _: Browser,
-        frame: Frame,
+        _: Frame,
         _: ProcessId,
-        message: &mut ProcessMessage,
+        _: &mut ProcessMessage,
     ) -> bool {
-        let message_name = message.get_name().unwrap_or_default();
-        if message_name == "getElementCenter" {
-            _ = frame.send_process_message(
-                ProcessId::Browser,
-                Self::process_get_center_message(&frame, &message),
+        true
+    }
+}
+
+macro_rules! try_get_string {
+    ($element:expr, $key:expr) => {{
+        let value = $element.get_value_by_key($key).unwrap();
+        if !value.is_string().unwrap() {
+            Err(anyhow::anyhow!("Invalid {} type: expected a string", $key))
+        } else {
+            value.get_string_value()
+        }
+    }};
+}
+
+macro_rules! try_get_double {
+    ($element:expr, $key:expr) => {{
+        let value = $element.get_value_by_key($key).unwrap();
+        if !value.is_double().unwrap() {
+            Err(anyhow::anyhow!("Invalid {} type: expected a double", $key))
+        } else {
+            value.get_double_value()
+        }
+    }};
+}
+
+struct GetClickableElementsCallback {
+    browser: Browser,
+    function_name: String,
+}
+impl GetClickableElementsCallback {
+    pub fn new(browser: Browser) -> Self {
+        Self {
+            function_name: "getClickableElements".to_string(),
+            browser,
+        }
+    }
+}
+impl V8HandlerCallbacks for GetClickableElementsCallback {
+    fn execute(
+        &mut self,
+        name: String,
+        _: V8Value,
+        arguments_count: usize,
+        arguments: Vec<V8Value>,
+    ) -> Result<i32> {
+        if name != self.function_name {
+            error!("Invalid function name: {}. Expected: function_name", name);
+            return Ok(1);
+        }
+        if arguments_count != 1 {
+            error!(
+                "Invalid number of arguments: expected 1, got {}",
+                arguments_count
             );
+            return Ok(1);
         }
 
-        true
+        let first = arguments.get(0).unwrap();
+        if !first.is_array().unwrap() {
+            error!("Invalid argument type: expected an array");
+            return Ok(1);
+        }
+
+        let length = first.get_array_length().unwrap();
+        let message = ProcessMessage::new("clickable_elements");
+        let argument_list = message.get_argument_list().unwrap().unwrap();
+
+        for i in 0..length {
+            let element = first.get_value_by_index(i).unwrap();
+            if !element.is_object().unwrap() {
+                error!("Invalid element type at index {}: expected an object", i);
+                return Err(anyhow::anyhow!(
+                    "Invalid element type at index {}: expected an object",
+                    i
+                ));
+            }
+
+            let tag = try_get_string!(element, "tag").unwrap_or_default();
+            let text = try_get_string!(element, "text").unwrap_or_default();
+            let x = try_get_double!(element, "x").unwrap_or_default();
+            let y = try_get_double!(element, "y").unwrap_or_default();
+            let offset = (i * 4) as usize;
+
+            _ = argument_list.set_string(offset + 0, &tag);
+            _ = argument_list.set_string(offset + 1, &text);
+            _ = argument_list.set_int(offset + 2, x as i32);
+            _ = argument_list.set_int(offset + 3, y as i32);
+        }
+
+        _ = self
+            .browser
+            .get_main_frame()
+            .unwrap()
+            .unwrap()
+            .send_process_message(ProcessId::Browser, message);
+
+        Ok(1)
     }
 }

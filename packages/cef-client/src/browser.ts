@@ -3,6 +3,13 @@ import { v4 as uuidv4 } from 'uuid';
 
 const REQUEST_TIMEOUT = 5000;
 
+interface ClickableElement {
+    tag: string;
+    text: string;
+    x: number;
+    y: number;
+}
+
 enum Platform {
     Windows,
     MacOS,
@@ -56,8 +63,8 @@ export class BrowserClient {
                 this.resolvePromise<string>(msg.id, msg.body.DOM);
             }
 
-            if (msg.body.ElementCenter) {
-                this.resolvePromise<{ x: number, y: number }>(msg.id, msg.body.ElementCenter);
+            if (msg.body.ClickableElements) {
+                this.resolvePromise<ClickableElement[]>(msg.id, msg.body.ClickableElements);
             }
         }
     }
@@ -288,14 +295,12 @@ export class BrowserClient {
         }));
     }
 
-    getElementCenter(tabId: number, selector: string): Promise<{ x: number, y: number }> {
+    getClickableElements(tabId: number): Promise<ClickableElement[]> {
         const id = uuidv4();
-        return this.sendWithPromise<{ x: number, y: number }>(id, JSON.stringify({
+        return this.sendWithPromise<ClickableElement[]>(id, JSON.stringify({
             id: id,
             tab_id: tabId,
-            body: {
-                GetElementCenter: { selector: selector }
-            }
+            body: "GetClickableElements"
         }));
     }
 

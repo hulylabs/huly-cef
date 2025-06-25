@@ -1,5 +1,9 @@
+use std::hash::Hash;
+
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
+
+use crate::browser::ClickableElement;
 
 #[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
 #[repr(u8)]
@@ -112,9 +116,7 @@ pub enum BrowserMessageType {
     GoForward,
     SetFocus(bool),
     GetDOM,
-    GetElementCenter {
-        selector: String,
-    },
+    GetClickableElements,
     SetText {
         selector: String,
         text: String,
@@ -135,5 +137,5 @@ pub enum ServerMessageType {
     Tabs(Vec<i32>),
     Screenshot(String),
     DOM(String),
-    ElementCenter(i32, i32),
+    ClickableElements(Vec<ClickableElement>),
 }
