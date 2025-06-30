@@ -2,7 +2,7 @@
 target
 
 # Ignore CEF artifacts
-cef
+/cef
 
 # Ignore CEF-generated files
 MediaDeviceSalts*

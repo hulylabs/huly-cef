@@ -502,6 +502,9 @@ const GET_CLICKABLE_ELEMENTS_JS: &str = r#"
             innerText = innerText.trim();
 
             if (element.tagName === 'INPUT') {
+                if (element.type === 'text') {
+                    innerText = element.getAttribute('placeholder') || element.value || innerText;
+                }
                 if (element.type === 'submit' || element.type === 'button' || element.type === 'reset') {
                     innerText = element.value || innerText;
                 } else if (element.type === 'checkbox' || element.type === 'radio') {
