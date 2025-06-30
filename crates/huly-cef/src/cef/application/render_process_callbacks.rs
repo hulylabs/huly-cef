@@ -12,7 +12,7 @@ impl RenderProcessHandlerCallbacks for HulyRenderProcessHandlerCallbacks {
     fn on_web_kit_initialized(&mut self) {
         _ = cef_ui::register_extension(
             "is_interactive_element",
-            crate::js::INTERACTIVE_ELEMENT_FUNCTION,
+            crate::javascript::INTERACTIVE_ELEMENT_FUNCTION,
             None,
         );
     }

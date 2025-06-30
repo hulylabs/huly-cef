@@ -6,7 +6,7 @@ mod application;
 mod client;
 
 pub mod browser;
-pub mod js;
+pub mod javascript;
 pub mod messages;
 
 /// Represents the CEF context.
