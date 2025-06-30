@@ -45,6 +45,7 @@ export class BrowserClient {
         }
 
         this.websocket.onmessage = (event) => {
+            console.debug("Received message from browser:", event.data);
             let msg = JSON.parse(event.data);
 
             if (msg.body.Tab) {
@@ -52,7 +53,7 @@ export class BrowserClient {
             }
 
             if (msg.body.Tabs) {
-                this.resolvePromise<string[]>(msg.id, msg.body.Tabs);
+                this.resolvePromise<number[]>(msg.id, msg.body.Tabs);
             }
 
             if (msg.body.Screenshot) {
@@ -301,6 +302,16 @@ export class BrowserClient {
             id: id,
             tab_id: tabId,
             body: "GetClickableElements"
+        }));
+    }
+
+    clickElement(tabId: number, id: number): void {
+        this.send(JSON.stringify({
+            id: "",
+            tab_id: tabId,
+            body: {
+                ClickElement: id
+            }
         }));
     }
 

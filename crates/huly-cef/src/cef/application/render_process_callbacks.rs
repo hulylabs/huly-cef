@@ -9,7 +9,13 @@ use log::error;
 pub struct HulyRenderProcessHandlerCallbacks;
 
 impl RenderProcessHandlerCallbacks for HulyRenderProcessHandlerCallbacks {
-    fn on_web_kit_initialized(&mut self) {}
+    fn on_web_kit_initialized(&mut self) {
+        _ = cef_ui::register_extension(
+            "is_interactive_element",
+            crate::js::INTERACTIVE_ELEMENT_FUNCTION,
+            None,
+        );
+    }
 
     fn on_browser_created(&mut self, _: Browser, _: Option<DictionaryValue>) {}
 
@@ -84,6 +90,7 @@ impl V8HandlerCallbacks for GetClickableElementsCallback {
             error!("Invalid function name: {}. Expected: function_name", name);
             return Ok(1);
         }
+
         if arguments_count != 1 {
             error!(
                 "Invalid number of arguments: expected 1, got {}",

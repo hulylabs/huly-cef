@@ -146,6 +146,7 @@ pub enum BrowserMessageType {
     SetFocus(bool),
     GetDOM,
     GetClickableElements,
+    ClickElement(i32),
     SetText {
         selector: String,
         text: String,

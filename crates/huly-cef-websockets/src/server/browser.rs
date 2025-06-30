@@ -33,6 +33,8 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             break;
         }
 
+        info!("received message: {:?}", msg);
+
         let msg = match serde_json::from_slice::<BrowserMessage>(&msg.into_data()) {
             Ok(msg) => msg,
             Err(e) => {
@@ -47,6 +49,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::Close, _) => break,
             (BrowserMessageType::RestoreSession, _) => resp = Some(restore_session(&state)),
             (BrowserMessageType::OpenTab(url), _) => {
+                // TODO: pass wait_unti_loaded as a parameter
                 resp = Some(open_tab(&state, &url, true).await)
             }
             (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
@@ -87,8 +90,13 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 resp = Some(ServerMessageType::DOM(tab.get_dom().await));
             }
             (BrowserMessageType::GetClickableElements, Some(tab)) => {
+                info!("Get clickable elements for tab {}", msg.tab_id);
                 let elements = tab.get_clickable_elements().await;
+                info!("Found {} clickable elements", elements.len());
                 resp = Some(ServerMessageType::ClickableElements(elements));
+            }
+            (BrowserMessageType::ClickElement(id), Some(tab)) => {
+                tab.click_element(id);
             }
             (BrowserMessageType::SetText { selector, text }, Some(tab)) => {
                 tab.set_text(&selector, &text);
