@@ -17,19 +17,17 @@ use tokio::sync::{
     oneshot,
 };
 
-use crate::messages::TabEventType;
-
 use super::{
     client,
-    messages::{LoadStatus, MouseType, TabMessage},
+    javascript::GET_CLICKABLE_ELEMENTS_JS,
+    messages::{LoadStatus, MouseType, TabEventType, TabMessage},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClickableElement {
+    pub id: i32,
     pub tag: String,
     pub text: String,
-    pub x: i32,
-    pub y: i32,
 }
 
 /// Maintains the state of a browser instance.
@@ -305,6 +303,10 @@ impl Browser {
             let mut state = self.state.lock().unwrap();
             state.clickable_elements = Some(clickable_elements.clone());
         }
+
+        let dom = self.get_dom().await;
+        std::fs::write("/home/nikita/repos/huly-cef-mcp/dom.html", dom)
+            .expect("failed to write DOM to file");
         clickable_elements
     }
 
@@ -346,9 +348,36 @@ impl Browser {
         };
 
         if let Some(e) = element {
-            self.mouse_click(e.x, e.y, MouseType::Left, true);
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            self.mouse_click(e.x, e.y, MouseType::Left, false);
+            let id = e.id;
+            _ = self
+                .inner
+                .get_main_frame()
+                .unwrap()
+                .unwrap()
+                .execute_java_script(
+                    &format!(
+                        r#"
+                        {{
+                            let element = document.querySelector('[data-clickable-id=\"{id}\"]');
+                            console.error('Clicking element:', element.innerText);
+                            const rect = element.getBoundingClientRect();
+                            const x = rect.left + rect.width / 2;
+                            const y = rect.top + rect.height / 2;
+
+                            // Create and dispatch the events
+                            let event = new MouseEvent('click', {{
+                                bubbles: true,
+                                cancelable: true,
+                                clientX: x,
+                                clientY: y
+                            }});
+                            element.dispatchEvent(event);
+                        }}
+                        "#
+                    ),
+                    "",
+                    0,
+                );
         }
     }
 }
@@ -465,99 +494,3 @@ fn create_browser(
     rx.recv()
         .expect("failed to receive a CEF browser, created in the UI thread")
 }
-
-const GET_CLICKABLE_ELEMENTS_JS: &str = r#"
-    function isElementVisible(element) {
-        const style = window.getComputedStyle(element);
-        return (
-            element.offsetWidth > 0 &&
-            element.offsetHeight > 0 &&
-            style.visibility !== 'hidden' &&
-            style.display !== 'none'
-        );
-    }
-
-    function walkDOM(node, clickableElements, processedElements) {
-        // Skip text nodes and other non-element nodes
-        if (node.nodeType !== Node.ELEMENT_NODE) {
-            return;
-        }
-
-        const element = node;
-
-        // Skip if already processed
-        if (processedElements.has(element)) {
-            return;
-        }
-
-        processedElements.add(element);
-
-        // Check if element is interactive and visible
-        if (isInteractiveElement(element) && isElementVisible(element)) {
-            const rect = element.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            let innerText = element.getAttribute('aria-label') || element.innerText || element.textContent || '';
-            innerText = innerText.trim();
-
-            if (element.tagName === 'INPUT') {
-                if (element.type === 'text') {
-                    innerText = element.getAttribute('placeholder') || element.value || innerText;
-                }
-                if (element.type === 'submit' || element.type === 'button' || element.type === 'reset') {
-                    innerText = element.value || innerText;
-                } else if (element.type === 'checkbox' || element.type === 'radio') {
-                    innerText = element.nextElementSibling?.innerText ||
-                        document.querySelector(`label[for="${element.id}"]`)?.innerText ||
-                        `${element.type}:${element.value || element.id}`;
-                }
-            }
-
-            // For select elements, show current selection or placeholder
-            if (element.tagName === 'SELECT') {
-                innerText = element.options[element.selectedIndex]?.text || 'Select dropdown';
-            }
-
-            // For images, use alt text
-            if (element.tagName === 'IMG') {
-                innerText = element.alt || 'Image';
-            }
-
-            // Limit text length for display
-            if (innerText.length > 50) {
-                innerText = innerText.substring(0, 47) + '...';
-            }
-
-            clickableElements.push({
-                element: element,
-                tag: element.tagName.toLowerCase(),
-                text: innerText,
-                x: Math.round(centerX),
-                y: Math.round(centerY),
-            });
-        }
-
-        // Recursively walk child nodes
-        for (let i = 0; i < element.children.length; i++) {
-            walkDOM(element.children[i], clickableElements, processedElements);
-        }
-    }
-
-    // Function to find all clickable elements and their centers
-    {
-        let clickableElements = [];
-        let processedElements = new Set();
-
-        walkDOM(document.body, clickableElements, processedElements);
-
-        // clickableElements.push({
-        //     tag: 'button',
-        //     text: 'Click me',
-        //     x: 100,
-        //     y: 200
-        // });
-
-        window.getClickableElements(clickableElements);
-    }
-"#;

@@ -33,8 +33,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             break;
         }
 
-        info!("received message: {:?}", msg);
-
         let msg = match serde_json::from_slice::<BrowserMessage>(&msg.into_data()) {
             Ok(msg) => msg,
             Err(e) => {

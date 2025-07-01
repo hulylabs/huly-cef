@@ -1,7 +1,7 @@
 use cef_ui::{AppCallbacks, BrowserProcessHandler, CommandLine, RenderProcessHandler};
 
-mod browser_process_callbacks;
-mod render_process_callbacks;
+mod browser_process;
+mod render_process;
 
 pub struct HulyAppCallbacks {
     browser_process_handler: BrowserProcessHandler,
@@ -11,11 +11,10 @@ pub struct HulyAppCallbacks {
 impl HulyAppCallbacks {
     pub fn new(port: u16, cache_path: String) -> Self {
         let browser_process_handler = BrowserProcessHandler::new(
-            browser_process_callbacks::HulyBrowserProcessHandlerCallbacks::new(port, cache_path),
+            browser_process::BrowserProcessCallbacks::new(port, cache_path),
         );
-        let render_process_handler = RenderProcessHandler::new(
-            render_process_callbacks::HulyRenderProcessHandlerCallbacks {},
-        );
+        let render_process_handler =
+            RenderProcessHandler::new(render_process::RenderProcessCallbacks {});
         Self {
             browser_process_handler,
             render_process_handler,

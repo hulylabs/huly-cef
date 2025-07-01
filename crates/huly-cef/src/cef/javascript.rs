@@ -175,7 +175,85 @@ function isInteractiveElement(element) {
 }
 "#;
 
-pub fn new() {
-    // This function is intentionally left empty.
-    // The actual functionality is provided by the INTERACTIVE_ELEMENT_FUNCTION constant.
+pub const IS_ELEMENT_VISIBLE_FUNCTION: &str = r#"
+function isElementVisible(element) {
+    const style = window.getComputedStyle(element);
+    return (
+        element.offsetWidth > 0 &&
+        element.offsetHeight > 0 &&
+        style.visibility !== 'hidden' &&
+        style.display !== 'none'
+    );
 }
+"#;
+
+pub const WALK_DOM_FUNCTION: &str = r#"
+function walkDOM(node, clickableElements, processedElements) {
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+    }
+
+    const element = node;
+    if (processedElements.has(element)) {
+        return;
+    }
+    processedElements.add(element);
+
+    if (isInteractiveElement(element) && isElementVisible(element)) {
+        let innerText = element.getAttribute('aria-label') || element.innerText || element.textContent || '';
+        innerText = innerText.trim();
+
+        if (element.tagName === 'INPUT') {
+            if (element.type === 'text') {
+                innerText = element.getAttribute('placeholder') || element.value || innerText;
+            }
+            if (element.type === 'submit' || element.type === 'button' || element.type === 'reset') {
+                innerText = element.value || innerText;
+            } else if (element.type === 'checkbox' || element.type === 'radio') {
+                innerText = element.nextElementSibling?.innerText ||
+                    document.querySelector(`label[for="${element.id}"]`)?.innerText ||
+                    `${element.type}:${element.value || element.id}`;
+            }
+        }
+
+        if (element.tagName === 'SELECT') {
+            innerText = element.options[element.selectedIndex]?.text || 'Select dropdown';
+        }
+
+        if (element.tagName === 'IMG') {
+            innerText = element.alt || 'Image';
+        }
+
+        if (innerText.length > 50) {
+            innerText = innerText.substring(0, 47) + '...';
+        }
+
+        clickableElements.push({
+            element: element,
+            tag: element.tagName.toLowerCase(),
+            text: innerText,
+        });
+    }
+
+    for (let i = 0; i < element.children.length; i++) {
+        walkDOM(element.children[i], clickableElements, processedElements);
+    }
+}
+"#;
+
+pub const GET_CLICKABLE_ELEMENTS_JS: &str = r#"
+{
+    let clickableElements = [];
+    let processedElements = new Set();
+    walkDOM(document.body, clickableElements, processedElements);
+
+    let id = 0;
+    for (let element of clickableElements) {
+        element.element.setAttribute('data-clickable-id', id);
+        element.id = id;
+        id++;
+    }
+
+    window.getClickableElements(clickableElements);
+}
+"#;

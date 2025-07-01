@@ -1,48 +1,6 @@
 use anyhow::Result;
-
-use cef_ui::{
-    Browser, DictionaryValue, Frame, ProcessId, ProcessMessage, RenderProcessHandlerCallbacks,
-    V8Context, V8Handler, V8HandlerCallbacks, V8Value,
-};
+use cef_ui::{Browser, ProcessId, ProcessMessage, V8HandlerCallbacks, V8Value};
 use log::error;
-
-pub struct HulyRenderProcessHandlerCallbacks;
-
-impl RenderProcessHandlerCallbacks for HulyRenderProcessHandlerCallbacks {
-    fn on_web_kit_initialized(&mut self) {
-        _ = cef_ui::register_extension(
-            "is_interactive_element",
-            crate::javascript::INTERACTIVE_ELEMENT_FUNCTION,
-            None,
-        );
-    }
-
-    fn on_browser_created(&mut self, _: Browser, _: Option<DictionaryValue>) {}
-
-    fn on_browser_destroyed(&mut self, _: Browser) {}
-
-    fn on_context_created(&mut self, browser: Browser, _: Frame, context: V8Context) {
-        let handler = V8Handler::new(GetClickableElementsCallback::new(browser));
-        let func = V8Value::create_function("getClickableElements", handler)
-            .expect("failed to create func getClickableElements");
-
-        context
-            .get_global()
-            .expect("failed to get global context object")
-            .set_value_by_key("getClickableElements", func)
-            .expect("failed to set getClickableElements function");
-    }
-
-    fn on_process_message_received(
-        &mut self,
-        _: Browser,
-        _: Frame,
-        _: ProcessId,
-        _: &mut ProcessMessage,
-    ) -> bool {
-        true
-    }
-}
 
 macro_rules! try_get_string {
     ($element:expr, $key:expr) => {{
@@ -66,11 +24,11 @@ macro_rules! try_get_double {
     }};
 }
 
-struct GetClickableElementsCallback {
+pub struct GetClickableElementsHandler {
     browser: Browser,
     function_name: String,
 }
-impl GetClickableElementsCallback {
+impl GetClickableElementsHandler {
     pub fn new(browser: Browser) -> Self {
         Self {
             function_name: "getClickableElements".to_string(),
@@ -78,7 +36,7 @@ impl GetClickableElementsCallback {
         }
     }
 }
-impl V8HandlerCallbacks for GetClickableElementsCallback {
+impl V8HandlerCallbacks for GetClickableElementsHandler {
     fn execute(
         &mut self,
         name: String,
@@ -119,16 +77,16 @@ impl V8HandlerCallbacks for GetClickableElementsCallback {
                 ));
             }
 
+            let id = try_get_double!(element, "id").unwrap_or_default();
             let tag = try_get_string!(element, "tag").unwrap_or_default();
             let text = try_get_string!(element, "text").unwrap_or_default();
-            let x = try_get_double!(element, "x").unwrap_or_default();
-            let y = try_get_double!(element, "y").unwrap_or_default();
-            let offset = (i * 4) as usize;
 
-            _ = argument_list.set_string(offset + 0, &tag);
-            _ = argument_list.set_string(offset + 1, &text);
-            _ = argument_list.set_int(offset + 2, x as i32);
-            _ = argument_list.set_int(offset + 3, y as i32);
+            let stride = 3;
+            let offset = (i * stride) as usize;
+
+            _ = argument_list.set_int(offset + 0, id as i32);
+            _ = argument_list.set_string(offset + 1, &tag);
+            _ = argument_list.set_string(offset + 2, &text);
         }
 
         _ = self
