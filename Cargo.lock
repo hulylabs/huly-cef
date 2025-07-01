@@ -1027,6 +1027,7 @@ dependencies = [
  "crossbeam-channel",
  "log",
  "serde",
+ "serde_json",
  "serde_repr",
  "tokio",
  "url",

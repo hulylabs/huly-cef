@@ -6,10 +6,9 @@ use cef_ui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{
-    browser::{BrowserState, ClickableElement},
-    messages::TabMessage,
-};
+use crate::browser::JavaScriptMessage;
+
+use super::{browser::BrowserState, messages::TabMessage};
 
 mod display_callbacks;
 mod life_span_callbacks;
@@ -90,37 +89,30 @@ impl ClientCallbacks for HulyClientCallbacks {
         message: ProcessMessage,
     ) -> bool {
         let message_name = message.get_name().unwrap_or_default();
-        if message_name == "clickable_elements" {
-            let mut elements = Vec::new();
+        if message_name == "javascript_message" {
             let args = message
                 .get_argument_list()
                 .unwrap()
                 .expect("failed to get argument list");
-            let len = args.len().expect("failed to get argument list length");
-            let stride = 3;
-            for i in 0..len / stride {
-                let id = args.get_int(i * stride + 0).expect("failed to get id");
-                let tag = args
-                    .get_string(i * stride + 1)
-                    .unwrap()
-                    .expect("failed to get tag");
-                let text = args
-                    .get_string(i * stride + 2)
-                    .ok()
-                    .flatten()
-                    .unwrap_or_default();
 
-                elements.push(ClickableElement { id, tag, text });
+            let id = args.get_string(0).ok().flatten().expect("failed to get id");
+            let message = args
+                .get_string(1)
+                .ok()
+                .flatten()
+                .expect("failed to get message");
+
+            let result = match serde_json::from_str::<JavaScriptMessage>(&message) {
+                Ok(value) => Ok(value),
+                Err(e) => Err(anyhow::anyhow!("Failed to parse JSON message: {}", e)),
+            };
+            {
+                let mut state = self.state.lock().unwrap();
+                state
+                    .javascript_messages
+                    .remove(&id)
+                    .and_then(|tx| Some(tx.send(result)));
             }
-
-            _ = self
-                .state
-                .lock()
-                .unwrap()
-                .clickable_elements_channel
-                .take()
-                .unwrap()
-                .send(elements);
         }
 
         true

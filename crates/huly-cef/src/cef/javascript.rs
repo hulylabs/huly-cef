@@ -241,19 +241,37 @@ function walkDOM(node, clickableElements, processedElements) {
 }
 "#;
 
-pub const GET_CLICKABLE_ELEMENTS_JS: &str = r#"
-{
-    let clickableElements = [];
-    let processedElements = new Set();
-    walkDOM(document.body, clickableElements, processedElements);
-
-    let id = 0;
-    for (let element of clickableElements) {
-        element.element.setAttribute('data-clickable-id', id);
-        element.id = id;
-        id++;
-    }
-
-    window.getClickableElements(clickableElements);
+pub const GET_CLICKABLE_ELEMENTS_SCRIPT: &str = r#"
+function getRandomColor() {
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+        '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
 }
+
+let clickableElements = [];
+let processedElements = new Set();
+walkDOM(document.body, clickableElements, processedElements);
+
+let id = 0;
+for (let element of clickableElements) {
+    element.element.setAttribute('data-clickable-id', id);
+    element.id = id++;
+
+    // Store original background color and apply random color
+    const originalBgColor = element.element.style.backgroundColor || window.getComputedStyle(element.element).backgroundColor;
+    element.element.setAttribute('data-original-bg-color', originalBgColor);
+    element.element.style.backgroundColor = getRandomColor();
+    element.element.style.transition = 'background-color 0.3s ease';
+}
+
+let response = clickableElements.map(e => {
+    return {
+        id: e.id,
+        tag: e.tag,
+        text: e.text
+    };
+});
 "#;

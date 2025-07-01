@@ -7,10 +7,11 @@ edition = "2021"
 log = { workspace = true }
 anyhow = { workspace = true }
 
-serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-url = "2.5"
+serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
+serde_json = "1.0"
+url = "2.5"
 crossbeam-channel = "0.5.14"
 
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }

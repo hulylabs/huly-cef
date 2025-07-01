@@ -1,3 +1,4 @@
+use anyhow::Result;
 use log::error;
 use serde::{Deserialize, Serialize};
 
@@ -17,9 +18,10 @@ use tokio::sync::{
     oneshot,
 };
 
+use crate::javascript::GET_CLICKABLE_ELEMENTS_SCRIPT;
+
 use super::{
     client,
-    javascript::GET_CLICKABLE_ELEMENTS_JS,
     messages::{LoadStatus, MouseType, TabEventType, TabMessage},
 };
 
@@ -28,6 +30,12 @@ pub struct ClickableElement {
     pub id: i32,
     pub tag: String,
     pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JavaScriptMessage {
+    ClickableElements(Vec<ClickableElement>),
 }
 
 /// Maintains the state of a browser instance.
@@ -46,14 +54,14 @@ pub struct BrowserState {
     pub active: bool,
     pub left_mouse_button_down: bool,
 
-    pub tab_events_subscribers: HashMap<TabEventType, UnboundedSender<TabMessage>>,
-
     pub clickable_elements: Option<Vec<ClickableElement>>,
-    pub clickable_elements_channel: Option<oneshot::Sender<Vec<ClickableElement>>>,
 
     pub screenshot_width: u32,
     pub screenshot_height: u32,
     pub screenshot_channel: Option<oneshot::Sender<Vec<u8>>>,
+
+    pub tab_events_subscribers: HashMap<TabEventType, UnboundedSender<TabMessage>>,
+    pub javascript_messages: HashMap<String, oneshot::Sender<Result<JavaScriptMessage>>>,
 }
 
 pub struct Browser {
@@ -285,29 +293,22 @@ impl Browser {
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
-        let (tx, rx) = oneshot::channel::<Vec<ClickableElement>>();
-        {
-            let mut state = self.state.lock().unwrap();
-            state.clickable_elements_channel = Some(tx);
+        let rx = self.execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "response");
+        let msg = rx.await.unwrap();
+
+        if let Ok(msg) = msg {
+            match msg {
+                JavaScriptMessage::ClickableElements(elements) => {
+                    let mut state = self.state.lock().unwrap();
+                    state.clickable_elements = Some(elements.clone());
+                    return elements;
+                }
+                _ => {
+                    error!("Unexpected JavaScript message body: {:?}", msg);
+                }
+            }
         }
-
-        _ = self
-            .inner
-            .get_main_frame()
-            .unwrap()
-            .unwrap()
-            .execute_java_script(GET_CLICKABLE_ELEMENTS_JS, "", 0);
-
-        let clickable_elements = rx.await.unwrap();
-        {
-            let mut state = self.state.lock().unwrap();
-            state.clickable_elements = Some(clickable_elements.clone());
-        }
-
-        let dom = self.get_dom().await;
-        std::fs::write("/home/nikita/repos/huly-cef-mcp/dom.html", dom)
-            .expect("failed to write DOM to file");
-        clickable_elements
+        vec![]
     }
 
     pub async fn wait_until_loaded(&self) -> LoadStatus {
@@ -380,6 +381,39 @@ impl Browser {
                 );
         }
     }
+
+    fn execute_javascript(
+        &self,
+        script: &str,
+        value_to_return: &str,
+    ) -> oneshot::Receiver<Result<JavaScriptMessage>> {
+        let id = self.get_id();
+        let script = format!(
+            r#"{{
+                {script}
+                sendMessage({{
+                    id: "{}",
+                    message: JSON.stringify({value_to_return}),
+                }});
+            }}"#,
+            id.clone()
+        );
+
+        _ = self
+            .inner
+            .get_main_frame()
+            .unwrap()
+            .unwrap()
+            .execute_java_script(&script, "", 0);
+
+        let (tx, rx) = oneshot::channel::<Result<JavaScriptMessage>>();
+        {
+            let mut state = self.state.lock().unwrap();
+            state.javascript_messages.insert(id.to_string(), tx);
+        }
+
+        rx
+    }
 }
 
 struct DOMVisitor {
@@ -430,7 +464,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             tab_events_subscribers: HashMap::new(),
 
             clickable_elements: None,
-            clickable_elements_channel: None,
+            javascript_messages: HashMap::new(),
             screenshot_width: 0,
             screenshot_height: 0,
             screenshot_channel: None,

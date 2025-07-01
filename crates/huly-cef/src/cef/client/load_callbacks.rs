@@ -1,5 +1,5 @@
 use cef_ui::{Browser, ErrorCode, Frame, LoadHandlerCallbacks, TransitionType};
-use log::{error, info};
+use log::error;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::cef::messages::TabMessage;
