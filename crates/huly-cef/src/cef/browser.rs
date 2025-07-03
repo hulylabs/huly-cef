@@ -36,6 +36,7 @@ pub struct ClickableElement {
 #[serde(untagged)]
 pub enum JavaScriptMessage {
     ClickableElements(Vec<ClickableElement>),
+    ElementCenter { x: i32, y: i32 },
 }
 
 /// Maintains the state of a browser instance.
@@ -267,17 +268,6 @@ impl Browser {
         rx.await.unwrap()
     }
 
-    pub fn set_text(&self, selector: &str, text: &str) {
-        let code = format!("document.querySelector('{}').value = '{}';", selector, text);
-        log::info!("Executing JavaScript to set text: {}", code);
-        _ = self
-            .inner
-            .get_main_frame()
-            .unwrap()
-            .unwrap()
-            .execute_java_script(&code, "", 0);
-    }
-
     pub async fn screenshot(&self, width: u32, height: u32) -> Vec<u8> {
         let (tx, rx) = oneshot::channel::<Vec<u8>>();
 
@@ -339,7 +329,7 @@ impl Browser {
         LoadStatus::Loading
     }
 
-    pub fn click_element(&self, id: i32) {
+    pub async fn click_element(&self, id: i32) {
         let element = {
             let state = self.state.lock().unwrap();
             state
@@ -350,35 +340,33 @@ impl Browser {
 
         if let Some(e) = element {
             let id = e.id;
-            _ = self
-                .inner
-                .get_main_frame()
-                .unwrap()
-                .unwrap()
-                .execute_java_script(
-                    &format!(
-                        r#"
-                        {{
-                            let element = document.querySelector('[data-clickable-id=\"{id}\"]');
-                            console.error('Clicking element:', element.innerText);
-                            const rect = element.getBoundingClientRect();
-                            const x = rect.left + rect.width / 2;
-                            const y = rect.top + rect.height / 2;
 
-                            // Create and dispatch the events
-                            let event = new MouseEvent('click', {{
-                                bubbles: true,
-                                cancelable: true,
-                                clientX: x,
-                                clientY: y
-                            }});
-                            element.dispatchEvent(event);
-                        }}
-                        "#
-                    ),
-                    "",
-                    0,
-                );
+            let script = format!(
+                r#"
+                let response = {{ }};
+                let element = document.querySelector('[data-clickable-id="{id}"]');
+                if (element) {{
+                    const rect = element.getBoundingClientRect();
+                    const x = Math.floor(rect.left + rect.width / 2);
+                    const y = Math.floor(rect.top + rect.height / 2);     
+                    response = {{ x, y }}
+                }}
+                "#
+            );
+
+            let rx = self.execute_javascript(&script, "response");
+            let center = rx.await.unwrap();
+
+            match center {
+                Ok(JavaScriptMessage::ElementCenter { x, y }) => {
+                    self.mouse_click(x, y, MouseType::Left, true);
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    self.mouse_click(x, y, MouseType::Left, false);
+                }
+                _ => {
+                    error!("unexpected JavaScript message body: {:?}", center);
+                }
+            }
         }
     }
 
@@ -411,7 +399,6 @@ impl Browser {
             let mut state = self.state.lock().unwrap();
             state.javascript_messages.insert(id.to_string(), tx);
         }
-
         rx
     }
 }

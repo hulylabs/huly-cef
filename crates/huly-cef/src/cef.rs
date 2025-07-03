@@ -23,11 +23,16 @@ pub fn new(port: u16, cache_path: String) -> Result<CefContext> {
         create_dir_all(&cache_dir)?;
     }
 
+    let log_file = cache_dir.join("cef.log");
+    if !log_file.exists() {
+        std::fs::File::create(&log_file)?;
+    }
+
     let main_args = MainArgs::new()?;
     let settings = Settings::new()
         .log_severity(LogSeverity::Verbose)
+        .log_file(&cache_dir.join("cef.log"))?
         .cache_path(&cache_dir)?
-        .no_sandbox(false)
         .windowless_rendering_enabled(true);
 
     let app = App::new(application::HulyAppCallbacks::new(port, cache_path));

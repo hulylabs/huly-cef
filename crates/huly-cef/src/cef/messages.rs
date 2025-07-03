@@ -147,10 +147,6 @@ pub enum BrowserMessageType {
     GetDOM,
     GetClickableElements,
     ClickElement(i32),
-    SetText {
-        selector: String,
-        text: String,
-    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

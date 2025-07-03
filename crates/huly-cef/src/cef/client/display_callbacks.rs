@@ -78,15 +78,6 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         source: Option<String>,
         line: i32,
     ) -> bool {
-        // std::cout
-        //     << "[JS Console]["
-        //     << line
-        //     << "] "
-        //     << source.ToString()
-        //     << ": "
-        //     << message.ToString()
-        //     << std::endl;
-
         if severity == LogSeverity::Error {
             let message = message.unwrap_or_else(|| "No message".to_string());
             let source = source.unwrap_or_else(|| "Unknown source".to_string());

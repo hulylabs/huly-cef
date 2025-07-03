@@ -88,16 +88,11 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 resp = Some(ServerMessageType::DOM(tab.get_dom().await));
             }
             (BrowserMessageType::GetClickableElements, Some(tab)) => {
-                info!("Get clickable elements for tab {}", msg.tab_id);
                 let elements = tab.get_clickable_elements().await;
-                info!("Found {} clickable elements", elements.len());
                 resp = Some(ServerMessageType::ClickableElements(elements));
             }
             (BrowserMessageType::ClickElement(id), Some(tab)) => {
-                tab.click_element(id);
-            }
-            (BrowserMessageType::SetText { selector, text }, Some(tab)) => {
-                tab.set_text(&selector, &text);
+                tab.click_element(id).await;
             }
             (_, None) => {
                 error!("tab with id {} not found", msg.tab_id);
