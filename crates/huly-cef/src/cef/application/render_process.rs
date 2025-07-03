@@ -21,7 +21,11 @@ impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
 
     fn on_browser_destroyed(&mut self, _: Browser) {}
 
-    fn on_context_created(&mut self, browser: Browser, _: Frame, context: V8Context) {
+    fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {
+        if !frame.is_main().unwrap() {
+            return;
+        }
+
         let func = V8Value::create_function(
             "sendMessage",
             V8Handler::new(SendMessageHandler::new(browser)),
