@@ -6,7 +6,7 @@ use cef_ui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::browser::JavaScriptMessage;
+use crate::browser::JSMessage;
 
 use super::{browser::BrowserState, messages::TabMessage};
 
@@ -102,7 +102,7 @@ impl ClientCallbacks for HulyClientCallbacks {
                 .flatten()
                 .expect("failed to get message");
 
-            let result = match serde_json::from_str::<JavaScriptMessage>(&message) {
+            let result = match serde_json::from_str::<JSMessage>(&message) {
                 Ok(value) => Ok(value),
                 Err(e) => Err(anyhow::anyhow!("Failed to parse JSON message: {}", e)),
             };

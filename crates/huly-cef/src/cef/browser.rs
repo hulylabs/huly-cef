@@ -34,9 +34,10 @@ pub struct ClickableElement {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum JavaScriptMessage {
+pub enum JSMessage {
     ClickableElements(Vec<ClickableElement>),
     ElementCenter { x: i32, y: i32 },
+    Clicked(bool),
 }
 
 /// Maintains the state of a browser instance.
@@ -62,7 +63,7 @@ pub struct BrowserState {
     pub screenshot_channel: Option<oneshot::Sender<Vec<u8>>>,
 
     pub tab_events_subscribers: HashMap<TabEventType, UnboundedSender<TabMessage>>,
-    pub javascript_messages: HashMap<String, oneshot::Sender<Result<JavaScriptMessage>>>,
+    pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
 }
 
 pub struct Browser {
@@ -283,19 +284,18 @@ impl Browser {
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
-        let rx = self.execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "response");
-        let msg = rx.await.unwrap();
+        let msg = self
+            .execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "elements")
+            .await;
 
-        if let Ok(msg) = msg {
-            match msg {
-                JavaScriptMessage::ClickableElements(elements) => {
-                    let mut state = self.state.lock().unwrap();
-                    state.clickable_elements = Some(elements.clone());
-                    return elements;
-                }
-                _ => {
-                    error!("Unexpected JavaScript message body: {:?}", msg);
-                }
+        match msg {
+            Ok(JSMessage::ClickableElements(elements)) => {
+                let mut state = self.state.lock().unwrap();
+                state.clickable_elements = Some(elements.clone());
+                return elements;
+            }
+            _ => {
+                error!("Unexpected JavaScript message body: {:?}", msg);
             }
         }
         vec![]
@@ -341,40 +341,56 @@ impl Browser {
         if let Some(e) = element {
             let id = e.id;
 
-            let script = format!(
+            let mut script = format!(
                 r#"
-                let response = {{ }};
+                let center = {{ }};
                 let element = document.querySelector('[data-clickable-id="{id}"]');
                 if (element) {{
                     const rect = element.getBoundingClientRect();
                     const x = Math.floor(rect.left + rect.width / 2);
                     const y = Math.floor(rect.top + rect.height / 2);     
-                    response = {{ x, y }}
+                    center = {{ x, y }}
+
+                    element.onclick = function(event) {{
+                        element.setAttribute('data-clicked', 'true');
+                    }};
                 }}
                 "#
             );
 
-            let rx = self.execute_javascript(&script, "response");
-            let center = rx.await.unwrap();
+            let msg = self.execute_javascript(&script, "center").await;
 
-            match center {
-                Ok(JavaScriptMessage::ElementCenter { x, y }) => {
-                    self.mouse_click(x, y, MouseType::Left, true);
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    self.mouse_click(x, y, MouseType::Left, false);
+            if let Ok(JSMessage::ElementCenter { x, y }) = msg {
+                self.mouse_click(x, y, MouseType::Left, true);
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                self.mouse_click(x, y, MouseType::Left, false);
+
+                script = format!(
+                    r#"
+                    let clicked = false;
+                    let element = document.querySelector('[data-clickable-id="{id}"][data-clicked="true"');
+                    if (element) {{
+                        clicked = true;
+                        element.removeAttribute('data-clicked');
+                    }}
+                    "#
+                );
+
+                let msg = self.execute_javascript(&script, "clicked").await;
+                if let Ok(JSMessage::Clicked(clicked)) = msg {
+                    if !clicked {
+                        self.mouse_click(x, y, MouseType::Left, true);
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                        self.mouse_click(x, y, MouseType::Left, false);
+                    }
                 }
-                _ => {
-                    error!("unexpected JavaScript message body: {:?}", center);
-                }
+            } else {
+                error!("unexpected JavaScript message body: {:?}", msg);
             }
         }
     }
 
-    fn execute_javascript(
-        &self,
-        script: &str,
-        value_to_return: &str,
-    ) -> oneshot::Receiver<Result<JavaScriptMessage>> {
+    async fn execute_javascript(&self, script: &str, value_to_return: &str) -> Result<JSMessage> {
         let id = self.get_id();
         let script = format!(
             r#"{{
@@ -394,12 +410,12 @@ impl Browser {
             .unwrap()
             .execute_java_script(&script, "", 0);
 
-        let (tx, rx) = oneshot::channel::<Result<JavaScriptMessage>>();
+        let (tx, rx) = oneshot::channel::<Result<JSMessage>>();
         {
             let mut state = self.state.lock().unwrap();
             state.javascript_messages.insert(id.to_string(), tx);
         }
-        rx
+        rx.await?
     }
 }
 

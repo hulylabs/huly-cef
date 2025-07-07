@@ -252,7 +252,7 @@ for (let element of clickableElements) {
     element.id = id++;
 }
 
-let response = clickableElements.map(e => {
+let elements = clickableElements.map(e => {
     return {
         id: e.id,
         tag: e.tag,
