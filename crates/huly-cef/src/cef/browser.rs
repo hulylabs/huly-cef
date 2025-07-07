@@ -417,6 +417,14 @@ impl Browser {
         }
         rx.await?
     }
+
+    pub fn get_title(&self) -> String {
+        self.state.lock().unwrap().title.clone()
+    }
+
+    pub fn get_url(&self) -> String {
+        self.state.lock().unwrap().url.clone()
+    }
 }
 
 struct DOMVisitor {

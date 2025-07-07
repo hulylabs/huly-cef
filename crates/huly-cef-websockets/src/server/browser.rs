@@ -52,6 +52,12 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
             (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
+            (BrowserMessageType::GetTitle, Some(tab)) => {
+                resp = Some(ServerMessageType::Title(tab.get_title()));
+            }
+            (BrowserMessageType::GetUrl, Some(tab)) => {
+                resp = Some(ServerMessageType::Url(tab.get_url()));
+            }
             (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
             (BrowserMessageType::Screenshot { width, height }, Some(tab)) => {
                 resp = Some(ServerMessageType::Screenshot(
@@ -60,14 +66,14 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
             (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
             (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
-            (BrowserMessageType::MouseClick { x, y, button, down }, Some(tab)) => {
+            (BrowserMessageType::Click { x, y, button, down }, Some(tab)) => {
                 tab.mouse_click(x, y, button, down)
             }
-            (BrowserMessageType::MouseWheel { x, y, dx, dy }, Some(tab)) => {
+            (BrowserMessageType::Wheel { x, y, dx, dy }, Some(tab)) => {
                 tab.mouse_wheel(x, y, dx, dy)
             }
             (
-                BrowserMessageType::KeyPress {
+                BrowserMessageType::Key {
                     character,
                     code,
                     windowscode,

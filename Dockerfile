@@ -61,4 +61,4 @@ RUN apt-get update && apt-get install -y \
 ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /tini
 
 RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--", "xvfb-run", "-a", "/app/huly-cef-websockets", "--no-sandbox", "--disable-gpu", "--disable-gpu-compositing"]
+ENTRYPOINT ["/tini", "--", "xvfb-run", "-a", "/app/huly-cef-websockets", "--no-sandbox"]

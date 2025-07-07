@@ -96,6 +96,7 @@ pub struct BrowserMessage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum BrowserMessageType {
     Close,
     RestoreSession,
@@ -106,6 +107,8 @@ pub enum BrowserMessageType {
         width: u32,
         height: u32,
     },
+    GetTitle,
+    GetUrl,
     Screenshot {
         width: u32,
         height: u32,
@@ -117,19 +120,19 @@ pub enum BrowserMessageType {
         x: i32,
         y: i32,
     },
-    MouseClick {
+    Click {
         x: i32,
         y: i32,
         button: MouseType,
         down: bool,
     },
-    MouseWheel {
+    Wheel {
         x: i32,
         y: i32,
         dx: i32,
         dy: i32,
     },
-    KeyPress {
+    Key {
         character: u16,
         code: i32,
         windowscode: i32,
@@ -157,10 +160,13 @@ pub struct ServerMessage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
 pub enum ServerMessageType {
     Session(Vec<String>),
     Tab(i32),
     Tabs(Vec<i32>),
+    Title(String),
+    Url(String),
     Screenshot(String),
     DOM(String),
     ClickableElements(Vec<ClickableElement>),

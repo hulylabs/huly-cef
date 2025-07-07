@@ -1,196 +1,59 @@
-import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard.js";
-import { v4 as uuidv4 } from 'uuid';
-
-const REQUEST_TIMEOUT = 5000;
-
-interface ClickableElement {
-    tag: string;
-    text: string;
-    x: number;
-    y: number;
-}
-
-enum Platform {
-    Windows,
-    MacOS,
-    Linux,
-}
-
-function detectPlatform(): Platform {
-    const platform = navigator.userAgent;
-    if (platform.includes("Windows")) {
-        return Platform.Windows;
-    }
-    if (platform.includes("Mac")) {
-        return Platform.MacOS;
-    }
-    return Platform.Linux;
-}
+import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from './keyboard.js';
+import { Tab } from './tab.js';
+import { ClickableElement, detectPlatform, Platform } from './types.js';
+import { MessageHandler } from './messages.js';
 
 export class BrowserClient {
     private websocket: WebSocket;
-    private pendingMessages: string[] = [];
-
-    private pendingPromises: Map<string, { resolve: (value: any) => void, reject: () => void }> = new Map();
-
+    private messageHandler: MessageHandler;
     private platform: Platform = detectPlatform();
 
     constructor(url: string) {
         this.websocket = new WebSocket(url);
-
-        this.websocket.onopen = () => {
-            for (const message of this.pendingMessages) {
-                this.websocket.send(message);
-            };
-        }
-
-        this.websocket.onmessage = (event) => {
-            console.debug("Received message from browser:", event.data);
-            let msg = JSON.parse(event.data);
-
-            if (msg.body.Tab) {
-                this.resolvePromise<number>(msg.id, msg.body.Tab);
-            }
-
-            if (msg.body.Tabs) {
-                this.resolvePromise<number[]>(msg.id, msg.body.Tabs);
-            }
-
-            if (msg.body.Screenshot) {
-                this.resolvePromise<string>(msg.id, msg.body.Screenshot);
-            }
-
-            if (msg.body.DOM) {
-                this.resolvePromise<string>(msg.id, msg.body.DOM);
-            }
-
-            if (msg.body.ClickableElements) {
-                this.resolvePromise<ClickableElement[]>(msg.id, msg.body.ClickableElements);
-            }
-        }
+        this.messageHandler = new MessageHandler(this.websocket);
     }
 
-    closeBrowser(): void {
-        this.send(JSON.stringify({ id: "", body: "Close", tab_id: -1 }));
+    async openTab(url?: string): Promise<Tab> {
+        let id = await this.messageHandler.send(-1, 'OpenTab', { url });
+        return new Tab(this.messageHandler, id);
     }
 
-    restoreSession(): Promise<String[]> {
-        const id = uuidv4();
-        return this.sendWithPromise<String[]>(id, JSON.stringify({
-            id: id,
-            tab_id: -1,
-            body: "RestoreSession"
-        }));
-    }
-
-    openTab(url?: string): Promise<number> {
-        const id = uuidv4();
-        return this.sendWithPromise<number>(id, JSON.stringify({
-            id: id,
-            tab_id: -1,
-            body: {
-                OpenTab: url
-            },
-        }));
-    }
-
-    closeTab(tabId: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: "CloseTab"
-        }));
+    closeTab(tabId: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'CloseTab');
     }
 
     getTabs(): Promise<number[]> {
-        const id = uuidv4();
-        return this.sendWithPromise<number[]>(id, JSON.stringify({
-            id: id,
-            tab_id: -1,
-            body: "GetTabs"
-        }));
+        return this.messageHandler.send(-1, 'GetTabs', undefined as never);
     }
 
-    resize(width: number, height: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: -1,
-            body: {
-                Resize: {
-                    width: Math.floor(width),
-                    height: Math.floor(height)
-                }
-            }
-        }));
+    resize(width: number, height: number): Promise<void> {
+        return this.messageHandler.send(-1, 'Resize', {
+            width: Math.floor(width),
+            height: Math.floor(height)
+        });
     }
 
     screenshot(tabId: number, width: number, height: number): Promise<string> {
-        const id = uuidv4();
-        return this.sendWithPromise<string>(id, JSON.stringify({
-            id: id,
-            tab_id: tabId,
-            body: {
-                Screenshot: {
-                    width: Math.floor(width),
-                    height: Math.floor(height)
-                }
-            }
-        }));
+        return this.messageHandler.send(tabId, 'Screenshot', {
+            width: Math.floor(width),
+            height: Math.floor(height)
+        });
     }
 
-    goTo(tabId: number, url: string): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                GoTo: {
-                    url
-                }
-            }
-        }));
+    goTo(tabId: number, url: string): Promise<void> {
+        return this.messageHandler.send(tabId, 'GoTo', { url });
     }
 
-    mouseMove(tabId: number, x: number, y: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                MouseMove: {
-                    x,
-                    y
-                }
-            }
-        }));
+    mouseMove(tabId: number, x: number, y: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'MouseMove', { x, y });
     }
 
-    mouseClick(tabId: number, x: number, y: number, button: number, down: boolean): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                MouseClick: {
-                    x,
-                    y,
-                    button,
-                    down
-                }
-            }
-        }));
+    mouseClick(tabId: number, x: number, y: number, button: number, down: boolean): Promise<void> {
+        return this.messageHandler.send(tabId, 'Click', { x, y, button, down });
     }
 
-    mouseWheel(tabId: number, x: number, y: number, dx: number, dy: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                MouseWheel: {
-                    x,
-                    y,
-                    dx,
-                    dy
-                }
-            }
-        }));
+    mouseWheel(tabId: number, x: number, y: number, dx: number, dy: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'Wheel', { x, y, dx, dy });
     }
 
     keyPress(
@@ -200,7 +63,7 @@ export class BrowserClient {
         down: boolean,
         ctrl: boolean,
         shift: boolean,
-    ) {
+    ): Promise<void> {
         let platformKeyCode = 0;
         switch (this.platform) {
             case Platform.Windows:
@@ -211,149 +74,53 @@ export class BrowserClient {
                 platformKeyCode = keyCodeToMacOSVirtualKey(keycode);
                 break;
         }
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                KeyPress: {
-                    character: character,
-                    windowscode: keyCodeToWindowsVirtualKey(keycode),
-                    code: platformKeyCode,
-                    down: down,
-                    ctrl: ctrl,
-                    shift: shift,
-                },
-            }
-        }));
-    }
-
-    char(tabId: number, character: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                Char: character
-            }
-        }));
-    }
-
-    stopVideo(tabId: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: "StopVideo"
-        }));
-    }
-
-    startVideo(tabId: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: "StartVideo"
-        }));
-    }
-
-    reload(tabId: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: "Reload"
-        }));
-    }
-
-    goBack(tabId: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: "GoBack"
-        }));
-    }
-
-    goForward(tabId: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: "GoForward"
-        }));
-    }
-
-    setFocus(tabId: number, focus: boolean): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                SetFocus: focus
-            }
-        }));
-    }
-
-    getDOM(tabId: number): Promise<string> {
-        const id = uuidv4();
-        return this.sendWithPromise<string>(id, JSON.stringify({
-            id: id,
-            tab_id: tabId,
-            body: "GetDOM"
-        }));
-    }
-
-    getClickableElements(tabId: number): Promise<ClickableElement[]> {
-        const id = uuidv4();
-        return this.sendWithPromise<ClickableElement[]>(id, JSON.stringify({
-            id: id,
-            tab_id: tabId,
-            body: "GetClickableElements"
-        }));
-    }
-
-    clickElement(tabId: number, id: number): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                ClickElement: id
-            }
-        }));
-    }
-
-    setText(tabId: number, selector: string, text: string): void {
-        this.send(JSON.stringify({
-            id: "",
-            tab_id: tabId,
-            body: {
-                SetText: {
-                    selector: selector,
-                    text: text
-                }
-            }
-        }));
-    }
-
-    private sendWithPromise<T>(id: string, message: string): Promise<T> {
-        return new Promise<T>((resolve, reject) => {
-            this.pendingPromises.set(id, { resolve, reject });
-            this.send(message);
-            setTimeout(() => {
-                if (this.pendingPromises.has(id)) {
-                    this.pendingPromises.delete(id);
-                    reject(new Error("Timeout waiting for response"));
-                }
-            }, REQUEST_TIMEOUT);
+        return this.messageHandler.send(tabId, 'Key', {
+            character: character,
+            windowscode: keyCodeToWindowsVirtualKey(keycode),
+            code: platformKeyCode,
+            down: down,
+            ctrl: ctrl,
+            shift: shift,
         });
     }
 
-    private resolvePromise<T>(id: string, value: T): void {
-        const pendingPromise = this.pendingPromises.get(id);
-        if (pendingPromise) {
-            pendingPromise.resolve(value);
-            this.pendingPromises.delete(id);
-        }
+    char(tabId: number, character: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'Char', character);
     }
 
-    private send(message: string): void {
-        if (this.websocket.readyState === WebSocket.OPEN) {
-            this.websocket.send(message);
-        } else {
-            this.pendingMessages.push(message);
-        }
+    stopVideo(tabId: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'StopVideo');
+    }
+
+    startVideo(tabId: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'StartVideo');
+    }
+
+    reload(tabId: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'Reload');
+    }
+
+    goBack(tabId: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'GoBack');
+    }
+
+    goForward(tabId: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'GoForward');
+    }
+
+    setFocus(tabId: number, focus: boolean): Promise<void> {
+        return this.messageHandler.send(tabId, 'SetFocus', focus);
+    }
+
+    getDOM(tabId: number): Promise<string> {
+        return this.messageHandler.send(tabId, 'GetDOM');
+    }
+
+    getClickableElements(tabId: number): Promise<ClickableElement[]> {
+        return this.messageHandler.send(tabId, 'GetClickableElements');
+    }
+
+    clickElement(tabId: number, id: number): Promise<void> {
+        return this.messageHandler.send(tabId, 'ClickElement', id);
     }
 }

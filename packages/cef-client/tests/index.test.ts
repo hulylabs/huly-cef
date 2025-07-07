@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it, test, vi } from 'vitest';
 import { BrowserClient, KeyCode } from '../src/index';
 
 import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const testdir = dirname(fileURLToPath(import.meta.url));
 
 describe('BrowserClient', () => {
     let cefContainer: StartedTestContainer;
@@ -10,10 +14,11 @@ describe('BrowserClient', () => {
     let port: number;
 
     beforeAll(async () => {
-        cefContainer = await new GenericContainer("huly-cef-server")
+
+        cefContainer = await new GenericContainer("huly-cef")
             .withCopyDirectoriesToContainer([{
-                source: "/home/nikita/repos/huly-cef/packages/cef-client/tests/testpages",
-                target: "/testpages",
+                source: join(testdir, "testpages"),
+                target: "/testpages"
             }])
             .withExposedPorts(8080)
             .withWaitStrategy(Wait.forListeningPorts())
@@ -23,19 +28,19 @@ describe('BrowserClient', () => {
         client = new BrowserClient("ws://localhost:" + port + "/browser");
     });
 
-    // test('open a new tab', async () => {
-    //     const url = "https://google.com";
-    //     const id = await client.openTab(url);
-    //     expect(id).toBeDefined();
+    test('open a new tab', async () => {
+        const url = "https://google.com";
+        const tab = await client.openTab(url);
+        expect(id).toBeDefined();
 
-    //     const tabs = await client.getTabs();
-    //     expect(tabs).toBeDefined();
-    //     expect(tabs.length).toBe(1);
-    //     expect(tabs[0] === url).toBe(true);
+        const tabs = await client.getTabs();
+        expect(tabs).toBeDefined();
+        expect(tabs.length).toBe(1);
+        expect(tabs[0] === url).toBe(true);
 
-    //     client.closeTab(id);
-    //     await expect.poll(() => client.getTabs()).toEqual([]);
-    // });
+        client.closeTab(id);
+        await expect.poll(() => client.getTabs()).toEqual([]);
+    });
 
     // test('go to a url', async () => {
     //     let url = "https://www.google.com/";
@@ -65,21 +70,21 @@ describe('BrowserClient', () => {
     //     await expect.poll(() => client.getTabs()).toEqual([]);
     // });
 
-    test('browser navigation (back and forward)', async () => {
-        const id = await client.openTab("file:///testpages/input.html");
-        // client.keyPress(id, KeyCode.TAB, 0, false, false, false);
-        client.setFocus(id, true);
-        client.keyPress(id, KeyCode.KEY_A, 'a'.charCodeAt(0), false, false, false);
-        await expect.poll(() => client.getTabs(), { timeout: 100000, interval: 3000 }).toEqual(["https://www.google.com/"]);
-        await expect.poll(() => client.getTabs(), { timeout: 100000, interval: 3000 }).toEqual(["https://www.google.com/"]);
+    // test('browser navigation (back and forward)', async () => {
+    //     const id = await client.openTab("file:///testpages/input.html");
+    //     // client.keyPress(id, KeyCode.TAB, 0, false, false, false);
+    //     client.setFocus(id, true);
+    //     client.keyPress(id, KeyCode.KEY_A, 'a'.charCodeAt(0), false, false, false);
+    //     await expect.poll(() => client.getTabs(), { timeout: 100000, interval: 3000 }).toEqual(["https://www.google.com/"]);
+    //     await expect.poll(() => client.getTabs(), { timeout: 100000, interval: 3000 }).toEqual(["https://www.google.com/"]);
 
-        client.goBack(id);
-        await expect.poll(() => client.getTabs()).toEqual(["https://youtube.com"]);
-        client.goForward(id);
-        await expect.poll(() => client.getTabs()).toEqual(["https://www.google.com"]);
-        client.closeTab(id);
-        await expect.poll(() => client.getTabs()).toEqual([]);
-    }, 200000);
+    //     client.goBack(id);
+    //     await expect.poll(() => client.getTabs()).toEqual(["https://youtube.com"]);
+    //     client.goForward(id);
+    //     await expect.poll(() => client.getTabs()).toEqual(["https://www.google.com"]);
+    //     client.closeTab(id);
+    //     await expect.poll(() => client.getTabs()).toEqual([]);
+    // }, 200000);
 
     afterAll(async () => {
         (await cefContainer.logs())
