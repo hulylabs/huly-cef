@@ -1,7 +1,7 @@
 import { REQUEST_TIMEOUT, ClickableElement } from './types.js';
 
 type CefRequestType = {
-    OpenTab: { url?: string };
+    OpenTab: string | undefined;
     CloseTab: never;
     GetTabs: never;
     Resize: { width: number; height: number };

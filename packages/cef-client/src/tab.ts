@@ -7,8 +7,6 @@ export class Tab {
     private id: number;
     private messageHandler: MessageHandler;
 
-    pendingPromises: Map<string, { resolve: (value: any) => void, reject: () => void }> = new Map();
-
     constructor(messageHandler: MessageHandler, id: number) {
         this.messageHandler = messageHandler;
         this.id = id;

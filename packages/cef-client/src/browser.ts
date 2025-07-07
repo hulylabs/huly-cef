@@ -3,18 +3,18 @@ import { Tab } from './tab.js';
 import { ClickableElement, detectPlatform, Platform } from './types.js';
 import { MessageHandler } from './messages.js';
 
-export class BrowserClient {
+export class Browser {
     private websocket: WebSocket;
     private messageHandler: MessageHandler;
     private platform: Platform = detectPlatform();
 
-    constructor(url: string) {
-        this.websocket = new WebSocket(url);
+    constructor(websocket: WebSocket) {
+        this.websocket = websocket;
         this.messageHandler = new MessageHandler(this.websocket);
     }
 
     async openTab(url?: string): Promise<Tab> {
-        let id = await this.messageHandler.send(-1, 'OpenTab', { url });
+        let id = await this.messageHandler.send(-1, 'OpenTab', url);
         return new Tab(this.messageHandler, id);
     }
 
