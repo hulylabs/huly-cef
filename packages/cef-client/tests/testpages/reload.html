@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title id="title">Loading...</title>
+</head>
+
+<body>
+    <script>
+        let count = parseInt(sessionStorage.getItem('reloadCount') || '0') + 1;
+        sessionStorage.setItem('reloadCount', count);
+        document.title = `Reloads: ${count}`;
+    </script>
+</body>
+
+</html>

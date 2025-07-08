@@ -5,19 +5,14 @@ export interface OpenTabOptions {
 }
 
 export interface ScreenshotOptions {
-    size?: {
-        width: number;
-        height: number;
-    };
+    size?: [number, number]
 }
 
 export interface ClickableElement {
+    id: number;
     tag: string;
     text: string;
-    x: number;
-    y: number;
 }
-
 
 export enum Platform {
     Windows,
@@ -34,4 +29,11 @@ export function detectPlatform(): Platform {
         return Platform.MacOS;
     }
     return Platform.Linux;
+}
+
+
+export enum MouseButton {
+    Left = 0,
+    Middle = 1,
+    Right = 2,
 }

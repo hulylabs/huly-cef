@@ -110,17 +110,20 @@ pub struct BrowserMessage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum BrowserMessageType {
+    // Browser control messages
     Close,
     RestoreSession,
     OpenTab {
         options: Option<OpenTabOptions>,
     },
-    CloseTab,
     GetTabs,
     Resize {
         width: u32,
         height: u32,
     },
+
+    // Tab control messages
+    CloseTab,
     GetTitle,
     GetUrl,
     Screenshot {
@@ -153,7 +156,9 @@ pub enum BrowserMessageType {
         ctrl: bool,
         shift: bool,
     },
-    Char(u16),
+    Char {
+        unicode: u16,
+    },
     StopVideo,
     StartVideo,
     Reload,
@@ -162,7 +167,9 @@ pub enum BrowserMessageType {
     SetFocus(bool),
     GetDOM,
     GetClickableElements,
-    ClickElement(i32),
+    ClickElement {
+        id: i32,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

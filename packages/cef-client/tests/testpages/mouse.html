@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Mouse</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            height: 100%;
+        }
+
+        #mouseTracker {
+            width: 100vw;
+            height: 100vh;
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mouseTracker"></div>
+
+    <script>
+        const tracker = document.getElementById('mouseTracker');
+
+        tracker.addEventListener('mousedown', (e) => {
+            document.title = `Mouse Down: (${e.clientX}, ${e.clientY}) Button: ${e.button}`;
+        });
+
+        tracker.addEventListener('mouseup', (e) => {
+            document.title = `Mouse Up: (${e.clientX}, ${e.clientY}) Button: ${e.button}`;
+        });
+
+        tracker.addEventListener('mousemove', (e) => {
+            document.title = `Move: (${e.clientX}, ${e.clientY})`;
+        });
+
+        tracker.addEventListener('wheel', (e) => {
+            document.title = `Scroll: (${e.clientX}, ${e.clientY}) Delta: (${e.deltaX}, ${e.deltaY})`;
+        });
+
+    </script>
+</body>
+
+</html>

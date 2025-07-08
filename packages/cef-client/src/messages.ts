@@ -13,7 +13,7 @@ type CefRequestType = {
     Click: { x: number; y: number; button: number; down: boolean };
     Wheel: { x: number; y: number; dx: number; dy: number };
     Key: { character: number; windowscode: number; code: number; down: boolean; ctrl: boolean; shift: boolean };
-    Char: number;
+    Char: { unicode: number };
     StopVideo: never;
     StartVideo: never;
     Reload: never;
@@ -22,7 +22,7 @@ type CefRequestType = {
     GetDOM: never;
     GetClickableElements: never;
     SetFocus: boolean;
-    ClickElement: number;
+    ClickElement: { id: number };
     GetTitle: never;
     GetUrl: never;
 }

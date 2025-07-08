@@ -36,10 +36,11 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             break;
         }
 
-        let msg = match serde_json::from_slice::<BrowserMessage>(&msg.into_data()) {
+        // TODO: don't clone the message
+        let msg = match serde_json::from_slice::<BrowserMessage>(&msg.clone().into_data()) {
             Ok(msg) => msg,
             Err(e) => {
-                error!("failed to deserialize message: {:?}", e);
+                error!("failed to deserialize message: {:?} (error: {:?})", msg, e);
                 continue;
             }
         };
@@ -86,7 +87,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 },
                 Some(tab),
             ) => tab.key_press(character, windowscode, code, down, ctrl, shift),
-            (BrowserMessageType::Char(char), Some(tab)) => tab.char(char),
+            (BrowserMessageType::Char { unicode }, Some(tab)) => tab.char(unicode),
             (BrowserMessageType::StopVideo, Some(tab)) => tab.stop_video(),
             (BrowserMessageType::StartVideo, Some(tab)) => tab.start_video(),
             (BrowserMessageType::Reload, Some(tab)) => tab.reload(),
@@ -100,7 +101,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 let elements = tab.get_clickable_elements().await;
                 resp = Some(ServerMessageType::ClickableElements(elements));
             }
-            (BrowserMessageType::ClickElement(id), Some(tab)) => {
+            (BrowserMessageType::ClickElement { id }, Some(tab)) => {
                 tab.click_element(id).await;
             }
             (_, None) => {
@@ -184,6 +185,7 @@ async fn open_tab(
         None => "about:blank".to_string(),
     };
 
+    info!("opening tab with URL: {}", url);
     let tab = tab::create(state.clone(), width, height, &url);
     let id = tab.get_id();
     {

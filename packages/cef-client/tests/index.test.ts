@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, test, vi } from 'vitest';
 import sharp from 'sharp';
 
-import { Browser, connect, KeyCode } from '../src/index';
+import { Browser, connect, KeyCode, MouseButton } from '../src/index';
 
 import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
 import { dirname, join } from 'path';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
-describe('BrowserClient', () => {
+describe('browser', () => {
     let cefContainer: StartedTestContainer;
     let browser: Browser;
     let port: number;
@@ -18,16 +18,18 @@ describe('BrowserClient', () => {
         cefContainer = await new GenericContainer("huly-cef")
             .withCopyDirectoriesToContainer([{
                 source: join(testdir, "testpages"),
-                target: "/testpages"
+                target: join(testdir, "testpages"),
             }])
             .withExposedPorts(8080)
             .withWaitStrategy(Wait.forListeningPorts())
             .start();
 
         port = cefContainer.getMappedPort(8080);
-        browser = await connect("ws://localhost:" + 8080 + "/browser");
+        // port = 8080;
+        browser = await connect("ws://localhost:" + port + "/browser");
     });
 
+    // TODO: test load state
     test('open a new tab', async () => {
         const url = "https://www.google.com/";
         const tab = await browser.openTab({ url });
@@ -36,10 +38,11 @@ describe('BrowserClient', () => {
         expect(await tab.url()).toBe(url);
 
         await tab.close();
-        await expect.poll(() => browser.getTabs(), { interval: 2000 }).toEqual([]);
+        await expect.poll(() => browser.tabs(), { interval: 2000 }).toEqual([]);
     });
 
-    test('resize the browser', async () => {
+    // TODO: also test invalid scenarios
+    test('resize', async () => {
         let [width, height] = [800, 600];
         browser.resize(width, height);
 
@@ -79,49 +82,177 @@ describe('BrowserClient', () => {
         tab.close();
     });
 
-    // Connect to the server with the second client and create more tabs. Then check if the first client can see them.
+    test('multiple tabs', async () => {
+        let client = await connect("ws://localhost:" + port + "/browser");
+        await browser.openTab({ url: "file://" + testdir + "/testpages/title.html" });
+        await client.openTab({ url: "file://" + testdir + "/testpages/keyboard.html" });
+        await client.openTab({ url: "file://" + testdir + "/testpages/links.html" });
 
-    // test('multiple tabs', async () => {
-    //     const id1 = await client.openTab("https://example.com");
-    //     const id2 = await client.openTab("https://www.google.com");
-    //     const id3 = await client.openTab("https://youtube.com");
+        const tabs = await browser.tabs();
+        const titles = (await Promise.all(tabs.map(tab => tab.title()))).sort();
+        expect(titles).toEqual(["Title", "Keyboard", "Links"].sort());
 
-    //     await expect.poll(async () => (await client.getTabs()).sort()).toEqual([
-    //         "https://example.com",
-    //         "https://www.google.com",
-    //         "https://youtube.com"
-    //     ].sort());
+        tabs.forEach(tab => tab.close());
+        await expect.poll(() => browser.tabs()).toEqual([]);
+    });
 
-    //     client.closeTab(id1);
-    //     client.closeTab(id2);
-    //     client.closeTab(id3);
-    //     await expect.poll(() => client.getTabs()).toEqual([]);
-    // });
+    test('tab navigation', async () => {
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html" });
+        await expect.poll(() => tab.title(), { interval: 200, timeout: 5000 }).toBe("Links");
 
-    // test('browser navigation (back and forward)', async () => {
-    //     const id = await client.openTab("file:///testpages/input.html");
-    //     // client.keyPress(id, KeyCode.TAB, 0, false, false, false);
-    //     client.setFocus(id, true);
-    //     client.keyPress(id, KeyCode.KEY_A, 'a'.charCodeAt(0), false, false, false);
-    //     await expect.poll(() => client.getTabs(), { timeout: 100000, interval: 3000 }).toEqual(["https://www.google.com/"]);
-    //     await expect.poll(() => client.getTabs(), { timeout: 100000, interval: 3000 }).toEqual(["https://www.google.com/"]);
+        let elements = await tab.clickableElements();
+        expect(elements[0].id).toBe(0);
+        expect(elements[0].tag).toBe("a");
+        expect(elements[0].text).toBe("External Link (Title)");
 
-    //     client.goBack(id);
-    //     await expect.poll(() => client.getTabs()).toEqual(["https://youtube.com"]);
-    //     client.goForward(id);
-    //     await expect.poll(() => client.getTabs()).toEqual(["https://www.google.com"]);
-    //     client.closeTab(id);
-    //     await expect.poll(() => client.getTabs()).toEqual([]);
-    // }, 200000);
+        tab.clickElement(elements[0].id);
+        await expect.poll(() => tab.title()).toBe("Title");
+
+        tab.back();
+        await expect.poll(() => tab.title()).toBe("Links");
+
+        tab.forward();
+        await expect.poll(() => tab.title()).toBe("Title");
+
+        tab.navigate("file://" + testdir + "/testpages/reload.html");
+        await expect.poll(() => tab.title()).toBe("Reloads: 1");
+
+        tab.reload();
+        await expect.poll(() => tab.title()).toBe("Reloads: 2");
+
+        tab.close();
+        await expect.poll(() => browser.tabs()).toEqual([]);
+    });
+
+    test('mouse', async () => {
+        browser.resize(800, 600);
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html" });
+        expect(tab.id).toBeDefined();
+        await expect.poll(() => tab.title()).toBe("Mouse");
+
+        // Mouse Move
+        await tab.mouseMove(300, 400);
+        await expect.poll(() => tab.title()).toBe("Move: (300, 400)");
+
+        // Left Button
+        await tab.click(100, 200, MouseButton.Left, true);
+        await expect.poll(() => tab.title()).toBe("Mouse Down: (100, 200) Button: 0");
+
+        await tab.click(100, 200, MouseButton.Left, false);
+        await expect.poll(() => tab.title()).toBe("Mouse Up: (100, 200) Button: 0");
+
+        // Middle Button
+        await tab.click(150, 250, MouseButton.Middle, true);
+        await expect.poll(() => tab.title()).toBe("Mouse Down: (150, 250) Button: 1");
+
+        await tab.click(150, 250, MouseButton.Middle, false);
+        await expect.poll(() => tab.title()).toBe("Mouse Up: (150, 250) Button: 1");
+
+        // Right Button
+        await tab.click(200, 300, MouseButton.Right, true);
+        await expect.poll(() => tab.title()).toBe("Mouse Down: (200, 300) Button: 2");
+
+        await tab.click(200, 300, MouseButton.Right, false);
+        await expect.poll(() => tab.title()).toBe("Mouse Up: (200, 300) Button: 2");
+
+        // Scroll
+        await tab.scroll(250, 350, 0, 100);
+        await expect.poll(() => tab.title()).toMatch("Scroll: (250, 350) Delta: (0, 100)");
+
+        await tab.scroll(250, 350, 0, -100);
+        await expect.poll(() => tab.title()).toMatch("Scroll: (250, 350) Delta: (0, -100)");
+
+        await tab.close();
+    });
+
+    test('keyboard', async () => {
+        let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html" });
+        expect(tab.id).toBeDefined();
+        await expect.poll(() => tab.title()).toBe("Keyboard");
+
+        const unicodeTexts = [
+            "Hello, World! 🌍",
+            "Café, naïve, résumé",
+            "Здравствуй мир",
+            "こんにちは世界",
+            "مرحبا بالعالم",
+            "Γεια σας κόσμε",
+            "α²+β²=γ² ∑∞∫∆",
+            "€$¥£₹₽¢",
+            "©®™℠",
+            "→←↑↓⇄⇅⇆⇇",
+            "♠♣♥♦♪♫♬",
+            "🚀🎉🎯⚡🔥💎",
+            "中文测试文字",
+            "한글 테스트",
+            "עברית בדיקה",
+            "Ñoño niño",
+            "Ümlauts: äöü",
+            "Français: çàéèêë",
+        ];
+
+        for (const text of unicodeTexts) {
+            // Enter text
+            for (let char of Array.from(text)) {
+                if (char.length === 2) {
+                    tab.char(char.charCodeAt(0));
+                    tab.char(char.charCodeAt(1));
+                } else {
+                    tab.char(char.charCodeAt(0));
+                }
+            }
+
+            // Press Enter to submit
+            tab.key(KeyCode.ENTER, 0, true, false, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            tab.key(KeyCode.ENTER, 0, false, false, false);
+
+            // Wait and verify the text was entered correctly
+            await expect.poll(() => tab.title()).toBe(text);
+
+            // Clear for next test (Ctrl+A then Delete)
+            tab.key(KeyCode.KEY_A, 0, true, true, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            tab.key(KeyCode.KEY_A, 0, false, true, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            tab.key(KeyCode.DELETE, 0, true, false, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            tab.key(KeyCode.DELETE, 0, false, false, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
+        await tab.close();
+    });
+
+    test('screenshot', async () => {
+        browser.resize(1920, 1080);
+
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/title.html" });
+        expect(tab.id).toBeDefined();
+        await expect.poll(() => tab.title()).toBe("Title");
+
+        let width = 800;
+        let height = 600;
+        const screenshot = await tab.screenshot({ size: [width, height] });
+        expect(screenshot).toBeDefined();
+
+        const img = Buffer.from(screenshot, 'base64');
+        const metadata = await sharp(img).metadata();
+        expect(metadata.width).toBe(width);
+        expect(metadata.height).toBe(height);
+        expect(metadata.format).toBe('png');
+
+        await tab.close();
+    });
 
     afterAll(async () => {
         // if (browser) {
         //     browser.close();
         // }
-        // (await cefContainer.logs())
-        //     .on("data", line => console.log(line))
-        //     .on("err", line => console.error(line))
-        //     .on("end", () => console.log("Stream closed"));
+        (await cefContainer.logs())
+            .on("data", line => console.log(line))
+            .on("err", line => console.error(line))
+            .on("end", () => console.log("Stream closed"));
         await cefContainer.stop();
     });
 });
