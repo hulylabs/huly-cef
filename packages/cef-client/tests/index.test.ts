@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, test, vi } from 'vitest';
+import sharp from 'sharp';
 
-import { BrowserClient, KeyCode } from '../src/index';
+import { Browser, connect, KeyCode } from '../src/index';
 
 import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
 import { dirname, join } from 'path';
@@ -10,11 +11,10 @@ const testdir = dirname(fileURLToPath(import.meta.url));
 
 describe('BrowserClient', () => {
     let cefContainer: StartedTestContainer;
-    let client: BrowserClient;
+    let browser: Browser;
     let port: number;
 
     beforeAll(async () => {
-
         cefContainer = await new GenericContainer("huly-cef")
             .withCopyDirectoriesToContainer([{
                 source: join(testdir, "testpages"),
@@ -25,33 +25,61 @@ describe('BrowserClient', () => {
             .start();
 
         port = cefContainer.getMappedPort(8080);
-        client = new BrowserClient("ws://localhost:" + port + "/browser");
+        browser = await connect("ws://localhost:" + 8080 + "/browser");
     });
 
     test('open a new tab', async () => {
-        const url = "https://google.com";
-        const tab = await client.openTab(url);
-        expect(id).toBeDefined();
+        const url = "https://www.google.com/";
+        const tab = await browser.openTab({ url });
+        expect(tab.id).toBeDefined();
+        expect(await tab.title()).toBe("Google");
+        expect(await tab.url()).toBe(url);
 
-        const tabs = await client.getTabs();
-        expect(tabs).toBeDefined();
-        expect(tabs.length).toBe(1);
-        expect(tabs[0] === url).toBe(true);
-
-        client.closeTab(id);
-        await expect.poll(() => client.getTabs()).toEqual([]);
+        await tab.close();
+        await expect.poll(() => browser.getTabs(), { interval: 2000 }).toEqual([]);
     });
 
-    // test('go to a url', async () => {
-    //     let url = "https://www.google.com/";
-    //     const id = await client.openTab("about:blank");
-    //     client.goTo(id, url);
+    test('resize the browser', async () => {
+        let [width, height] = [800, 600];
+        browser.resize(width, height);
 
-    //     await expect.poll(() => client.getTabs()).toEqual([url]);
+        const url = "https://www.google.com/";
+        const tab = await browser.openTab({ url });
+        let screenshot = await tab.screenshot();
+        expect(screenshot).toBeDefined();
 
-    //     client.closeTab(id);
-    //     await expect.poll(() => client.getTabs()).toEqual([]);
-    // });
+        let img = Buffer.from(screenshot, 'base64');
+        let metadata = await sharp(img).metadata();
+        expect(metadata.width).toBe(width);
+        expect(metadata.height).toBe(height);
+        expect(metadata.format).toBe('png');
+
+        [width, height] = [1024, 768];
+        browser.resize(width, height);
+
+        screenshot = await tab.screenshot();
+        expect(screenshot).toBeDefined();
+
+        img = Buffer.from(screenshot, 'base64');
+        metadata = await sharp(img).metadata();
+        expect(metadata.width).toBe(width);
+        expect(metadata.height).toBe(height);
+        expect(metadata.format).toBe('png');
+
+        tab.close();
+    });
+
+    test('go to a url', async () => {
+        const tab = await browser.openTab();
+        expect(tab.id).toBeDefined();
+
+        tab.navigate("https://www.google.com/");
+
+        await expect.poll(() => tab.title()).toBe("Google");
+        tab.close();
+    });
+
+    // Connect to the server with the second client and create more tabs. Then check if the first client can see them.
 
     // test('multiple tabs', async () => {
     //     const id1 = await client.openTab("https://example.com");
@@ -87,10 +115,13 @@ describe('BrowserClient', () => {
     // }, 200000);
 
     afterAll(async () => {
-        (await cefContainer.logs())
-            .on("data", line => console.log(line))
-            .on("err", line => console.error(line))
-            .on("end", () => console.log("Stream closed"));
+        // if (browser) {
+        //     browser.close();
+        // }
+        // (await cefContainer.logs())
+        //     .on("data", line => console.log(line))
+        //     .on("err", line => console.error(line))
+        //     .on("end", () => console.log("Stream closed"));
         await cefContainer.stop();
     });
 });

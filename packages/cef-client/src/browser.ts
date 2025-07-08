@@ -1,6 +1,6 @@
 import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from './keyboard.js';
 import { Tab } from './tab.js';
-import { ClickableElement, detectPlatform, Platform } from './types.js';
+import { ClickableElement, detectPlatform, OpenTabOptions, Platform } from './types.js';
 import { MessageHandler } from './messages.js';
 
 export class Browser {
@@ -13,17 +13,14 @@ export class Browser {
         this.messageHandler = new MessageHandler(this.websocket);
     }
 
-    async openTab(url?: string): Promise<Tab> {
-        let id = await this.messageHandler.send(-1, 'OpenTab', url);
+    async openTab(options?: OpenTabOptions): Promise<Tab> {
+        let id = await this.messageHandler.send(-1, 'OpenTab', { options: options });
         return new Tab(this.messageHandler, id);
     }
 
-    closeTab(tabId: number): Promise<void> {
-        return this.messageHandler.send(tabId, 'CloseTab');
-    }
-
-    getTabs(): Promise<number[]> {
-        return this.messageHandler.send(-1, 'GetTabs', undefined as never);
+    async getTabs(): Promise<Tab[]> {
+        let ids = await this.messageHandler.send(-1, 'GetTabs');
+        return ids.map(id => new Tab(this.messageHandler, id));
     }
 
     resize(width: number, height: number): Promise<void> {
@@ -33,15 +30,8 @@ export class Browser {
         });
     }
 
-    screenshot(tabId: number, width: number, height: number): Promise<string> {
-        return this.messageHandler.send(tabId, 'Screenshot', {
-            width: Math.floor(width),
-            height: Math.floor(height)
-        });
-    }
-
     goTo(tabId: number, url: string): Promise<void> {
-        return this.messageHandler.send(tabId, 'GoTo', { url });
+        return this.messageHandler.send(tabId, 'Navigate', { url });
     }
 
     mouseMove(tabId: number, x: number, y: number): Promise<void> {

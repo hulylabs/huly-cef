@@ -5,6 +5,8 @@ use serde_repr::*;
 
 use crate::browser::ClickableElement;
 
+// TODO: This file looks a bit messy, consider refactoring it later.
+
 #[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
 #[repr(u8)]
 pub enum MouseType {
@@ -89,6 +91,16 @@ pub enum TabMessage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ScreenshotOptions {
+    pub size: (u32, u32),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenTabOptions {
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BrowserMessage {
     pub id: String,
     pub tab_id: i32,
@@ -100,7 +112,9 @@ pub struct BrowserMessage {
 pub enum BrowserMessageType {
     Close,
     RestoreSession,
-    OpenTab(String),
+    OpenTab {
+        options: Option<OpenTabOptions>,
+    },
     CloseTab,
     GetTabs,
     Resize {
@@ -110,10 +124,9 @@ pub enum BrowserMessageType {
     GetTitle,
     GetUrl,
     Screenshot {
-        width: u32,
-        height: u32,
+        options: Option<ScreenshotOptions>,
     },
-    GoTo {
+    Navigate {
         url: String,
     },
     MouseMove {

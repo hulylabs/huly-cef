@@ -8,7 +8,10 @@ use base64::Engine;
 use futures::{SinkExt, StreamExt};
 use huly_cef::{
     browser::Browser,
-    messages::{BrowserMessage, BrowserMessageType, ServerMessage, ServerMessageType},
+    messages::{
+        BrowserMessage, BrowserMessageType, OpenTabOptions, ScreenshotOptions, ServerMessage,
+        ServerMessageType,
+    },
 };
 use image::ImageEncoder;
 use log::{error, info};
@@ -46,9 +49,9 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
         match (msg.body, tab) {
             (BrowserMessageType::Close, _) => break,
             (BrowserMessageType::RestoreSession, _) => resp = Some(restore_session(&state)),
-            (BrowserMessageType::OpenTab(url), _) => {
+            (BrowserMessageType::OpenTab { options }, _) => {
                 // TODO: pass wait_unti_loaded as a parameter
-                resp = Some(open_tab(&state, &url, true).await)
+                resp = Some(open_tab(&state, options).await)
             }
             (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
             (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
@@ -59,12 +62,12 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 resp = Some(ServerMessageType::Url(tab.get_url()));
             }
             (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
-            (BrowserMessageType::Screenshot { width, height }, Some(tab)) => {
+            (BrowserMessageType::Screenshot { options }, Some(tab)) => {
                 resp = Some(ServerMessageType::Screenshot(
-                    get_screenshot(tab, width, height).await,
+                    get_screenshot(tab, options).await,
                 ));
             }
-            (BrowserMessageType::GoTo { url }, Some(tab)) => tab.go_to(&url),
+            (BrowserMessageType::Navigate { url }, Some(tab)) => tab.go_to(&url),
             (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
             (BrowserMessageType::Click { x, y, button, down }, Some(tab)) => {
                 tab.mouse_click(x, y, button, down)
@@ -169,23 +172,29 @@ fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
 
 async fn open_tab(
     state: &Arc<Mutex<ServerState>>,
-    url: &str,
-    wait_until_loaded: bool,
+    options: Option<OpenTabOptions>,
 ) -> ServerMessageType {
     let (width, height) = {
         let state = state.lock().unwrap();
         state.size
     };
-    let tab = tab::create(state.clone(), width, height, url);
+
+    let url = match options {
+        Some(options) => options.url,
+        None => "about:blank".to_string(),
+    };
+
+    let tab = tab::create(state.clone(), width, height, &url);
     let id = tab.get_id();
     {
         let mut state = state.lock().unwrap();
         state.tabs.insert(id, tab.clone());
     }
 
-    if wait_until_loaded {
-        tab.wait_until_loaded().await;
-    }
+    // TODO: add an option to wait until the tab is loaded
+    // if wait_until_loaded {
+    tab.wait_until_loaded().await;
+    // }
 
     ServerMessageType::Tab(id)
 }
@@ -218,14 +227,27 @@ fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
     state.tabs.iter().for_each(|t| t.1.resize(width, height));
 }
 
-async fn get_screenshot(tab: Browser, width: u32, height: u32) -> String {
-    let data = tab.screenshot(width, height).await;
+async fn get_screenshot(tab: Browser, options: Option<ScreenshotOptions>) -> String {
+    let opts = match options {
+        // TODO: add option validation
+        Some(value) => value,
+        None => ScreenshotOptions {
+            size: tab.get_size(),
+        },
+    };
+
+    let data = tab.screenshot(opts.size.0, opts.size.1).await;
 
     let mut bytes: Vec<u8> = Vec::new();
     {
         let encoder = image::codecs::png::PngEncoder::new(&mut bytes);
         encoder
-            .write_image(&data, width, height, image::ExtendedColorType::Rgba8)
+            .write_image(
+                &data,
+                opts.size.0,
+                opts.size.1,
+                image::ExtendedColorType::Rgba8,
+            )
             .expect("PNG encoding failed");
     }
 

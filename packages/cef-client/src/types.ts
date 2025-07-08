@@ -1,5 +1,15 @@
-export const REQUEST_TIMEOUT = 5000;
+export const REQUEST_TIMEOUT = 30000;
 
+export interface OpenTabOptions {
+    url?: string;
+}
+
+export interface ScreenshotOptions {
+    size?: {
+        width: number;
+        height: number;
+    };
+}
 
 export interface ClickableElement {
     tag: string;

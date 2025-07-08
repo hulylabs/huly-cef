@@ -1,5 +1,6 @@
 import { Browser } from "./browser.js";
 export { KeyCode } from "./keyboard.js";
+export { Browser } from "./browser.js";
 
 export async function connect(url: string): Promise<Browser> {
     const websocket = new WebSocket(url);

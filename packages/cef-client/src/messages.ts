@@ -1,12 +1,14 @@
-import { REQUEST_TIMEOUT, ClickableElement } from './types.js';
+import { REQUEST_TIMEOUT, ClickableElement, ScreenshotOptions, OpenTabOptions } from './types.js';
 
 type CefRequestType = {
-    OpenTab: string | undefined;
+    OpenTab: { options?: OpenTabOptions };
     CloseTab: never;
     GetTabs: never;
     Resize: { width: number; height: number };
-    Screenshot: { width: number; height: number };
-    GoTo: { url: string };
+    Screenshot: {
+        options?: ScreenshotOptions
+    };
+    Navigate: { url: string };
     MouseMove: { x: number; y: number };
     Click: { x: number; y: number; button: number; down: boolean };
     Wheel: { x: number; y: number; dx: number; dy: number };
@@ -22,6 +24,7 @@ type CefRequestType = {
     SetFocus: boolean;
     ClickElement: number;
     GetTitle: never;
+    GetUrl: never;
 }
 
 type CefResponseType = {
@@ -32,6 +35,7 @@ type CefResponseType = {
     GetClickableElements: ClickableElement[];
     ClickableElements: ClickableElement[];
     Title: string;
+    Url: string;
 }
 
 type RequestToResponseMapping = {
@@ -40,7 +44,7 @@ type RequestToResponseMapping = {
     GetTabs: 'Tabs';
     Resize: never;
     Screenshot: 'Screenshot';
-    GoTo: never;
+    Navigate: never;
     MouseMove: never;
     Click: never;
     Wheel: never;
@@ -56,6 +60,7 @@ type RequestToResponseMapping = {
     SetFocus: never;
     ClickElement: never;
     GetTitle: 'Title';
+    GetUrl: 'Url';
 }
 
 interface RequestMessage<T extends keyof CefRequestType> {
@@ -113,6 +118,24 @@ export class MessageHandler {
                 }
             }, REQUEST_TIMEOUT);
         });
+    }
+
+    sendNoResponse<T extends keyof CefRequestType>(
+        tabId: number,
+        type: T,
+        data?: CefRequestType[T]
+    ): void {
+        const id = crypto.randomUUID();
+        const message: RequestMessage<T> = {
+            id,
+            tab_id: tabId,
+            body: {
+                type,
+                data: data !== undefined ? data : (undefined as never)
+            }
+        };
+
+        this.websocket.send(JSON.stringify(message));
     }
 
     private resolve(response: ResponseMessage<keyof CefResponseType>): void {

@@ -271,7 +271,6 @@ impl Browser {
 
     pub async fn screenshot(&self, width: u32, height: u32) -> Vec<u8> {
         let (tx, rx) = oneshot::channel::<Vec<u8>>();
-
         {
             let mut state = self.state.lock().unwrap();
             state.screenshot_width = width;
@@ -279,7 +278,9 @@ impl Browser {
             state.screenshot_channel = Some(tx);
         }
 
-        _ = self.inner.get_host().unwrap().was_resized();
+        let host = self.inner.get_host().unwrap();
+        _ = host.was_resized();
+        _ = host.invalidate(PaintElementType::View);
         rx.await.unwrap()
     }
 
@@ -424,6 +425,11 @@ impl Browser {
 
     pub fn get_url(&self) -> String {
         self.state.lock().unwrap().url.clone()
+    }
+
+    pub fn get_size(&self) -> (u32, u32) {
+        let state = self.state.lock().unwrap();
+        (state.width, state.height)
     }
 }
 
