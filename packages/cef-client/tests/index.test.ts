@@ -34,8 +34,8 @@ describe('browser', () => {
         const url = "https://www.google.com/";
         const tab = await browser.openTab({ url });
         expect(tab.id).toBeDefined();
-        expect(await tab.title()).toBe("Google");
-        expect(await tab.url()).toBe(url);
+        await expect.poll(() => tab.title()).toBe("Google");
+        await expect.poll(() => tab.url()).toBe(url);
 
         await tab.close();
         await expect.poll(() => browser.tabs(), { interval: 2000 }).toEqual([]);

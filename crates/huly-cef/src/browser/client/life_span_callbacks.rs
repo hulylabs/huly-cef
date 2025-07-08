@@ -2,24 +2,17 @@ use cef_ui::{
     Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks,
     PopupFeatures, WindowInfo, WindowOpenDisposition,
 };
-use log::{self, error};
-use tokio::sync::mpsc::UnboundedSender;
+use log::{self};
 
-use crate::cef::messages::TabMessage;
+use crate::{browser::state::SharedBrowserState, TabMessage};
 
 pub struct HulyLifeSpanHandlerCallbacks {
-    event_channel: UnboundedSender<TabMessage>,
+    state: SharedBrowserState,
 }
 
 impl HulyLifeSpanHandlerCallbacks {
-    pub fn new(event_channel: UnboundedSender<TabMessage>) -> Self {
-        Self { event_channel }
-    }
-
-    fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.event_channel.send(message) {
-            error!("Failed to send message: {:?}", e);
-        }
+    pub fn new(state: SharedBrowserState) -> Self {
+        Self { state }
     }
 }
 
@@ -44,7 +37,8 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
             WindowOpenDisposition::NewForegroundTab
             | WindowOpenDisposition::NewBackgroundTab
             | WindowOpenDisposition::NewWindow => {
-                self.send_message(TabMessage::NewTabRequested(target_url.unwrap()));
+                self.state
+                    .notify(TabMessage::NewTab(target_url.clone().unwrap_or_default()));
             }
             _ => {}
         };
@@ -70,7 +64,7 @@ impl LifeSpanHandlerCallbacks for HulyLifeSpanHandlerCallbacks {
             browser.get_identifier().expect("failed to get tab id")
         );
 
-        self.send_message(TabMessage::Closed);
+        self.state.notify(TabMessage::Closed);
         false
     }
 

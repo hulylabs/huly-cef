@@ -1,36 +1,25 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
+use crossbeam_channel::Sender;
 use log::error;
 use serde::{Deserialize, Serialize};
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
-
 use cef_ui::{
     BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, EventFlags, KeyEvent, KeyEventType,
-    MouseButtonType, MouseEvent, PaintElementType, StringVisitor, StringVisitorCallbacks, ThreadId,
-    WindowInfo,
-};
-use crossbeam_channel::Sender;
-use tokio::sync::{
-    mpsc::{self, UnboundedSender},
-    oneshot,
+    MouseButtonType, MouseEvent, PaintElementType, StringVisitor, ThreadId, WindowInfo,
 };
 
-use crate::javascript::GET_CLICKABLE_ELEMENTS_SCRIPT;
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
-use super::{
-    client,
-    messages::{LoadStatus, MouseType, TabEventType, TabMessage},
+use crate::{
+    browser::state::SharedBrowserState, javascript::GET_CLICKABLE_ELEMENTS_SCRIPT,
+    messages::LoadStatus, messages::MouseButton, ClickableElement, TabMessage,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClickableElement {
-    pub id: i32,
-    pub tag: String,
-    pub text: String,
-}
+mod client;
+mod dom;
+pub(crate) mod state;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -40,54 +29,30 @@ pub enum JSMessage {
     Clicked(bool),
 }
 
-/// Maintains the state of a browser instance.
-pub struct BrowserState {
-    pub title: String,
-    pub url: String,
-    pub favicon: Option<String>,
-    pub load_status: LoadStatus,
-    pub can_go_back: bool,
-    pub can_go_forward: bool,
-    pub error_code: i32,
-    pub error_text: String,
-    pub cursor: String,
-    pub width: u32,
-    pub height: u32,
-    pub active: bool,
-    pub left_mouse_button_down: bool,
-
-    pub clickable_elements: Option<Vec<ClickableElement>>,
-
-    pub screenshot_width: u32,
-    pub screenshot_height: u32,
-    pub screenshot_channel: Option<oneshot::Sender<Vec<u8>>>,
-
-    pub tab_events_subscribers: HashMap<TabEventType, UnboundedSender<TabMessage>>,
-    pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
-}
-
 pub struct Browser {
     inner: cef_ui::Browser,
-    pub state: Arc<Mutex<BrowserState>>,
+    pub state: state::SharedBrowserState,
+    counter: i32,
 }
 
 impl Clone for Browser {
     fn clone(&self) -> Self {
         Browser {
             inner: self.inner.clone(),
-            state: Arc::clone(&self.state),
+            state: self.state.clone(),
+            counter: self.counter,
         }
     }
 }
 
 impl Browser {
-    pub fn new(width: u32, height: u32, url: &str, sender: UnboundedSender<TabMessage>) -> Self {
-        create_browser(width, height, url, sender)
+    pub fn new(width: u32, height: u32, url: &str) -> Self {
+        create_browser(width, height, url)
     }
 
     pub fn mouse_move(&self, x: i32, y: i32) {
         let mut modifiers = EventFlags::empty();
-        if self.state.lock().unwrap().left_mouse_button_down {
+        if self.state.read(|s| s.left_mouse_button_down) {
             modifiers.insert(EventFlags::LeftMouseButton);
         }
 
@@ -100,10 +65,11 @@ impl Browser {
             .expect("failed to send mouse move event");
     }
 
-    pub fn mouse_click(&self, x: i32, y: i32, button: MouseType, down: bool) {
-        if button == MouseType::Left {
-            let mut state = self.state.lock().unwrap();
-            state.left_mouse_button_down = down;
+    pub fn mouse_click(&self, x: i32, y: i32, button: MouseButton, down: bool) {
+        if button == MouseButton::Left {
+            self.state.update(|state| {
+                state.left_mouse_button_down = down;
+            });
         }
 
         let event = MouseEvent {
@@ -113,9 +79,9 @@ impl Browser {
         };
 
         let button = match button {
-            MouseType::Left => MouseButtonType::Left,
-            MouseType::Middle => MouseButtonType::Middle,
-            MouseType::Right => MouseButtonType::Right,
+            MouseButton::Left => MouseButtonType::Left,
+            MouseButton::Middle => MouseButtonType::Middle,
+            MouseButton::Right => MouseButtonType::Right,
         };
 
         self.inner
@@ -194,8 +160,9 @@ impl Browser {
     }
 
     pub fn start_video(&self) {
-        let mut state = self.state.lock().unwrap();
-        state.active = true;
+        self.state.update(|state| {
+            state.active = true;
+        });
 
         _ = self.inner.get_host().unwrap().was_hidden(false);
         _ = self.inner.get_host().unwrap().set_focus(true);
@@ -208,16 +175,18 @@ impl Browser {
     }
 
     pub fn stop_video(&self) {
-        let mut state = self.state.lock().unwrap();
-        state.active = false;
+        self.state.update(|state| {
+            state.active = false;
+        });
 
         _ = self.inner.get_host().unwrap().was_hidden(true);
     }
 
     pub fn resize(&self, width: u32, height: u32) {
-        let mut state = self.state.lock().unwrap();
-        state.width = width;
-        state.height = height;
+        self.state.update(|state| {
+            state.width = width;
+            state.height = height;
+        });
 
         let _ = self.inner.get_host().unwrap().was_resized();
         let _ = self
@@ -264,19 +233,18 @@ impl Browser {
             .get_main_frame()
             .unwrap()
             .unwrap()
-            .get_source(StringVisitor::new(DOMVisitor::new(tx)));
+            .get_source(StringVisitor::new(dom::DOMVisitor::new(tx)));
 
         rx.await.unwrap()
     }
 
     pub async fn screenshot(&self, width: u32, height: u32) -> Vec<u8> {
         let (tx, rx) = oneshot::channel::<Vec<u8>>();
-        {
-            let mut state = self.state.lock().unwrap();
+        self.state.update(|state| {
             state.screenshot_width = width;
             state.screenshot_height = height;
             state.screenshot_channel = Some(tx);
-        }
+        });
 
         let host = self.inner.get_host().unwrap();
         _ = host.was_resized();
@@ -291,8 +259,9 @@ impl Browser {
 
         match msg {
             Ok(JSMessage::ClickableElements(elements)) => {
-                let mut state = self.state.lock().unwrap();
-                state.clickable_elements = Some(elements.clone());
+                self.state.update(|state| {
+                    state.clickable_elements = Some(elements.clone());
+                });
                 return elements;
             }
             _ => {
@@ -302,42 +271,38 @@ impl Browser {
         vec![]
     }
 
-    pub async fn wait_until_loaded(&self) -> LoadStatus {
-        {
-            let state = self.state.lock().unwrap();
-            if state.load_status != LoadStatus::Loading {
-                return state.load_status.clone();
-            }
-        }
+    // pub async fn wait_until_loaded(&self) -> LoadStatus {
+    //     let current_status = self.state.read(|state| state.load_status.clone());
+    //     if current_status != LoadStatus::Loading {
+    //         return current_status;
+    //     }
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<TabMessage>();
-        {
-            let mut state = self.state.lock().unwrap();
-            state
-                .tab_events_subscribers
-                .insert(TabEventType::LoadStateChanged, tx);
-        }
+    //     let (tx, mut rx) = mpsc::unbounded_channel::<TabMessage>();
+    //     self.state.update(|state| {
+    //         state
+    //             .tab_events_subscribers
+    //             .insert(TabEventType::LoadStateChanged, tx);
+    //     });
 
-        // TODO: use timeout here to avoid running indefinitely
-        while let Some(message) = rx.recv().await {
-            if let TabMessage::LoadStateChanged { status, .. } = message {
-                if status != LoadStatus::Loading {
-                    return status;
-                }
-            }
-        }
+    //     // TODO: use timeout here to avoid running indefinitely
+    //     while let Some(message) = rx.recv().await {
+    //         if let TabMessage::LoadStateChanged { status, .. } = message {
+    //             if status != LoadStatus::Loading {
+    //                 return status;
+    //             }
+    //         }
+    //     }
 
-        LoadStatus::Loading
-    }
+    //     LoadStatus::Loading
+    // }
 
     pub async fn click_element(&self, id: i32) {
-        let element = {
-            let state = self.state.lock().unwrap();
+        let element = self.state.read(|state| {
             state
                 .clickable_elements
                 .as_ref()
                 .and_then(|elements| elements.get(id as usize).cloned())
-        };
+        });
 
         if let Some(e) = element {
             let id = e.id;
@@ -362,9 +327,9 @@ impl Browser {
             let msg = self.execute_javascript(&script, "center").await;
 
             if let Ok(JSMessage::ElementCenter { x, y }) = msg {
-                self.mouse_click(x, y, MouseType::Left, true);
+                self.mouse_click(x, y, MouseButton::Left, true);
                 std::thread::sleep(std::time::Duration::from_millis(20));
-                self.mouse_click(x, y, MouseType::Left, false);
+                self.mouse_click(x, y, MouseButton::Left, false);
 
                 script = format!(
                     r#"
@@ -380,9 +345,9 @@ impl Browser {
                 let msg = self.execute_javascript(&script, "clicked").await;
                 if let Ok(JSMessage::Clicked(clicked)) = msg {
                     if !clicked {
-                        self.mouse_click(x, y, MouseType::Left, true);
+                        self.mouse_click(x, y, MouseButton::Left, true);
                         std::thread::sleep(std::time::Duration::from_millis(20));
-                        self.mouse_click(x, y, MouseType::Left, false);
+                        self.mouse_click(x, y, MouseButton::Left, false);
                     }
                 }
             } else {
@@ -412,42 +377,34 @@ impl Browser {
             .execute_java_script(&script, "", 0);
 
         let (tx, rx) = oneshot::channel::<Result<JSMessage>>();
-        {
-            let mut state = self.state.lock().unwrap();
+        self.state.update(|state| {
             state.javascript_messages.insert(id.to_string(), tx);
-        }
+        });
         rx.await?
     }
 
     pub fn get_title(&self) -> String {
-        self.state.lock().unwrap().title.clone()
+        self.state.read(|state| state.title.clone())
     }
 
     pub fn get_url(&self) -> String {
-        self.state.lock().unwrap().url.clone()
+        self.state.read(|state| state.url.clone())
     }
 
     pub fn get_size(&self) -> (u32, u32) {
-        let state = self.state.lock().unwrap();
-        (state.width, state.height)
+        self.state.read(|state| (state.width, state.height))
     }
-}
 
-struct DOMVisitor {
-    tx: Option<oneshot::Sender<String>>,
-}
+    pub fn subscribe(&mut self, tx: UnboundedSender<TabMessage>) -> i32 {
+        let id = self.counter;
+        self.counter += 1;
+        self.state.subscribe(id, tx);
 
-impl DOMVisitor {
-    pub fn new(tx: oneshot::Sender<String>) -> Self {
-        DOMVisitor { tx: Some(tx) }
+        id
     }
-}
 
-impl StringVisitorCallbacks for DOMVisitor {
-    fn visit(&mut self, string: &str) {
-        if let Err(e) = self.tx.take().unwrap().send(string.to_string()) {
-            error!("failed to get DOM: {}", e);
-        }
+    pub fn unsubscribe(&self, id: i32) {
+        self.state.unsubscribe(id);
     }
 }
 
@@ -456,15 +413,13 @@ struct CreateBrowserTaskCallback {
     width: u32,
     height: u32,
     url: String,
-    event_channel: UnboundedSender<TabMessage>,
 }
 
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
-    /// Executes the task to create a browser and send it through the channel.
     fn execute(&mut self) {
         let window_info = WindowInfo::new().windowless_rendering_enabled(true);
         let settings = BrowserSettings::new().windowless_frame_rate(60);
-        let state = Arc::new(Mutex::new(BrowserState {
+        let state = SharedBrowserState::new(state::BrowserState {
             title: "".to_string(),
             url: self.url.clone(),
             favicon: None,
@@ -478,16 +433,19 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             height: self.height,
             active: true,
             left_mouse_button_down: false,
-            tab_events_subscribers: HashMap::new(),
 
             clickable_elements: None,
-            javascript_messages: HashMap::new(),
+
             screenshot_width: 0,
             screenshot_height: 0,
             screenshot_channel: None,
-        }));
 
-        let client = client::new(state.clone(), self.event_channel.clone());
+            javascript_messages: HashMap::new(),
+
+            subscribers: HashMap::new(),
+        });
+
+        let client = client::new(state.clone());
         let inner = BrowserHost::create_browser_sync(
             &window_info,
             client,
@@ -498,35 +456,17 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
         );
 
         self.tx
-            .send(Browser { inner, state })
-            .expect("failed to send a browser");
+            .send(Browser {
+                inner,
+                state: state.clone(),
+                counter: 0,
+            })
+            .expect("failed to send created browser");
     }
 }
 
-/// Creates a new browser instance.
-///
-/// # Parameters
-///
-/// - `width`: The width of the browser.
-/// - `height`: The height of the browser.
-/// - `url`: The URL to load in the browser.
-/// - `sender`: A channel for CEF messages.
-///
-/// # Returns
-///
-/// A new instance of a CEF browser.
-///
-/// # Panics
-///
-/// This function will panic if it fails to create a browser in the UI thread.
-fn create_browser(
-    width: u32,
-    height: u32,
-    url: &str,
-    event_channel: UnboundedSender<TabMessage>,
-) -> Browser {
-    // TODO: use oneshot
-    let (tx, rx) = crossbeam_channel::unbounded::<Browser>();
+fn create_browser(width: u32, height: u32, url: &str) -> Browser {
+    let (tx, rx) = crossbeam_channel::bounded(1);
     let result = cef_ui::post_task(
         ThreadId::UI,
         CefTask::new(CreateBrowserTaskCallback {
@@ -534,7 +474,6 @@ fn create_browser(
             width,
             height,
             url: url.to_string(),
-            event_channel,
         }),
     );
 
@@ -542,6 +481,5 @@ fn create_browser(
         panic!("failed to create a browser in the UI thread");
     }
 
-    rx.recv()
-        .expect("failed to receive a CEF browser, created in the UI thread")
+    rx.recv().expect("failed to receive created browser")
 }

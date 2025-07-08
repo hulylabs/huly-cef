@@ -4,12 +4,9 @@ use std::{
 };
 
 use log::{self, error, info};
-use tokio::{
-    net::TcpListener,
-    sync::mpsc::{self, UnboundedSender},
-};
+use tokio::net::TcpListener;
 
-use huly_cef::{browser::Browser, messages::TabMessage};
+use huly_cef::browser::Browser;
 
 mod browser;
 mod tab;
@@ -23,25 +20,25 @@ enum ConnectionType {
 struct ServerState {
     cache_path: String,
     tabs: HashMap<i32, Browser>,
-
     size: (u32, u32),
-
-    event_consumers: HashMap<i32, UnboundedSender<TabMessage>>,
 }
 
-/// Runs the websocket server that listens for incoming connections.
+impl ServerState {
+    fn new(cache_path: String) -> Self {
+        ServerState {
+            cache_path,
+            tabs: HashMap::new(),
+            size: (tab::DEFAULT_WIDTH, tab::DEFAULT_HEIGHT),
+        }
+    }
+}
+
 pub async fn serve(addr: String, cache_path: String) {
     let server = TcpListener::bind(addr)
         .await
         .expect("failed to start a TCP listener");
 
-    let state = Arc::new(Mutex::new(ServerState {
-        cache_path: cache_path,
-        tabs: HashMap::new(),
-        size: (tab::DEFAULT_WIDTH, tab::DEFAULT_HEIGHT),
-        event_consumers: HashMap::new(),
-    }));
-
+    let state = Arc::new(Mutex::new(ServerState::new(cache_path)));
     loop {
         let (stream, _) = server
             .accept()
@@ -90,22 +87,14 @@ pub async fn serve(addr: String, cache_path: String) {
                 info!("new tab connection established");
 
                 let tab = {
-                    let state_guard = state.lock().unwrap();
-                    state_guard.tabs.get(&id).cloned()
+                    let state = state.lock().unwrap();
+                    state.tabs.get(&id).cloned()
                 };
                 let Some(tab) = tab else {
                     error!("tab with id {} not found", id);
                     continue;
                 };
-
-                let (tx, rx) = mpsc::unbounded_channel::<TabMessage>();
-                {
-                    let mut state = state.lock().unwrap();
-                    state.event_consumers.insert(id, tx.clone());
-                }
-
-                tab::generate_events(&tab, tx);
-                tokio::spawn(tab::transfer_tab_messages(rx, websocket));
+                tokio::spawn(tab::event_loop(tab, websocket));
             }
             ConnectionType::None => {
                 error!("unknown connection type, expected /browser or /tab/<id>");

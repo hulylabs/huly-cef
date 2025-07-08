@@ -12,6 +12,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 serde_json = "1.0"
 url = "2.5"
-crossbeam-channel = "0.5.14"
+crossbeam-channel = "0.5"
 
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }

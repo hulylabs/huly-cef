@@ -1,8 +1,5 @@
+use crate::{browser::state::SharedBrowserState, TabMessage};
 use cef_ui::{Browser, ErrorCode, Frame, LoadHandlerCallbacks, TransitionType};
-use log::error;
-use tokio::sync::mpsc::UnboundedSender;
-
-use crate::cef::messages::TabMessage;
 
 #[derive(Debug)]
 struct LoadState {
@@ -12,21 +9,15 @@ struct LoadState {
 }
 
 pub struct HulyLoadHandlerCallbacks {
-    event_channel: UnboundedSender<TabMessage>,
+    state: SharedBrowserState,
     load_state: Option<LoadState>,
 }
 
 impl HulyLoadHandlerCallbacks {
-    pub fn new(event_channel: UnboundedSender<TabMessage>) -> Self {
+    pub fn new(state: SharedBrowserState) -> Self {
         Self {
-            event_channel,
+            state,
             load_state: None,
-        }
-    }
-
-    fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.event_channel.send(message) {
-            error!("Failed to send message: {:?}", e);
         }
     }
 }
@@ -46,7 +37,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
 
         let message = if !is_loading {
             let load_state = self.load_state.take().expect("load state can't be None");
-            TabMessage::LoadStateChanged {
+            TabMessage::LoadState {
                 status: load_state.status,
                 can_go_back,
                 can_go_forward,
@@ -54,8 +45,8 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
                 error_text: load_state.error_text,
             }
         } else {
-            TabMessage::LoadStateChanged {
-                status: crate::cef::messages::LoadStatus::Loading,
+            TabMessage::LoadState {
+                status: crate::LoadStatus::Loading,
                 can_go_back,
                 can_go_forward,
                 error_code: 0,
@@ -63,7 +54,14 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
             }
         };
 
-        self.send_message(message);
+        // TODO: Use a LoadStateStructure insterad of a message
+        self.state.update(|state| {
+            // state.load_status = message.status.clone();
+            state.can_go_back = can_go_back;
+            state.can_go_forward = can_go_forward;
+        });
+
+        self.state.notify(message);
     }
 
     fn on_load_start(&mut self, _: Browser, frame: Frame, _: TransitionType) {

@@ -18,8 +18,6 @@ use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
-use crate::server::tab;
-
 use super::ServerState;
 
 pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStream<TcpStream>) {
@@ -126,32 +124,32 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
     }
 }
 
-fn close(state: Arc<Mutex<ServerState>>) {
-    let state = state.lock().unwrap();
-    let tabs: Vec<String> = state
-        .tabs
-        .values()
-        .map(|tab| tab.state.lock().unwrap().url.clone())
-        .collect();
-    save_session(&state.cache_path, &tabs);
+// fn close(state: Arc<Mutex<ServerState>>) {
+//     let state = state.lock().unwrap();
+//     let tabs: Vec<String> = state
+//         .tabs
+//         .values()
+//         .map(|tab| tab.state.read(|s| s.url.clone()))
+//         .collect();
+//     save_session(&state.cache_path, &tabs);
 
-    for (_, tab) in state.tabs.iter() {
-        tab.close();
-    }
-}
+//     for (_, tab) in state.tabs.iter() {
+//         tab.close();
+//     }
+// }
 
-fn save_session(cache_path: &str, tabs: &[String]) {
-    let session_file_path = PathBuf::from(cache_path).join("session.json");
-    info!(
-        "saving session to cache path: {}",
-        session_file_path.display()
-    );
-    if let Err(error) = serde_json::to_string(tabs)
-        .and_then(|content| Ok(std::fs::write(session_file_path, content)))
-    {
-        error!("failed to save session file: {:?}", error);
-    }
-}
+// fn save_session(cache_path: &str, tabs: &[String]) {
+//     let session_file_path = PathBuf::from(cache_path).join("session.json");
+//     info!(
+//         "saving session to cache path: {}",
+//         session_file_path.display()
+//     );
+//     if let Err(error) = serde_json::to_string(tabs)
+//         .and_then(|content| Ok(std::fs::write(session_file_path, content)))
+//     {
+//         error!("failed to save session file: {:?}", error);
+//     }
+// }
 
 fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
     let state = state.lock().unwrap();
@@ -185,8 +183,9 @@ async fn open_tab(
         None => "about:blank".to_string(),
     };
 
-    info!("opening tab with URL: {}", url);
-    let tab = tab::create(state.clone(), width, height, &url);
+    info!("opening a new tab with url: {}", url);
+
+    let tab = Browser::new(width, height, &url);
     let id = tab.get_id();
     {
         let mut state = state.lock().unwrap();
@@ -195,7 +194,7 @@ async fn open_tab(
 
     // TODO: add an option to wait until the tab is loaded
     // if wait_until_loaded {
-    tab.wait_until_loaded().await;
+    // tab.wait_until_loaded().await;
     // }
 
     ServerMessageType::Tab(id)

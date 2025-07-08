@@ -1,45 +1,29 @@
-use std::sync::{Arc, Mutex};
-
 use cef_ui::{
     AccessibilityHandler, Browser, DragData, DragOperations, HorizontalAlignment, PaintElementType,
     Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
 };
 
-use log::error;
-use tokio::sync::mpsc::UnboundedSender;
-
-use crate::cef::{browser::BrowserState, messages::TabMessage};
+use crate::{state::SharedBrowserState, TabMessage};
 
 pub struct HulyRenderHandlerCallbacks {
-    event_channel: UnboundedSender<TabMessage>,
-    state: Arc<Mutex<BrowserState>>,
+    state: SharedBrowserState,
 
     popup_rect: Option<Rect>,
     popup_data: Option<Vec<u8>>,
 }
 
 impl HulyRenderHandlerCallbacks {
-    pub fn new(
-        event_channel: UnboundedSender<TabMessage>,
-        state: Arc<Mutex<BrowserState>>,
-    ) -> Self {
+    pub fn new(state: SharedBrowserState) -> Self {
         Self {
-            event_channel,
             state,
             popup_rect: None,
             popup_data: None,
         }
     }
 
-    fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.event_channel.send(message) {
-            error!("Failed to send message: {:?}", e);
-        }
-    }
-
     fn send_popup(&self) {
         if let (Some(rect), Some(data)) = (&self.popup_rect, &self.popup_data) {
-            self.send_message(TabMessage::Popup {
+            self.state.notify(TabMessage::Popup {
                 x: rect.x,
                 y: rect.y,
                 width: rect.width as u32,
@@ -61,7 +45,7 @@ impl HulyRenderHandlerCallbacks {
     }
 
     fn try_send_screenshot(&self, buffer: &[u8], width: u32, height: u32) -> bool {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock();
 
         if state.screenshot_channel.is_some()
             && width == state.screenshot_width
@@ -86,7 +70,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     }
 
     fn get_view_rect(&mut self, _: Browser) -> Rect {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock();
         let mut rect = Rect {
             x: 0,
             y: 0,
@@ -107,7 +91,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     }
 
     fn get_screen_info(&mut self, _: Browser) -> Option<ScreenInfo> {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock();
 
         Some(ScreenInfo {
             device_scale_factor: 1.0,
@@ -154,7 +138,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         }
 
         {
-            let state = self.state.lock().unwrap();
+            let state = self.state.lock();
             if !(state.active && state.width == width as u32 && state.height == height as u32) {
                 return;
             }
@@ -166,7 +150,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
                 self.send_popup();
             }
             PaintElementType::View => {
-                self.send_message(TabMessage::Frame(
+                self.state.notify(TabMessage::Frame(
                     self.convert_bgra_to_rgba(buffer, width, height),
                 ));
                 self.send_popup();

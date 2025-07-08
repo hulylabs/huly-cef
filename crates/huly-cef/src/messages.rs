@@ -3,13 +3,11 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 
-use crate::browser::ClickableElement;
-
-// TODO: This file looks a bit messy, consider refactoring it later.
+// TODO: This file looks a bit messy, consider refactoring it later. And also rename it to api.rs.
 
 #[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
 #[repr(u8)]
-pub enum MouseType {
+pub enum MouseButton {
     Left = 0,
     Middle = 1,
     Right = 2,
@@ -22,35 +20,11 @@ pub enum LoadStatus {
     LoadError,
 }
 
-#[derive(Clone, Hash, PartialEq, Eq)]
-pub enum TabEventType {
-    Frame,
-    Popup,
-    CursorChanged,
-    TitleChanged,
-    UrlChanged,
-    FaviconUrlChanged,
-    Closed,
-    UrlHovered,
-    NewTabRequested,
-    LoadStateChanged,
-}
-
-impl From<&TabMessage> for TabEventType {
-    fn from(message: &TabMessage) -> Self {
-        match message {
-            TabMessage::Frame(_) => TabEventType::Frame,
-            TabMessage::Popup { .. } => TabEventType::Popup,
-            TabMessage::CursorChanged(_) => TabEventType::CursorChanged,
-            TabMessage::TitleChanged(_) => TabEventType::TitleChanged,
-            TabMessage::UrlChanged(_) => TabEventType::UrlChanged,
-            TabMessage::FaviconUrlChanged(_) => TabEventType::FaviconUrlChanged,
-            TabMessage::Closed => TabEventType::Closed,
-            TabMessage::UrlHovered { .. } => TabEventType::UrlHovered,
-            TabMessage::NewTabRequested(_) => TabEventType::NewTabRequested,
-            TabMessage::LoadStateChanged { .. } => TabEventType::LoadStateChanged,
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClickableElement {
+    pub id: i32,
+    pub tag: String,
+    pub text: String,
 }
 
 /// Represents different types of messages that can be sent from CEF to the browser.
@@ -67,21 +41,21 @@ pub enum TabMessage {
         data: Vec<u8>,
     },
     /// Message indicating that cursor has changed.
-    CursorChanged(String),
+    Cursor(String),
     /// Message indicating that title has changed.
-    TitleChanged(String),
+    Title(String),
     /// Message indicating that URL has changed.
-    UrlChanged(String),
+    Url(String),
     /// Message indicating that favicon has changed.
-    FaviconUrlChanged(String),
+    Favicon(String),
     /// Message indicating that CEF has closed the browser.
     Closed,
     /// Message indicating that the mouse has hovered over a URL.
     UrlHovered { url: String, hovered: bool },
     /// Message indicating that a new tab has been requested.
-    NewTabRequested(String),
+    NewTab(String),
     /// Message indicating that load state has changed.
-    LoadStateChanged {
+    LoadState {
         status: LoadStatus,
         can_go_back: bool,
         can_go_forward: bool,
@@ -89,6 +63,8 @@ pub enum TabMessage {
         error_text: String,
     },
 }
+
+// Everything below this point is actually related to huly-cef-websockets, not huly-cef.
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScreenshotOptions {
@@ -139,7 +115,7 @@ pub enum BrowserMessageType {
     Click {
         x: i32,
         y: i32,
-        button: MouseType,
+        button: MouseButton,
         down: bool,
     },
     Wheel {

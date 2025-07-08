@@ -2,46 +2,50 @@ use cef_ui::{
     Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, LogSeverity,
     Size,
 };
-use log::error;
-use tokio::sync::mpsc::UnboundedSender;
+use log::{error, info};
 use url::Url;
 
-use crate::cef::messages::TabMessage;
+use crate::{browser::state::SharedBrowserState, messages::TabMessage};
 
 pub struct HulyDisplayHandlerCallbacks {
-    event_channel: UnboundedSender<TabMessage>,
+    state: SharedBrowserState,
     hovered_url: Option<Url>,
 }
 
 impl HulyDisplayHandlerCallbacks {
-    pub fn new(event_channel: UnboundedSender<TabMessage>) -> Self {
+    pub fn new(state: SharedBrowserState) -> Self {
         Self {
-            event_channel,
+            state,
             hovered_url: None,
-        }
-    }
-
-    fn send_message(&self, message: TabMessage) {
-        if let Err(e) = self.event_channel.send(message) {
-            error!("failed to send message: {}", e);
         }
     }
 }
 
 impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
-    fn on_address_change(&mut self, _browser: Browser, _frame: Frame, url: &str) {
-        self.send_message(TabMessage::UrlChanged(url.to_string()));
+    fn on_address_change(&mut self, _: Browser, _: Frame, url: &str) {
+        self.state.update(|state| {
+            state.url = url.to_string();
+        });
+        self.state.notify(TabMessage::Url(url.to_string()));
     }
 
     fn on_title_change(&mut self, _: Browser, title: Option<String>) {
         if let Some(title) = title {
-            self.send_message(TabMessage::TitleChanged(title.to_string()));
+            info!("Tab title changed: {}", title);
+            self.state.update(|state| {
+                state.title = title.clone();
+            });
+            self.state.notify(TabMessage::Title(title.to_string()));
         }
     }
 
     fn on_favicon_urlchange(&mut self, _: Browser, icon_urls: Vec<String>) {
         if !icon_urls.is_empty() {
-            self.send_message(TabMessage::FaviconUrlChanged(icon_urls[0].to_string()));
+            self.state.update(|state| {
+                state.favicon = Some(icon_urls[0].to_string());
+            });
+            self.state
+                .notify(TabMessage::Favicon(icon_urls[0].to_string()));
         }
     }
 
@@ -55,14 +59,14 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         if let Some(value) = value {
             let url = Url::parse(&value);
             if let Ok(url) = url {
-                self.send_message(TabMessage::UrlHovered {
+                self.state.notify(TabMessage::UrlHovered {
                     url: url.to_string(),
                     hovered: true,
                 });
                 self.hovered_url = Some(url);
             }
         } else {
-            self.send_message(TabMessage::UrlHovered {
+            self.state.notify(TabMessage::UrlHovered {
                 url: "".to_string(),
                 hovered: false,
             });
@@ -100,7 +104,11 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         cursor_type: CursorType,
         _: Option<CursorInfo>,
     ) -> bool {
-        self.send_message(TabMessage::CursorChanged(format!("{:?}", cursor_type)));
+        self.state.update(|state| {
+            state.cursor = format!("{:?}", cursor_type);
+        });
+        self.state
+            .notify(TabMessage::Cursor(format!("{:?}", cursor_type)));
         true
     }
 

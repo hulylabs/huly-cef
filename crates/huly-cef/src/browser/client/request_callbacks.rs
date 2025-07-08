@@ -1,22 +1,19 @@
-use cef_ui::RequestHandlerCallbacks;
-
 use cef_ui::{
-    AuthCallback, Browser, Callback, ErrorCode, Frame, Request, ResourceRequestHandler,
-    SelectClientCertificateCallback, SslInfo, TerminationStatus, WindowOpenDisposition,
-    X509Certificate,
+    AuthCallback, Browser, Callback, ErrorCode, Frame, Request, RequestHandlerCallbacks,
+    ResourceRequestHandler, SelectClientCertificateCallback, SslInfo, TerminationStatus,
+    WindowOpenDisposition, X509Certificate,
 };
-use tokio::sync::mpsc::UnboundedSender;
 
-use crate::messages::TabMessage;
+use crate::browser::state::SharedBrowserState;
 
 pub struct HulyRequestHandlerCallbacks {
     #[allow(unused)]
-    event_channel: UnboundedSender<TabMessage>,
+    state: SharedBrowserState,
 }
 
 impl HulyRequestHandlerCallbacks {
-    pub fn new(event_channel: UnboundedSender<TabMessage>) -> Self {
-        Self { event_channel }
+    pub fn new(state: SharedBrowserState) -> Self {
+        Self { state }
     }
 }
 

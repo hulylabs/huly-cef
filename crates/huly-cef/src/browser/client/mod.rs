@@ -1,14 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
-use tokio::sync::mpsc::UnboundedSender;
 
-use crate::browser::JSMessage;
-
-use super::{browser::BrowserState, messages::TabMessage};
+use crate::browser::{state::SharedBrowserState, JSMessage};
 
 mod display_callbacks;
 mod life_span_callbacks;
@@ -17,7 +12,7 @@ mod render_callbacks;
 mod request_callbacks;
 
 pub struct HulyClientCallbacks {
-    state: Arc<Mutex<BrowserState>>,
+    state: SharedBrowserState,
     render_handler: RenderHandler,
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
@@ -26,23 +21,21 @@ pub struct HulyClientCallbacks {
 }
 
 impl HulyClientCallbacks {
-    pub fn new(sender: UnboundedSender<TabMessage>, state: Arc<Mutex<BrowserState>>) -> Self {
+    pub fn new(state: SharedBrowserState) -> Self {
         let render_handler = RenderHandler::new(render_callbacks::HulyRenderHandlerCallbacks::new(
-            sender.clone(),
             state.clone(),
         ));
-        let load_handler = LoadHandler::new(load_callbacks::HulyLoadHandlerCallbacks::new(
-            sender.clone(),
-        ));
+        let load_handler =
+            LoadHandler::new(load_callbacks::HulyLoadHandlerCallbacks::new(state.clone()));
         let display_handler = DisplayHandler::new(
-            display_callbacks::HulyDisplayHandlerCallbacks::new(sender.clone()),
+            display_callbacks::HulyDisplayHandlerCallbacks::new(state.clone()),
         );
         let life_span_handler = LifeSpanHandler::new(
-            life_span_callbacks::HulyLifeSpanHandlerCallbacks::new(sender.clone()),
+            life_span_callbacks::HulyLifeSpanHandlerCallbacks::new(state.clone()),
         );
 
         let request_handler = RequestHandler::new(
-            request_callbacks::HulyRequestHandlerCallbacks::new(sender.clone()),
+            request_callbacks::HulyRequestHandlerCallbacks::new(state.clone()),
         );
 
         Self {
@@ -106,13 +99,13 @@ impl ClientCallbacks for HulyClientCallbacks {
                 Ok(value) => Ok(value),
                 Err(e) => Err(anyhow::anyhow!("Failed to parse JSON message: {}", e)),
             };
-            {
-                let mut state = self.state.lock().unwrap();
+
+            self.state.update(|state| {
                 state
                     .javascript_messages
                     .remove(&id)
                     .and_then(|tx| Some(tx.send(result)));
-            }
+            });
         }
 
         true
@@ -123,6 +116,6 @@ impl ClientCallbacks for HulyClientCallbacks {
     }
 }
 
-pub fn new(state: Arc<Mutex<BrowserState>>, sender: UnboundedSender<TabMessage>) -> Client {
-    Client::new(HulyClientCallbacks::new(sender, state))
+pub fn new(state: SharedBrowserState) -> Client {
+    Client::new(HulyClientCallbacks::new(state))
 }
