@@ -64,13 +64,7 @@ pub fn generate_events(tab: &Browser, tx: UnboundedSender<TabMessage>) {
     _ = tx.send(TabMessage::Url(state.url.clone()));
     _ = tx.send(TabMessage::Title(state.title.clone()));
     _ = tx.send(TabMessage::Cursor(state.cursor.clone()));
-    _ = tx.send(TabMessage::LoadState {
-        status: state.load_status.clone(),
-        can_go_back: state.can_go_back,
-        can_go_forward: state.can_go_forward,
-        error_code: state.error_code,
-        error_text: state.error_text.clone(),
-    });
+    _ = tx.send(TabMessage::LoadState(state.load_state.clone()));
 
     if let Some(favicon) = &state.favicon {
         _ = tx.send(TabMessage::Favicon(favicon.clone()));

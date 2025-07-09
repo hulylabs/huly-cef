@@ -14,7 +14,7 @@ use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 use crate::{
     browser::state::SharedBrowserState, javascript::GET_CLICKABLE_ELEMENTS_SCRIPT,
-    messages::LoadStatus, messages::MouseButton, ClickableElement, TabMessage,
+    messages::MouseButton, ClickableElement, LoadState, TabMessage,
 };
 
 mod client;
@@ -423,11 +423,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             title: "".to_string(),
             url: self.url.clone(),
             favicon: None,
-            load_status: LoadStatus::Loading,
-            can_go_back: false,
-            can_go_forward: false,
-            error_code: 0,
-            error_text: "".to_string(),
+            load_state: LoadState::default(),
             cursor: "Pointer".to_string(),
             width: self.width,
             height: self.height,

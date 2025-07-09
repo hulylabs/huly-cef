@@ -6,12 +6,11 @@ use std::{
 
 use base64::Engine;
 use futures::{SinkExt, StreamExt};
-use huly_cef::{
-    browser::Browser,
-    messages::{
-        BrowserMessage, BrowserMessageType, OpenTabOptions, ScreenshotOptions, ServerMessage,
-        ServerMessageType,
-    },
+use huly_cef::browser::Browser;
+
+use super::messages::{
+    BrowserMessage, BrowserMessageType, OpenTabOptions, ScreenshotOptions, ServerMessage,
+    ServerMessageType,
 };
 use image::ImageEncoder;
 use log::{error, info};

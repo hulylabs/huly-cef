@@ -10,18 +10,15 @@ use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 use crate::{
     browser::{ClickableElement, JSMessage},
-    messages::{LoadStatus, TabMessage},
+    messages::TabMessage,
+    LoadState,
 };
 
 pub struct BrowserState {
     pub title: String,
     pub url: String,
     pub favicon: Option<String>,
-    pub load_status: LoadStatus,
-    pub can_go_back: bool,
-    pub can_go_forward: bool,
-    pub error_code: i32,
-    pub error_text: String,
+    pub load_state: LoadState,
     pub cursor: String,
     pub width: u32,
     pub height: u32,

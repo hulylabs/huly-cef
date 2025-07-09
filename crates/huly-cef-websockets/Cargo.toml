@@ -19,6 +19,7 @@ tracing-subscriber = { workspace = true }
 
 huly-cef = { path = "../huly-cef" }
 
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.139"
 
 futures = "0.3.31"
@@ -26,6 +27,7 @@ tungstenite = "0.26.2"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.26.2"
 
-cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }
 base64 = "0.22.1"
 image = "0.25.6"
+
+cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }

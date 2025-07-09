@@ -29,7 +29,6 @@ describe('browser', () => {
         browser = await connect("ws://localhost:" + port + "/browser");
     });
 
-    // TODO: test load state
     test('open a new tab', async () => {
         const url = "https://www.google.com/";
         const tab = await browser.openTab({ url });
@@ -39,6 +38,9 @@ describe('browser', () => {
 
         await tab.close();
         await expect.poll(() => browser.tabs(), { interval: 2000 }).toEqual([]);
+    });
+
+    test('load state', async () => {
     });
 
     // TODO: also test invalid scenarios

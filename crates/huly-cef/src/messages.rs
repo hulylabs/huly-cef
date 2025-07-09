@@ -3,8 +3,6 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 
-// TODO: This file looks a bit messy, consider refactoring it later. And also rename it to api.rs.
-
 #[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
 #[repr(u8)]
 pub enum MouseButton {
@@ -18,6 +16,27 @@ pub enum LoadStatus {
     Loading,
     Loaded,
     LoadError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+pub struct LoadState {
+    pub status: LoadStatus,
+    pub can_go_back: bool,
+    pub can_go_forward: bool,
+    pub error_code: i32,
+    pub error_text: String,
+}
+
+impl Default for LoadState {
+    fn default() -> Self {
+        LoadState {
+            status: LoadStatus::Loading,
+            can_go_back: false,
+            can_go_forward: false,
+            error_code: 0,
+            error_text: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,115 +74,5 @@ pub enum TabMessage {
     /// Message indicating that a new tab has been requested.
     NewTab(String),
     /// Message indicating that load state has changed.
-    LoadState {
-        status: LoadStatus,
-        can_go_back: bool,
-        can_go_forward: bool,
-        error_code: i32,
-        error_text: String,
-    },
-}
-
-// Everything below this point is actually related to huly-cef-websockets, not huly-cef.
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ScreenshotOptions {
-    pub size: (u32, u32),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenTabOptions {
-    pub url: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BrowserMessage {
-    pub id: String,
-    pub tab_id: i32,
-    pub body: BrowserMessageType,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data")]
-pub enum BrowserMessageType {
-    // Browser control messages
-    Close,
-    RestoreSession,
-    OpenTab {
-        options: Option<OpenTabOptions>,
-    },
-    GetTabs,
-    Resize {
-        width: u32,
-        height: u32,
-    },
-
-    // Tab control messages
-    CloseTab,
-    GetTitle,
-    GetUrl,
-    Screenshot {
-        options: Option<ScreenshotOptions>,
-    },
-    Navigate {
-        url: String,
-    },
-    MouseMove {
-        x: i32,
-        y: i32,
-    },
-    Click {
-        x: i32,
-        y: i32,
-        button: MouseButton,
-        down: bool,
-    },
-    Wheel {
-        x: i32,
-        y: i32,
-        dx: i32,
-        dy: i32,
-    },
-    Key {
-        character: u16,
-        code: i32,
-        windowscode: i32,
-        down: bool,
-        ctrl: bool,
-        shift: bool,
-    },
-    Char {
-        unicode: u16,
-    },
-    StopVideo,
-    StartVideo,
-    Reload,
-    GoBack,
-    GoForward,
-    SetFocus(bool),
-    GetDOM,
-    GetClickableElements,
-    ClickElement {
-        id: i32,
-    },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ServerMessage {
-    pub id: String,
-    pub tab_id: i32,
-    pub body: ServerMessageType,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data")]
-pub enum ServerMessageType {
-    Session(Vec<String>),
-    Tab(i32),
-    Tabs(Vec<i32>),
-    Title(String),
-    Url(String),
-    Screenshot(String),
-    DOM(String),
-    ClickableElements(Vec<ClickableElement>),
+    LoadState(LoadState),
 }

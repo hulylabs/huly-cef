@@ -9,6 +9,7 @@ use tokio::net::TcpListener;
 use huly_cef::browser::Browser;
 
 mod browser;
+mod messages;
 mod tab;
 
 enum ConnectionType {

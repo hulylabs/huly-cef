@@ -2,7 +2,7 @@ use cef_ui::{
     Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, LogSeverity,
     Size,
 };
-use log::{error, info};
+use log::error;
 use url::Url;
 
 use crate::{browser::state::SharedBrowserState, messages::TabMessage};
@@ -31,7 +31,6 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
 
     fn on_title_change(&mut self, _: Browser, title: Option<String>) {
         if let Some(title) = title {
-            info!("Tab title changed: {}", title);
             self.state.update(|state| {
                 state.title = title.clone();
             });
