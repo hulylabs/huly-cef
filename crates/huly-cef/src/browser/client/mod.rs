@@ -79,23 +79,19 @@ impl ClientCallbacks for HulyClientCallbacks {
         _: Browser,
         _: Frame,
         _: ProcessId,
-        message: ProcessMessage,
+        ipc_msg: ProcessMessage,
     ) -> bool {
-        let message_name = message.get_name().unwrap_or_default();
-        if message_name == "javascript_message" {
-            let args = message
+        let name = ipc_msg.get_name().unwrap_or_default();
+        if name == "javascript_message" {
+            let args = ipc_msg
                 .get_argument_list()
                 .unwrap()
                 .expect("failed to get argument list");
 
-            let id = args.get_string(0).ok().flatten().expect("failed to get id");
-            let message = args
-                .get_string(1)
-                .ok()
-                .flatten()
-                .expect("failed to get message");
+            let id = args.get_string(0).ok().flatten().expect("no id");
+            let msg = args.get_string(1).ok().flatten().expect("no message");
 
-            let result = match serde_json::from_str::<JSMessage>(&message) {
+            let result = match serde_json::from_str::<JSMessage>(&msg) {
                 Ok(value) => Ok(value),
                 Err(e) => Err(anyhow::anyhow!("Failed to parse JSON message: {}", e)),
             };

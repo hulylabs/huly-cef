@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
 use crossbeam_channel::Sender;
@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod client;
+mod devtools;
 mod dom;
 pub(crate) mod state;
 
@@ -29,9 +30,16 @@ pub enum JSMessage {
     Clicked(bool),
 }
 
+// TODO: add sub structs:
+// 1. Navigation
+// 2. Mouse
+// 3. Keyboard
+// 4. Automation
+// 5. Graphics
 pub struct Browser {
     inner: cef_ui::Browser,
     pub state: state::SharedBrowserState,
+    devtools: Arc<devtools::DevTools>,
     counter: i32,
 }
 
@@ -40,6 +48,7 @@ impl Clone for Browser {
         Browser {
             inner: self.inner.clone(),
             state: self.state.clone(),
+            devtools: self.devtools.clone(),
             counter: self.counter,
         }
     }
@@ -47,7 +56,22 @@ impl Clone for Browser {
 
 impl Browser {
     pub fn new(width: u32, height: u32, url: &str) -> Self {
-        create_browser(width, height, url)
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        let result = cef_ui::post_task(
+            ThreadId::UI,
+            CefTask::new(CreateBrowserTaskCallback {
+                tx,
+                width,
+                height,
+                url: url.to_string(),
+            }),
+        );
+
+        if !result {
+            panic!("failed to create a browser in the UI thread");
+        }
+
+        rx.recv().expect("failed to receive created browser")
     }
 
     pub fn mouse_move(&self, x: i32, y: i32) {
@@ -271,30 +295,9 @@ impl Browser {
         vec![]
     }
 
-    // pub async fn wait_until_loaded(&self) -> LoadStatus {
-    //     let current_status = self.state.read(|state| state.load_status.clone());
-    //     if current_status != LoadStatus::Loading {
-    //         return current_status;
-    //     }
-
-    //     let (tx, mut rx) = mpsc::unbounded_channel::<TabMessage>();
-    //     self.state.update(|state| {
-    //         state
-    //             .tab_events_subscribers
-    //             .insert(TabEventType::LoadStateChanged, tx);
-    //     });
-
-    //     // TODO: use timeout here to avoid running indefinitely
-    //     while let Some(message) = rx.recv().await {
-    //         if let TabMessage::LoadStateChanged { status, .. } = message {
-    //             if status != LoadStatus::Loading {
-    //                 return status;
-    //             }
-    //         }
-    //     }
-
-    //     LoadStatus::Loading
-    // }
+    pub async fn wait_until_loaded(&self) {
+        // self.devtools
+    }
 
     pub async fn click_element(&self, id: i32) {
         let element = self.state.read(|state| {
@@ -451,31 +454,15 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             None,
         );
 
+        let devtools = Arc::new(devtools::DevTools::new(inner.clone()));
+
         self.tx
             .send(Browser {
                 inner,
                 state: state.clone(),
+                devtools,
                 counter: 0,
             })
             .expect("failed to send created browser");
     }
-}
-
-fn create_browser(width: u32, height: u32, url: &str) -> Browser {
-    let (tx, rx) = crossbeam_channel::bounded(1);
-    let result = cef_ui::post_task(
-        ThreadId::UI,
-        CefTask::new(CreateBrowserTaskCallback {
-            tx,
-            width,
-            height,
-            url: url.to_string(),
-        }),
-    );
-
-    if !result {
-        panic!("failed to create a browser in the UI thread");
-    }
-
-    rx.recv().expect("failed to receive created browser")
 }
