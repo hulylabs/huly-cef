@@ -6,6 +6,7 @@
 | `huly-cef-helper`     | macOS-specific helper app required for proper bundle packaging              |
 | `huly-cef-tools`      | Utility crate providing tools and helpers for building `huly-cef` apps      |
 | `huly-cef-websockets` | WebSocket-based server for streaming and interacting with CEF browser views |
+| `huly-cef-manager`    | A RESTful server that manages Huly CEF instances                            |
 
 
 ## Launch Instructions For Huly CEF
