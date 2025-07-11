@@ -1,39 +1,68 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-use cef_ui::{Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, Registration};
+use cef_ui::{
+    Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
+    Registration,
+};
+use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot;
+
+#[derive(Eq, Hash, PartialEq)]
+enum EventType {
+    LoadEventFired,
+}
+
+enum EventData {
+    LoadEventFired,
+}
+
+#[derive(Deserialize, Serialize)]
+struct LifecycleEvent {
+    name: String,
+}
 
 #[derive(Default)]
 struct DevToolsState {
-    page_lifecycle_event: String,
+    load_event_fired: bool,
+
+    subscribers: HashMap<EventType, oneshot::Sender<EventData>>,
 }
 
 #[derive(Default, Clone)]
 struct SharedDevToolsState(Arc<Mutex<DevToolsState>>);
 
 impl SharedDevToolsState {
-    pub fn notify_event(&self, event: &str, params: &[u8]) {
+    // TODO: we need a way to block this function during adding a subscriber
+    pub fn on_event(&self, event: &str, params: &[u8]) {
+        let state = self.0.lock().unwrap();
         if event == "Page.lifecycleEvent" {
-            let params: serde_json::Value = serde_json::from_slice(params)
+            let params: LifecycleEvent = serde_json::from_slice(params)
                 .expect("failed to parse params of Page.lifecycleEvent");
 
-            dbg!("Page.lifecycleEvent: {:?}", &params);
-            let mut state = self.0.lock().unwrap();
-            state.page_lifecycle_event = params
-                .get("name")
-                .expect("missing 'name' in Page.lifecycleEvent params")
-                .as_str()
-                .expect("name is not a string")
-                .to_string();
+            if params.name == "init" {
+                self.0.lock().unwrap().load_event_fired = false;
+            }
         }
+
+        if event == "Page.loadEventFired" {
+            self.0.lock().unwrap().load_event_fired = true;
+        }
+    }
+
+    pub fn subscribe(&self, event_type: EventType) -> oneshot::Receiver<EventData> {
+        let (tx, rx) = oneshot::channel();
+        self.0.lock().unwrap().subscribers.insert(event_type, tx);
+        rx
     }
 }
 
 pub struct DevTools {
-    // TODO: Check if this references destroyed as expected.
     browser: Browser,
     state: SharedDevToolsState,
-    registration: Registration,
-    counter: i32,
+    _registration: Registration,
 }
 
 impl DevTools {
@@ -49,15 +78,18 @@ impl DevTools {
         host.execute_dev_tools_method(0, "Page.enable", None)
             .expect("failed to enable Page domain");
 
+        let params = DictionaryValue::new();
+        _ = params.set_bool("enabled", true);
+        _ = host.execute_dev_tools_method(1, "Page.setLifecycleEventsEnabled", Some(params));
+
         Self {
             browser,
             state,
-            registration,
-            counter: 1,
+            _registration: registration,
         }
     }
 
-    pub fn wait_until_loaded(&self) {}
+    pub async fn wait_until_loaded(&self) {}
 }
 
 struct DevToolsObserverCallbacks {
@@ -75,10 +107,17 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
         false
     }
 
-    fn on_dev_tools_method_result(&mut self, _: Browser, _: i32, _: bool, _: &[u8]) {}
+    fn on_dev_tools_method_result(
+        &mut self,
+        _: Browser,
+        _message_id: i32,
+        _success: bool,
+        _result: &[u8],
+    ) {
+    }
 
     fn on_dev_tools_event(&mut self, _: Browser, method: &str, params: &[u8]) {
-        self.state.notify_event(method, params);
+        self.state.on_event(method, params);
     }
 
     fn on_dev_tools_agent_attached(&mut self, _: Browser) {}

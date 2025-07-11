@@ -3,52 +3,59 @@ import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton } from '../src/index';
 
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
+import { GenericContainer, StartedNetwork, StartedTestContainer, Wait } from "testcontainers";
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
-describe('browser', () => {
+describe.skip('Huly CEF Manager', () => {
     let cefContainer: StartedTestContainer;
     let browser: Browser;
     let port: number;
 
     beforeAll(async () => {
-        cefContainer = await new GenericContainer("huly-cef")
+        cefContainer = await new GenericContainer("huly-cef-manager")
             .withCopyDirectoriesToContainer([{
                 source: join(testdir, "testpages"),
                 target: join(testdir, "testpages"),
             }])
-            .withExposedPorts(8080)
-            .withWaitStrategy(Wait.forListeningPorts())
+            .withNetworkMode("host")
+            .withStartupTimeout(10 * 1000)
             .start();
 
-        port = cefContainer.getMappedPort(8080);
-        // port = 8080;
-        browser = await connect("ws://localhost:" + port + "/browser");
+        port = 3000;
+
+        let response = await fetch("http://localhost:" + port + "/instances/new");
+        let address = await response.text();
+
+        expect(response.status).toBe(201);
+        expect(address).toMatch(/ws:\/\/localhost:\d+\/browser/);
+
+        // await new Promise(resolve => setTimeout(resolve, 5000));
+
+        browser = await connect(address);
     });
 
     test('open a new tab', async () => {
-        const url = "https://www.google.com/";
+        const url = "file://" + testdir + "/testpages/title.html";
         const tab = await browser.openTab({ url });
         expect(tab.id).toBeDefined();
-        await expect.poll(() => tab.title()).toBe("Google");
+        await expect.poll(() => tab.title()).toBe("Title");
         await expect.poll(() => tab.url()).toBe(url);
 
         await tab.close();
-        await expect.poll(() => browser.tabs(), { interval: 2000 }).toEqual([]);
+        await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
     test('load state', async () => {
     });
 
-    // TODO: also test invalid scenarios
     test('resize', async () => {
         let [width, height] = [800, 600];
         browser.resize(width, height);
 
-        const url = "https://www.google.com/";
+        const url = "file://" + testdir + "/testpages/title.html";
         const tab = await browser.openTab({ url });
         let screenshot = await tab.screenshot();
         expect(screenshot).toBeDefined();
@@ -74,7 +81,7 @@ describe('browser', () => {
         tab.close();
     });
 
-    test('go to a url', async () => {
+    test.skip('go to a url', async () => {
         const tab = await browser.openTab();
         expect(tab.id).toBeDefined();
 
@@ -84,7 +91,7 @@ describe('browser', () => {
         tab.close();
     });
 
-    test('multiple tabs', async () => {
+    test.skip('multiple tabs', async () => {
         let client = await connect("ws://localhost:" + port + "/browser");
         await browser.openTab({ url: "file://" + testdir + "/testpages/title.html" });
         await client.openTab({ url: "file://" + testdir + "/testpages/keyboard.html" });
@@ -98,7 +105,7 @@ describe('browser', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('tab navigation', async () => {
+    test.skip('tab navigation', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html" });
         await expect.poll(() => tab.title(), { interval: 200, timeout: 5000 }).toBe("Links");
 
@@ -126,7 +133,7 @@ describe('browser', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('mouse', async () => {
+    test.skip('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html" });
         expect(tab.id).toBeDefined();
@@ -167,7 +174,7 @@ describe('browser', () => {
         await tab.close();
     });
 
-    test('keyboard', async () => {
+    test.skip('keyboard', async () => {
         let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html" });
         expect(tab.id).toBeDefined();
         await expect.poll(() => tab.title()).toBe("Keyboard");

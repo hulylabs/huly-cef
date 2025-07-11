@@ -39,7 +39,7 @@ pub enum JSMessage {
 pub struct Browser {
     inner: cef_ui::Browser,
     pub state: state::SharedBrowserState,
-    devtools: Arc<devtools::DevTools>,
+    // devtools: Arc<devtools::DevTools>,
     counter: i32,
 }
 
@@ -48,7 +48,7 @@ impl Clone for Browser {
         Browser {
             inner: self.inner.clone(),
             state: self.state.clone(),
-            devtools: self.devtools.clone(),
+            // devtools: self.devtools.clone(),
             counter: self.counter,
         }
     }
@@ -454,13 +454,13 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             None,
         );
 
-        let devtools = Arc::new(devtools::DevTools::new(inner.clone()));
+        // let devtools = Arc::new(devtools::DevTools::new(inner.clone()));
 
         self.tx
             .send(Browser {
                 inner,
                 state: state.clone(),
-                devtools,
+                // devtools,
                 counter: 0,
             })
             .expect("failed to send created browser");

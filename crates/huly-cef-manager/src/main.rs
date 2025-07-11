@@ -13,6 +13,7 @@ use axum::{
 };
 use clap::Parser;
 use tokio::sync::Notify;
+use tokio_tungstenite::connect_async;
 use tracing::info;
 
 #[derive(Parser, Debug)]
@@ -97,6 +98,8 @@ async fn instance_handler(
     State(state): State<SharedAppState>,
     Path(id): Path<String>,
 ) -> (StatusCode, String) {
+    info!("Received request for instance with ID: {}", id);
+
     let port = state.get_instance_port(&id);
     if let Some(port) = port {
         return (StatusCode::OK, format!("ws://localhost:{}/browser", port));
@@ -106,6 +109,16 @@ async fn instance_handler(
         let state = state.0.lock().unwrap();
         new_cef_instance(state.cef_exe.clone(), format!("{}/{}", state.cache_dir, id))
     };
+
+    loop {
+        if healthcheck(port).await {
+            info!("CEF instance {} is healthy", id);
+            break;
+        } else {
+            info!("Waiting for CEF instance {} to become healthy", id);
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        }
+    }
 
     state.set_instance(id.clone(), port, instance);
     (
@@ -122,11 +135,14 @@ fn new_cef_instance(exe_path: String, cache_path: String) -> (Child, u16) {
         port, cache_path
     );
 
-    let instance = Command::new(exe_path)
+    let instance = Command::new("xvfb-run")
+        .arg("-a")
+        .arg(&exe_path)
         .args(["--port", port.to_string().as_str()])
         .args(["--cache-path", cache_path.as_str()])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .args(["--no-sandbox"])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("failed to start huly-cef");
 
@@ -138,4 +154,9 @@ fn new_cef_instance(exe_path: String, cache_path: String) -> (Child, u16) {
 fn find_available_port() -> u16 {
     let listener = TcpListener::bind("localhost:0").expect("failed to find available port");
     return listener.local_addr().unwrap().port();
+}
+
+async fn healthcheck(port: u16) -> bool {
+    let url = format!("ws://localhost:{}", port);
+    connect_async(url).await.is_ok()
 }

@@ -382,27 +382,12 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
+source = "git+https://github.com/hulylabs/cef-ui.git#c340ca135a235866a5fa6c27c76bd2da70537533"
 dependencies = [
  "anyhow",
  "bitflags 2.9.1",
- "cef-ui-sys 0.1.0",
- "cef-ui-util 0.1.0",
- "chrono",
- "dunce",
- "parking_lot",
- "paste",
- "tracing-log",
-]
-
-[[package]]
-name = "cef-ui"
-version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#b5ce7b484be6296c5ccf9feac093e395e97184df"
-dependencies = [
- "anyhow",
- "bitflags 2.9.1",
- "cef-ui-sys 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui-sys",
+ "cef-ui-util",
  "chrono",
  "dunce",
  "parking_lot",
@@ -413,7 +398,7 @@ dependencies = [
 [[package]]
 name = "cef-ui-helper"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#b5ce7b484be6296c5ccf9feac093e395e97184df"
+source = "git+https://github.com/hulylabs/cef-ui.git#c340ca135a235866a5fa6c27c76bd2da70537533"
 dependencies = [
  "anyhow",
  "libloading",
@@ -425,34 +410,12 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-
-[[package]]
-name = "cef-ui-sys"
-version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#b5ce7b484be6296c5ccf9feac093e395e97184df"
+source = "git+https://github.com/hulylabs/cef-ui.git#c340ca135a235866a5fa6c27c76bd2da70537533"
 
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "bindgen",
- "bzip2 0.4.4",
- "flate2",
- "percent-encoding",
- "reqwest",
- "tar",
- "tracing",
- "tracing-log",
- "tracing-subscriber",
- "url",
- "walkdir",
-]
-
-[[package]]
-name = "cef-ui-util"
-version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#b5ce7b484be6296c5ccf9feac093e395e97184df"
+source = "git+https://github.com/hulylabs/cef-ui.git#c340ca135a235866a5fa6c27c76bd2da70537533"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -1120,7 +1083,7 @@ name = "huly-cef"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cef-ui 0.1.0",
+ "cef-ui",
  "crossbeam-channel",
  "log",
  "serde",
@@ -1136,7 +1099,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cef-ui-helper",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui-util",
 ]
 
 [[package]]
@@ -1148,6 +1111,7 @@ dependencies = [
  "clap",
  "log",
  "tokio",
+ "tokio-tungstenite",
  "tracing",
  "tracing-log",
  "tracing-subscriber",
@@ -1158,7 +1122,7 @@ name = "huly-cef-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui-util",
  "clap",
  "tracing",
  "tracing-log",
@@ -1171,8 +1135,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "cef-ui 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui",
+ "cef-ui-util",
  "futures",
  "huly-cef",
  "image",
