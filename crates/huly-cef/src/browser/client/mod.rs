@@ -3,7 +3,7 @@ use cef_ui::{
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
 
-use crate::browser::{state::SharedBrowserState, JSMessage};
+use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 
 mod display_callbacks;
 mod life_span_callbacks;

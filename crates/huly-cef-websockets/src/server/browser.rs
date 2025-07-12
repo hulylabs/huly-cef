@@ -65,12 +65,12 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                 ));
             }
             (BrowserMessageType::Navigate { url }, Some(tab)) => tab.go_to(&url),
-            (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse_move(x, y),
+            (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse.move_to(x, y),
             (BrowserMessageType::Click { x, y, button, down }, Some(tab)) => {
-                tab.mouse_click(x, y, button, down)
+                tab.mouse.click(x, y, button, down)
             }
             (BrowserMessageType::Wheel { x, y, dx, dy }, Some(tab)) => {
-                tab.mouse_wheel(x, y, dx, dy)
+                tab.mouse.wheel(x, y, dx, dy)
             }
             (
                 BrowserMessageType::Key {
@@ -82,8 +82,10 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
                     shift,
                 },
                 Some(tab),
-            ) => tab.key_press(character, windowscode, code, down, ctrl, shift),
-            (BrowserMessageType::Char { unicode }, Some(tab)) => tab.char(unicode),
+            ) => tab
+                .keyboard
+                .key_press(character, windowscode, code, down, ctrl, shift),
+            (BrowserMessageType::Char { unicode }, Some(tab)) => tab.keyboard.char(unicode),
             (BrowserMessageType::StopVideo, Some(tab)) => tab.stop_video(),
             (BrowserMessageType::StartVideo, Some(tab)) => tab.start_video(),
             (BrowserMessageType::Reload, Some(tab)) => tab.reload(),
@@ -91,14 +93,14 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             (BrowserMessageType::GoForward, Some(tab)) => tab.go_forward(),
             (BrowserMessageType::SetFocus(focus), Some(tab)) => tab.set_focus(focus),
             (BrowserMessageType::GetDOM, Some(tab)) => {
-                resp = Some(ServerMessageType::DOM(tab.get_dom().await));
+                resp = Some(ServerMessageType::DOM(tab.automation.get_dom().await));
             }
             (BrowserMessageType::GetClickableElements, Some(tab)) => {
-                let elements = tab.get_clickable_elements().await;
+                let elements = tab.automation.get_clickable_elements().await;
                 resp = Some(ServerMessageType::ClickableElements(elements));
             }
             (BrowserMessageType::ClickElement { id }, Some(tab)) => {
-                tab.click_element(id).await;
+                tab.automation.click_element(id).await;
             }
             (_, None) => {
                 error!("tab with id {} not found", msg.tab_id);
@@ -188,7 +190,7 @@ async fn open_tab(
     }
 
     if options.wait_until_loaded {
-        tab.wait_until_loaded().await;
+        tab.automation.wait_until_loaded().await;
     }
 
     ServerMessageType::Tab(id)
@@ -231,7 +233,7 @@ async fn get_screenshot(tab: Browser, options: Option<ScreenshotOptions>) -> Str
         },
     };
 
-    let data = tab.screenshot(opts.size.0, opts.size.1).await;
+    let data = tab.automation.screenshot(opts.size.0, opts.size.1).await;
 
     let mut bytes: Vec<u8> = Vec::new();
     {

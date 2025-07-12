@@ -31,3 +31,7 @@ base64 = "0.22.1"
 image = "0.25.6"
 
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }
+
+
+[profile.release]
+debug = true

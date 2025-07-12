@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::error;
+use log::{error, info};
 
 use std::{
     collections::HashMap,
@@ -9,7 +9,7 @@ use std::{
 use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 use crate::{
-    browser::{ClickableElement, JSMessage},
+    browser::{automation::JSMessage, ClickableElement},
     messages::TabMessage,
     LoadState,
 };
@@ -80,5 +80,13 @@ impl SharedBrowserState {
 impl Clone for SharedBrowserState {
     fn clone(&self) -> Self {
         SharedBrowserState(self.0.clone())
+    }
+}
+
+impl Drop for SharedBrowserState {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.0) == 1 {
+            info!("BrowserState dropped");
+        }
     }
 }
