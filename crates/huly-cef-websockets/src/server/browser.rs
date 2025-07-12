@@ -33,7 +33,6 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             break;
         }
 
-        // TODO: don't clone the message
         let msg = match serde_json::from_slice::<BrowserMessage>(&msg.clone().into_data()) {
             Ok(msg) => msg,
             Err(e) => {
@@ -177,24 +176,20 @@ async fn open_tab(
         state.size
     };
 
-    let url = match options {
-        Some(options) => options.url,
-        None => "about:blank".to_string(),
-    };
+    let options = options.unwrap_or_default();
 
-    info!("opening a new tab with url: {}", url);
+    info!("opening a new tab with url: {}", options.url);
 
-    let tab = Browser::new(width, height, &url);
+    let tab = Browser::new(width, height, &options.url);
     let id = tab.get_id();
     {
         let mut state = state.lock().unwrap();
         state.tabs.insert(id, tab.clone());
     }
 
-    // TODO: add an option to wait until the tab is loaded
-    // if wait_until_loaded {
-    // tab.wait_until_loaded().await;
-    // }
+    if options.wait_until_loaded {
+        tab.wait_until_loaded().await;
+    }
 
     ServerMessageType::Tab(id)
 }

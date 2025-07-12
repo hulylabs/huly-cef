@@ -8,7 +8,19 @@ pub struct ScreenshotOptions {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenTabOptions {
+    #[serde(default)]
     pub url: String,
+    #[serde(default)]
+    pub wait_until_loaded: bool,
+}
+
+impl Default for OpenTabOptions {
+    fn default() -> Self {
+        OpenTabOptions {
+            url: "about:blank".to_string(),
+            wait_until_loaded: false,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

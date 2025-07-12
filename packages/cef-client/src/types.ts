@@ -2,6 +2,7 @@ export const REQUEST_TIMEOUT = 30000;
 
 export interface OpenTabOptions {
     url?: string;
+    wait_until_loaded?: boolean;
 }
 
 export interface ScreenshotOptions {

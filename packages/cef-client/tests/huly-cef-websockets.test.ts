@@ -83,7 +83,7 @@ describe('Huly CEF Websockets', () => {
         tab.close();
     });
 
-    test.skip('multiple tabs', async () => {
+    test('multiple tabs', async () => {
         let client = await connect("ws://localhost:" + port + "/browser");
         await browser.openTab({ url: "file://" + testdir + "/testpages/title.html" });
         await client.openTab({ url: "file://" + testdir + "/testpages/keyboard.html" });
@@ -99,7 +99,7 @@ describe('Huly CEF Websockets', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.skip('tab navigation', async () => {
+    test('tab navigation', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html" });
         await expect.poll(() => tab.title(), { interval: 200, timeout: 5000 }).toBe("Links");
 
@@ -127,7 +127,7 @@ describe('Huly CEF Websockets', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.skip('mouse', async () => {
+    test('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html" });
         expect(tab.id).toBeDefined();
@@ -168,7 +168,7 @@ describe('Huly CEF Websockets', () => {
         await tab.close();
     });
 
-    test.skip('keyboard', async () => {
+    test('keyboard', async () => {
         let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html" });
         expect(tab.id).toBeDefined();
         await expect.poll(() => tab.title()).toBe("Keyboard");
@@ -227,7 +227,7 @@ describe('Huly CEF Websockets', () => {
         await tab.close();
     });
 
-    test.skip('screenshot', async () => {
+    test('screenshot', async () => {
         browser.resize(1920, 1080);
 
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/title.html" });

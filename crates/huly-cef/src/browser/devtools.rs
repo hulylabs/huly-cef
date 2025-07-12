@@ -7,62 +7,86 @@ use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
     Registration,
 };
+use log::info;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
-#[derive(Eq, Hash, PartialEq)]
-enum EventType {
+#[derive(Debug, strum::Display)]
+enum Event {
     LoadEventFired,
-}
-
-enum EventData {
-    LoadEventFired,
-}
-
-#[derive(Deserialize, Serialize)]
-struct LifecycleEvent {
-    name: String,
+    LifecycleEvent(String),
 }
 
 #[derive(Default)]
 struct DevToolsState {
-    load_event_fired: bool,
+    subscribers: HashMap<String, oneshot::Sender<Event>>,
 
-    subscribers: HashMap<EventType, oneshot::Sender<EventData>>,
+    load_event_fired: bool,
 }
 
 #[derive(Default, Clone)]
 struct SharedDevToolsState(Arc<Mutex<DevToolsState>>);
 
 impl SharedDevToolsState {
-    // TODO: we need a way to block this function during adding a subscriber
-    pub fn on_event(&self, event: &str, params: &[u8]) {
-        let state = self.0.lock().unwrap();
-        if event == "Page.lifecycleEvent" {
-            let params: LifecycleEvent = serde_json::from_slice(params)
-                .expect("failed to parse params of Page.lifecycleEvent");
+    pub fn on_event(&self, event: Event) {
+        self.update_state(&event);
+        self.send_event(event);
+    }
 
-            if params.name == "init" {
-                self.0.lock().unwrap().load_event_fired = false;
+    fn update_state(&self, event: &Event) {
+        let mut state = self.0.lock().unwrap();
+        match event {
+            Event::LoadEventFired => {
+                info!("Page.loadEventFired");
+                state.load_event_fired = true;
             }
-        }
-
-        if event == "Page.loadEventFired" {
-            self.0.lock().unwrap().load_event_fired = true;
+            Event::LifecycleEvent(name) => {
+                if name == "init" {
+                    state.load_event_fired = false;
+                }
+                info!("Page.lifecycleEvent: {}", name);
+            }
         }
     }
 
-    pub fn subscribe(&self, event_type: EventType) -> oneshot::Receiver<EventData> {
+    fn send_event(&self, event: Event) {
+        let mut state = self.0.lock().unwrap();
+        if let Some(subscriber) = state.subscribers.remove(&event.to_string()) {
+            let _ = subscriber.send(event);
+        }
+    }
+
+    pub fn subscribe(&self, event_type: String) -> oneshot::Receiver<Event> {
+        let mut state = self.0.lock().unwrap();
         let (tx, rx) = oneshot::channel();
-        self.0.lock().unwrap().subscribers.insert(event_type, tx);
+
+        if state.load_event_fired {
+            info!("event {} already fired, sending immediately", event_type);
+            tx.send(Event::LoadEventFired).unwrap();
+        } else {
+            info!("subscribing to event: {}", event_type);
+            state.subscribers.insert(event_type, tx);
+        }
         rx
     }
 }
 
 pub struct DevTools {
+    #[allow(unused)]
     browser: Browser,
     state: SharedDevToolsState,
-    _registration: Registration,
+    #[allow(unused)]
+    registration: Registration,
+}
+
+impl Clone for DevTools {
+    fn clone(&self) -> Self {
+        DevTools {
+            browser: self.browser.clone(),
+            state: self.state.clone(),
+            registration: self.registration.clone(),
+        }
+    }
 }
 
 impl DevTools {
@@ -85,11 +109,21 @@ impl DevTools {
         Self {
             browser,
             state,
-            _registration: registration,
+            registration,
         }
     }
 
-    pub async fn wait_until_loaded(&self) {}
+    pub async fn wait_until_loaded(&self) {
+        self.state
+            .subscribe(Event::LoadEventFired.to_string())
+            .await
+            .unwrap();
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+struct LifecycleEvent {
+    name: String,
 }
 
 struct DevToolsObserverCallbacks {
@@ -116,8 +150,17 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
     ) {
     }
 
-    fn on_dev_tools_event(&mut self, _: Browser, method: &str, params: &[u8]) {
-        self.state.on_event(method, params);
+    fn on_dev_tools_event(&mut self, _: Browser, event: &str, params: &[u8]) {
+        if event == "Page.lifecycleEvent" {
+            let params: LifecycleEvent = serde_json::from_slice(params)
+                .expect("failed to parse params of Page.lifecycleEvent");
+
+            self.state.on_event(Event::LifecycleEvent(params.name));
+        }
+
+        if event == "Page.loadEventFired" {
+            self.state.on_event(Event::LoadEventFired);
+        }
     }
 
     fn on_dev_tools_agent_attached(&mut self, _: Browser) {}
