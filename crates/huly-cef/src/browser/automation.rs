@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 
 use cef_ui::{Browser, PaintElementType, StringVisitor, StringVisitorCallbacks};
@@ -39,7 +41,7 @@ pub enum JSMessage {
 
 pub struct Automation {
     browser: Browser,
-    devtools: DevTools,
+    devtools: Arc<DevTools>,
     mouse: Mouse,
     state: SharedBrowserState,
 }
@@ -57,7 +59,7 @@ impl Clone for Automation {
 
 impl Automation {
     pub fn new(browser: Browser, state: SharedBrowserState, mouse: Mouse) -> Self {
-        let devtools = DevTools::new(browser.clone());
+        let devtools = Arc::new(DevTools::new(browser.clone()));
 
         Automation {
             browser,

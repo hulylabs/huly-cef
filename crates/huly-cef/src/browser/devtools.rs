@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
@@ -9,89 +6,81 @@ use cef_ui::{
 };
 use log::info;
 use serde::{Deserialize, Serialize};
-use tokio::sync::oneshot;
+use tokio::sync::Notify;
+
+#[derive(Debug)]
+enum LifecycleEventType {
+    Init,
+    Load,
+    NetworkAlmostIdle,
+    NetworkIdle,
+}
 
 #[derive(Debug, strum::Display)]
 enum Event {
-    LoadEventFired,
-    LifecycleEvent(String),
+    PageLifecycleEvent(LifecycleEventType),
 }
 
 #[derive(Default)]
 struct DevToolsState {
-    subscribers: HashMap<String, oneshot::Sender<Event>>,
-
-    load_event_fired: bool,
+    load_fired: bool,
+    network_idle_fired: bool,
 }
 
-#[derive(Default, Clone)]
-struct SharedDevToolsState(Arc<Mutex<DevToolsState>>);
+#[derive(Default)]
+struct SharedDevToolsState {
+    inner: Mutex<DevToolsState>,
+    notify: Notify,
+}
 
 impl SharedDevToolsState {
     pub fn on_event(&self, event: Event) {
         self.update_state(&event);
-        self.send_event(event);
+        self.notify.notify_waiters();
     }
 
     fn update_state(&self, event: &Event) {
-        let mut state = self.0.lock().unwrap();
+        let mut state = self.inner.lock().unwrap();
         match event {
-            Event::LoadEventFired => {
-                info!("Page.loadEventFired");
-                state.load_event_fired = true;
-            }
-            Event::LifecycleEvent(name) => {
-                if name == "init" {
-                    state.load_event_fired = false;
+            Event::PageLifecycleEvent(name) => match name {
+                LifecycleEventType::Init => {
+                    state.network_idle_fired = false;
+                    state.load_fired = false;
                 }
-                info!("Page.lifecycleEvent: {}", name);
+                LifecycleEventType::Load => state.load_fired = true,
+                LifecycleEventType::NetworkAlmostIdle | LifecycleEventType::NetworkIdle => {
+                    if state.load_fired {
+                        state.network_idle_fired = true;
+                    }
+                }
+            },
+        }
+    }
+
+    pub async fn wait_until<P: Fn(&DevToolsState) -> bool>(&self, predicate: P) {
+        loop {
+            {
+                let state = self.inner.lock().expect("Browser state lock poisoned");
+                if predicate(&state) {
+                    return;
+                }
             }
+            self.notify.notified().await;
         }
-    }
-
-    fn send_event(&self, event: Event) {
-        let mut state = self.0.lock().unwrap();
-        if let Some(subscriber) = state.subscribers.remove(&event.to_string()) {
-            let _ = subscriber.send(event);
-        }
-    }
-
-    pub fn subscribe(&self, event_type: String) -> oneshot::Receiver<Event> {
-        let mut state = self.0.lock().unwrap();
-        let (tx, rx) = oneshot::channel();
-
-        if state.load_event_fired {
-            info!("event {} already fired, sending immediately", event_type);
-            tx.send(Event::LoadEventFired).unwrap();
-        } else {
-            info!("subscribing to event: {}", event_type);
-            state.subscribers.insert(event_type, tx);
-        }
-        rx
     }
 }
 
 pub struct DevTools {
     #[allow(unused)]
     browser: Browser,
-    state: SharedDevToolsState,
+    state: Arc<SharedDevToolsState>,
     #[allow(unused)]
     registration: Registration,
 }
 
-impl Clone for DevTools {
-    fn clone(&self) -> Self {
-        DevTools {
-            browser: self.browser.clone(),
-            state: self.state.clone(),
-            registration: self.registration.clone(),
-        }
-    }
-}
-
 impl DevTools {
     pub fn new(browser: Browser) -> Self {
-        let state = SharedDevToolsState::default();
+        let state = Arc::new(SharedDevToolsState::default());
         let observer = DevToolsMessageObserver::new(DevToolsObserverCallbacks::new(state.clone()));
 
         let host = browser.get_host().unwrap();
@@ -115,9 +104,8 @@ impl DevTools {
 
     pub async fn wait_until_loaded(&self) {
         self.state
-            .subscribe(Event::LoadEventFired.to_string())
-            .await
-            .unwrap();
+            .wait_until(|s| s.load_fired && s.network_idle_fired)
+            .await;
     }
 }
 
@@ -127,11 +115,11 @@ struct LifecycleEvent {
 }
 
 struct DevToolsObserverCallbacks {
-    state: SharedDevToolsState,
+    state: Arc<SharedDevToolsState>,
 }
 
 impl DevToolsObserverCallbacks {
-    pub fn new(state: SharedDevToolsState) -> Self {
+    pub fn new(state: Arc<SharedDevToolsState>) -> Self {
         Self { state }
     }
 }
@@ -155,11 +143,21 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
             let params: LifecycleEvent = serde_json::from_slice(params)
                 .expect("failed to parse params of Page.lifecycleEvent");
 
-            self.state.on_event(Event::LifecycleEvent(params.name));
-        }
-
-        if event == "Page.loadEventFired" {
-            self.state.on_event(Event::LoadEventFired);
+            match params.name.as_str() {
+                "init" => self
+                    .state
+                    .on_event(Event::PageLifecycleEvent(LifecycleEventType::Init)),
+                "load" => self
+                    .state
+                    .on_event(Event::PageLifecycleEvent(LifecycleEventType::Load)),
+                "networkIdle" => self
+                    .state
+                    .on_event(Event::PageLifecycleEvent(LifecycleEventType::NetworkIdle)),
+                "networkAlmostIdle" => self.state.on_event(Event::PageLifecycleEvent(
+                    LifecycleEventType::NetworkAlmostIdle,
+                )),
+                _ => {}
+            }
         }
     }
 

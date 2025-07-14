@@ -58,3 +58,27 @@ Follow these steps to build and run Huly CEF:
    ```bash
    npm publish
    ```
+
+## Interacting with Huly CEF Manager
+
+The `huly-cef-manager` provides a RESTful API for managing CEF instances. Here's how to interact with it:
+
+1. **Start the Manager**  
+   First, ensure the huly-cef-manager is running on the default port (3000).
+
+2. **Create CEF Instance and get its Address**  
+   Fetch the address of a CEF instance by its ID:
+   ```javascript
+   const cef = await fetch("http://localhost:3000/instances/id");
+   const address = await cef.text();
+   ```
+
+3. **Connect and Control Browser**  
+   Use the address to connect and control the browser:
+   ```javascript
+   const browser = await connect(address);
+   let tab = await browser.openTab({ url: "https://google.com", wait_until_loaded: true });
+
+   let title = await tab.title();
+   console.log("Page title: ", title);
+   ```
