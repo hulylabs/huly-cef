@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Stream</title>
+    <link rel="icon" type="image/x-icon" href="./favicon.svg">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #222;
+        }
+
+        .popup {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #fff;
+            border: 1px solid #ccc;
+            padding: 12px;
+            border-radius: 6px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="popup">
+        <select id="popup-select">
+            <option value="one">Option 1</option>
+            <option value="two">Option 2</option>
+            <option value="three">Option 3</option>
+        </select>
+    </div>
+    <svg width="200" height="200">
+        <circle cx="100" cy="100" r="40" fill="#4fc3f7">
+            <animate attributeName="r" from="40" to="80" dur="1.5s" repeatCount="indefinite" direction="alternate" />
+        </circle>
+    </svg>
+</body>
+
+</html>

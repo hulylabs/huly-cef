@@ -7,13 +7,15 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "vitest"
+    "test": "vitest",
+    "coverage": "vitest run --coverage --reporter=html"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^22.15.30",
+    "@vitest/coverage-v8": "^3.2.2",
     "sharp": "^0.34.2",
     "testcontainers": "^11.0.0",
     "typescript": "^5.8.3",

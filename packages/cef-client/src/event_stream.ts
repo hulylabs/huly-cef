@@ -1,9 +1,7 @@
-const HEARTBEAT_INTERVAL = 5000;
-
 export enum LoadStatus {
-    Loading,
-    Loaded,
-    Error,
+    Loading = 0,
+    Loaded = 1,
+    Error = 2,
 }
 
 export type LoadState = {
@@ -14,121 +12,100 @@ export type LoadState = {
     errorMessage?: string;
 };
 
-// export enum CursorType {
-//     Default = "default",
-//     Pointer = "pointer",
-//     Text = "text",
-//     Wait = "wait",
-//     Crosshair = "crosshair",
-//     Move = "move",
-//     NotAllowed = "not-allowed",
-// }
+export enum Cursor {
+    Pointer = "Pointer",
+}
 
+export type Popup = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    data: Uint8Array;
+}
+
+type TabEvent = {
+    Title: string;
+    Url: string;
+    LoadState: LoadState;
+    Favicon: string;
+    Cursor: Cursor;
+    NewTab: string;
+    Render: Uint8Array;
+    PopupRender: Popup;
+}
+
+interface Message<T extends keyof TabEvent> {
+    type: T;
+    data: TabEvent[T];
+}
 
 export class TabEventStream {
     websocket: WebSocket;
 
-    public onLoadStateChanged: ((state: LoadState) => void) | undefined;
-    public onTitleChanged: ((title: string) => void) | undefined;
-    public onUrlChanged: ((url: string) => void) | undefined;
-    public onFaviconUrlChanged: ((url: string) => void) | undefined;
-    public onCursorChanged: ((cursor: string) => void) | undefined;
-    public onNewTabRequested: ((url: string) => void) | undefined;
-    public onRender: ((data: Uint8Array) => void) | undefined;
-    public onPopupRender:
-        | ((x: number, y: number, w: number, h: number, data: Uint8Array) => void)
-        | undefined;
+    subscribers: Map<keyof TabEvent, Set<(data: any) => void>> = new Map();
 
     constructor(url: string) {
-        this.websocket = this.createWebSocket(url);
+        this.websocket = new WebSocket(url);
+        this.websocket.binaryType = "arraybuffer";
+        this.websocket.onmessage = (event) => this.onmessage(event);
     }
 
-    private createWebSocket(url: string, reconnect: boolean = false): WebSocket {
-        let websocket = new WebSocket(url);
-        websocket.binaryType = "arraybuffer";
-
-        websocket.onmessage = (event) => this.onmessage(event);
-
-        websocket.onclose = () => {
-            console.log("WebSocket connection closed.");
+    public on<K extends keyof TabEvent>(eventType: K, callback: (data: TabEvent[K]) => void) {
+        if (!this.subscribers.has(eventType)) {
+            this.subscribers.set(eventType, new Set());
         }
+        this.subscribers.get(eventType)!.add(callback);
+    }
 
-        return websocket;
+    public off<K extends keyof TabEvent>(eventType: K, callback: (data: TabEvent[K]) => void) {
+        this.subscribers.get(eventType)?.delete(callback);
     }
 
     private onmessage(event: MessageEvent) {
+        if (typeof event.data === "string") {
+            let message: Message<keyof TabEvent> = JSON.parse(event.data);
+            this.emit(message.type, message.data);
+        }
+
         if (event.data instanceof ArrayBuffer) {
             let data = new Uint8Array(event.data);
 
             if (data[0] == 0) {
-                this.onRender?.(data.subarray(1));
+                let message: Message<keyof TabEvent> = {
+                    type: "Render",
+                    data: data.subarray(1)
+                };
+
+                this.emit(message.type, message.data);
             } else {
+                // Use DataView here
                 let x = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
                 let y = data[5] | (data[6] << 8) | (data[7] << 16) | (data[8] << 24);
                 let w = data[9] | (data[10] << 8) | (data[11] << 16) | (data[12] << 24);
                 let h =
                     data[13] | (data[14] << 8) | (data[15] << 16) | (data[16] << 24);
 
-                this.onPopupRender?.(x, y, w, h, data.subarray(17));
+                let message: Message<keyof TabEvent> = {
+                    type: "PopupRender",
+                    data: {
+                        x: x,
+                        y: y,
+                        width: w,
+                        height: h,
+                        data: data.subarray(17)
+                    }
+                };
+
+                this.emit(message.type, message.data);
             }
-            return;
         }
+    }
 
-        if (typeof event.data === "string") {
-            let parsed = JSON.parse(event.data);
-
-            if (typeof parsed === "object") {
-                if (parsed.TitleChanged) {
-                    this.onTitleChanged?.(parsed.TitleChanged);
-                }
-
-                if (parsed.CursorChanged) {
-                    this.onCursorChanged?.(parsed.CursorChanged);
-                }
-
-                if (parsed.UrlChanged) {
-                    this.onUrlChanged?.(parsed.UrlChanged);
-                }
-
-                if (parsed.NewTabRequested) {
-                    this.onNewTabRequested?.(parsed.NewTabRequested);
-                }
-
-                if (parsed.FaviconUrlChanged) {
-                    this.onFaviconUrlChanged?.(parsed.FaviconUrlChanged);
-                }
-
-                if (parsed.LoadStateChanged) {
-                    let state = parsed.LoadStateChanged;
-                    let loadState: LoadState = {
-                        status: LoadStatus.Loading,
-                        canGoBack: state.can_go_back,
-                        canGoForward: state.can_go_forward,
-                    };
-
-                    switch (state.state) {
-                        case "Loading":
-                            loadState.status = LoadStatus.Loading;
-                            break;
-                        case "Loaded":
-                            loadState.status = LoadStatus.Loaded;
-                            break;
-                        case "LoadError":
-                            loadState.status = LoadStatus.Error;
-                            break;
-                    }
-
-                    if (state.error_code != 0) {
-                        loadState.errorCode = state.error_code;
-                    }
-
-                    if (state.error_message != "") {
-                        loadState.errorMessage = state.error_message;
-                    }
-
-                    this.onLoadStateChanged?.(loadState);
-                }
-            }
+    private emit<K extends keyof TabEvent>(type: K, data: TabEvent[K]) {
+        let callbacks = this.subscribers.get(type);
+        if (callbacks) {
+            callbacks.forEach(cb => cb(data));
         }
     }
 }

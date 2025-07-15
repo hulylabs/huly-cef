@@ -11,20 +11,22 @@ pub enum MouseButton {
     Right = 2,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize_repr, Deserialize_repr, Hash, PartialEq, Eq)]
+#[repr(u8)]
 pub enum LoadStatus {
-    Loading,
-    Loaded,
-    LoadError,
+    Loading = 0,
+    Loaded = 1,
+    LoadError = 2,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct LoadState {
     pub status: LoadStatus,
     pub can_go_back: bool,
     pub can_go_forward: bool,
     pub error_code: i32,
-    pub error_text: String,
+    pub error_message: String,
 }
 
 impl Default for LoadState {
@@ -34,7 +36,7 @@ impl Default for LoadState {
             can_go_back: false,
             can_go_forward: false,
             error_code: 0,
-            error_text: String::new(),
+            error_message: String::new(),
         }
     }
 }
@@ -48,6 +50,7 @@ pub struct ClickableElement {
 
 /// Represents different types of messages that can be sent from CEF to the browser.
 #[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
+#[serde(tag = "type", content = "data")]
 pub enum TabMessage {
     /// Message to render a frame.
     Frame(Vec<u8>),

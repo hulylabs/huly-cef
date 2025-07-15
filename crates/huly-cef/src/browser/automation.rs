@@ -152,6 +152,7 @@ impl Automation {
                 self.mouse.click(x, y, MouseButton::Left, true);
                 std::thread::sleep(std::time::Duration::from_millis(20));
                 self.mouse.click(x, y, MouseButton::Left, false);
+                std::thread::sleep(std::time::Duration::from_millis(1000));
 
                 script = format!(
                     r#"

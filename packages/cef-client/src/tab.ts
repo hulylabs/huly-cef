@@ -1,3 +1,4 @@
+import { TabEventStream } from "./event_stream.js";
 import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard.js";
 import { MessageHandler } from "./messages.js";
 import { ClickableElement, detectPlatform, MouseButton, Platform, ScreenshotOptions } from "./types.js";
@@ -91,7 +92,27 @@ export class Tab {
         return this.messageHandler.send(this.id, 'GetClickableElements');
     }
 
-    clickElement(id: number): Promise<void> {
+    clickElement(id: number) {
         return this.messageHandler.send(this.id, 'ClickElement', { id: id });
+    }
+
+    stopVideo() {
+        return this.messageHandler.sendNoResponse(this.id, 'StopVideo');
+    }
+
+    startVideo() {
+        return this.messageHandler.sendNoResponse(this.id, 'StartVideo');
+    }
+
+    focus(focus: boolean) {
+        this.messageHandler.sendNoResponse(this.id, 'SetFocus', focus);
+    }
+
+    dom(): Promise<string> {
+        return this.messageHandler.send(this.id, 'GetDOM');
+    }
+
+    events(): TabEventStream {
+        return new TabEventStream(`ws://localhost:8080/tab/${this.id}`);
     }
 }

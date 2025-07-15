@@ -1,6 +1,5 @@
-import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from './keyboard.js';
 import { Tab } from './tab.js';
-import { ClickableElement, detectPlatform, OpenTabOptions, Platform } from './types.js';
+import { OpenTabOptions } from './types.js';
 import { MessageHandler } from './messages.js';
 
 export class Browser {
@@ -22,26 +21,11 @@ export class Browser {
         return ids.map(id => new Tab(this.messageHandler, id));
     }
 
-    resize(width: number, height: number): Promise<void> {
-        return this.messageHandler.send(-1, 'Resize', {
+    resize(width: number, height: number) {
+        this.messageHandler.sendNoResponse(-1, 'Resize', {
             width: Math.floor(width),
             height: Math.floor(height)
         });
     }
 
-    stopVideo(tabId: number): Promise<void> {
-        return this.messageHandler.send(tabId, 'StopVideo');
-    }
-
-    startVideo(tabId: number): Promise<void> {
-        return this.messageHandler.send(tabId, 'StartVideo');
-    }
-
-    setFocus(tabId: number, focus: boolean): Promise<void> {
-        return this.messageHandler.send(tabId, 'SetFocus', focus);
-    }
-
-    getDOM(tabId: number): Promise<string> {
-        return this.messageHandler.send(tabId, 'GetDOM');
-    }
 }

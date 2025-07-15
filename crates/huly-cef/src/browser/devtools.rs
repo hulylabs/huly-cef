@@ -4,7 +4,6 @@ use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
     Registration,
 };
-use log::info;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 

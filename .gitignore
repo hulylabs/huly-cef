@@ -10,3 +10,4 @@ MediaDeviceSalts*
 # Ignore Node.js modules
 node_modules
 dist
+coverage

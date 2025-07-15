@@ -35,7 +35,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         load_state.can_go_forward = can_go_forward;
         if let Some((error_code, error_text)) = self.error.take() {
             load_state.error_code = error_code;
-            load_state.error_text = error_text.clone();
+            load_state.error_message = error_text.clone();
         }
 
         self.state
