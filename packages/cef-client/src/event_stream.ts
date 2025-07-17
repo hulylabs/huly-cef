@@ -31,8 +31,7 @@ type TabEvent = {
     Favicon: string;
     Cursor: Cursor;
     NewTab: string;
-    Render: Uint8Array;
-    PopupRender: Popup;
+    Frame: Uint8Array;
 }
 
 interface Message<T extends keyof TabEvent> {
@@ -69,36 +68,12 @@ export class TabEventStream {
         }
 
         if (event.data instanceof ArrayBuffer) {
-            let data = new Uint8Array(event.data);
+            let message: Message<keyof TabEvent> = {
+                type: "Frame",
+                data: new Uint8Array(event.data)
+            };
 
-            if (data[0] == 0) {
-                let message: Message<keyof TabEvent> = {
-                    type: "Render",
-                    data: data.subarray(1)
-                };
-
-                this.emit(message.type, message.data);
-            } else {
-                // Use DataView here
-                let x = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
-                let y = data[5] | (data[6] << 8) | (data[7] << 16) | (data[8] << 24);
-                let w = data[9] | (data[10] << 8) | (data[11] << 16) | (data[12] << 24);
-                let h =
-                    data[13] | (data[14] << 8) | (data[15] << 16) | (data[16] << 24);
-
-                let message: Message<keyof TabEvent> = {
-                    type: "PopupRender",
-                    data: {
-                        x: x,
-                        y: y,
-                        width: w,
-                        height: h,
-                        data: data.subarray(17)
-                    }
-                };
-
-                this.emit(message.type, message.data);
-            }
+            this.emit(message.type, message.data);
         }
     }
 

@@ -8,7 +8,10 @@ use cef_ui::{
 
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{browser::state::SharedBrowserState, ClickableElement, LoadState, TabMessage};
+use crate::{
+    browser::state::SharedBrowserState, state::ScreenshotInfo, ClickableElement, LoadState,
+    TabMessage,
+};
 
 mod automation;
 mod client;
@@ -165,7 +168,7 @@ struct CreateBrowserTaskCallback {
 impl CefTaskCallbacks for CreateBrowserTaskCallback {
     fn execute(&mut self) {
         let window_info = WindowInfo::new().windowless_rendering_enabled(true);
-        let settings = BrowserSettings::new().windowless_frame_rate(60);
+        let settings = BrowserSettings::new().windowless_frame_rate(20);
         let state = SharedBrowserState::new(state::BrowserState {
             title: "".to_string(),
             url: self.url.clone(),
@@ -177,14 +180,12 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             active: true,
             left_mouse_button_down: false,
 
-            clickable_elements: None,
+            render_mode: state::RenderMode::Stream,
 
-            screenshot_width: 0,
-            screenshot_height: 0,
-            screenshot_channel: None,
+            clickable_elements: None,
+            screenshot_info: ScreenshotInfo::default(),
 
             javascript_messages: HashMap::new(),
-
             subscribers: HashMap::new(),
         });
 

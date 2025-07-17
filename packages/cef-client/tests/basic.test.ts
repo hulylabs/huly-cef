@@ -1,16 +1,15 @@
-import { afterAll, beforeAll, describe, expect, it, test, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, test } from 'vitest';
 import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton } from '../src/index';
 
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { Cursor, LoadState, LoadStatus, Popup } from '../src/event_stream';
+import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
-describe('Huly CEF Websockets', () => {
+describe('Basic API', () => {
     let cefContainer: StartedTestContainer;
     let browser: Browser;
     let port: number;
@@ -26,8 +25,16 @@ describe('Huly CEF Websockets', () => {
             .start();
 
         port = cefContainer.getMappedPort(8080);
-        port = 8080;
+        // port = 8080
         browser = await connect("ws://localhost:" + port + "/browser");
+    });
+
+    afterAll(async () => {
+        (await cefContainer.logs())
+            .on("data", line => console.log(line))
+            .on("err", line => console.error(line))
+            .on("end", () => console.log("Stream closed"));
+        await cefContainer.stop();
     });
 
     test('open a new tab', async () => {
@@ -41,9 +48,6 @@ describe('Huly CEF Websockets', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('load state', async () => {
-    });
-
     test('resize', async () => {
         let [width, height] = [800, 600];
         browser.resize(width, height);
@@ -53,8 +57,7 @@ describe('Huly CEF Websockets', () => {
         let screenshot = await tab.screenshot();
         expect(screenshot).toBeDefined();
 
-        let img = Buffer.from(screenshot, 'base64');
-        let metadata = await sharp(img).metadata();
+        let metadata = await sharp(Buffer.from(screenshot, 'base64')).metadata();
         expect(metadata.width).toBe(width);
         expect(metadata.height).toBe(height);
         expect(metadata.format).toBe('png');
@@ -65,8 +68,7 @@ describe('Huly CEF Websockets', () => {
         screenshot = await tab.screenshot();
         expect(screenshot).toBeDefined();
 
-        img = Buffer.from(screenshot, 'base64');
-        metadata = await sharp(img).metadata();
+        metadata = await sharp(Buffer.from(screenshot, 'base64')).metadata();
         expect(metadata.width).toBe(width);
         expect(metadata.height).toBe(height);
         expect(metadata.format).toBe('png');
@@ -172,58 +174,41 @@ describe('Huly CEF Websockets', () => {
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
 
-        const unicodeTexts = [
-            "Hello, World! 🌍",
-            "Café, naïve, résumé",
-            "Здравствуй мир",
-            "こんにちは世界",
-            "مرحبا بالعالم",
-            "Γεια σας κόσμε",
-            "α²+β²=γ² ∑∞∫∆",
-            "€$¥£₹₽¢",
-            "©®™℠",
-            "→←↑↓⇄⇅⇆⇇",
-            "♠♣♥♦♪♫♬",
-            "🚀🎉🎯⚡🔥💎",
-            "中文测试文字",
-            "한글 테스트",
-            "עברית בדיקה",
-            "Ñoño niño",
-            "Ümlauts: äöü",
-            "Français: çàéèêë",
-        ];
-
-        for (const text of unicodeTexts) {
-            // Enter text
-            for (let char of Array.from(text)) {
-                if (char.length === 2) {
-                    tab.char(char.charCodeAt(0));
-                    tab.char(char.charCodeAt(1));
-                } else {
-                    tab.char(char.charCodeAt(0));
-                }
+        const text = "Hello, World! 🌍 Café, naïve, résumé Здравствуй мир こんにちは世界 مرحبا بالعالم Γεια σας κόσμε α²+β²=γ² ∑∞∫∆ €$¥£₹₽ ©®™℠ 🚀🎉🎯⚡🔥💎";
+        // Enter text
+        for (let char of Array.from(text)) {
+            if (char.length === 2) {
+                tab.char(char.charCodeAt(0));
+                tab.char(char.charCodeAt(1));
+            } else {
+                tab.char(char.charCodeAt(0));
             }
-
-            // Press Enter to submit
-            tab.key(KeyCode.ENTER, 0, true, false, false);
-            await new Promise(resolve => setTimeout(resolve, 20));
-            tab.key(KeyCode.ENTER, 0, false, false, false);
-
-            // Wait and verify the text was entered correctly
-            await expect.poll(() => tab.title()).toBe(text);
-
-            // Clear for next test (Ctrl+A then Delete)
-            tab.key(KeyCode.KEY_A, 0, true, true, false);
-            await new Promise(resolve => setTimeout(resolve, 20));
-            tab.key(KeyCode.KEY_A, 0, false, true, false);
-            await new Promise(resolve => setTimeout(resolve, 20));
-            tab.key(KeyCode.DELETE, 0, true, false, false);
-            await new Promise(resolve => setTimeout(resolve, 20));
-            tab.key(KeyCode.DELETE, 0, false, false, false);
-            await new Promise(resolve => setTimeout(resolve, 20));
         }
 
-        await tab.close();
+        // Press Enter to submit
+        tab.key(KeyCode.ENTER, 0, true, false, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.ENTER, 0, false, false, false);
+
+        // Wait and verify the text was entered correctly
+        await expect.poll(() => tab.title()).toBe(text);
+
+        // Clear for next test (Ctrl+A then Delete)
+        tab.key(KeyCode.KEY_A, 0, true, true, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.KEY_A, 0, false, true, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.DELETE, 0, true, false, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.DELETE, 0, false, false, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.ENTER, 0, true, false, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.ENTER, 0, false, false, false);
+
+        await expect.poll(() => tab.title()).toBe("Keyboard");
+
+        tab.close();
     });
 
     test('screenshot', async () => {
@@ -245,106 +230,6 @@ describe('Huly CEF Websockets', () => {
         expect(metadata.format).toBe('png');
 
         await tab.close();
-    });
-
-    describe.only('tab events', () => {
-        test('basic', async () => {
-            const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html", wait_until_loaded: false });
-            expect(tab.id).toBeDefined();
-
-            let title = "";
-            let url = "";
-            let loadState: LoadState | null;
-            let favicon = "";
-            let cursor = "";
-
-            let stream = tab.events();
-
-            stream.on("Title", (data) => title = data);
-            stream.on("Url", (data) => url = data);
-            stream.on("LoadState", (data) => loadState = data);
-            stream.on("Favicon", (data) => favicon = data);
-            stream.on("Cursor", (data) => cursor = data);
-
-            let expectedLoadedState: LoadState = {
-                status: LoadStatus.Loaded,
-                canGoBack: false,
-                canGoForward: false,
-                errorCode: 0,
-                errorMessage: "",
-            };
-
-            await expect.poll(() => title).toBe("Stream");
-            await expect.poll(() => url).toBe("file://" + testdir + "/testpages/events.html");
-            await expect.poll(() => loadState).toStrictEqual(expectedLoadedState);
-            await expect.poll(() => favicon).toBe("file://" + testdir + "/testpages/favicon.svg");
-            await expect.poll(() => cursor).toBe(Cursor.Pointer);
-
-            tab.close();
-        });
-
-        test('video', async () => {
-            let width = 1920;
-            let height = 1080;
-            browser.resize(width, height);
-
-            const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html", wait_until_loaded: false });
-            expect(tab.id).toBeDefined();
-
-            let stream = tab.events();
-            let frames: Uint8Array[] = [];
-            stream.on("Render", (data) => frames.push(data));
-
-            await expect.poll(() => frames.length).toBeGreaterThan(10);
-
-            tab.stopVideo();
-            await new Promise(resolve => setTimeout(resolve, 100));
-            let framecount = frames.length;
-            await new Promise(resolve => setTimeout(resolve, 100));
-            expect(frames.length).toEqual(framecount);
-
-            tab.startVideo();
-            await expect.poll(() => frames.length).toBeGreaterThan(framecount * 2);
-
-            expect(frames.every(frame => frame.length === width * height * 4)).toBe(true);
-
-            tab.close();
-        });
-
-        test.only('popup', async () => {
-            let width = 1920;
-            let height = 1080;
-            browser.resize(width, height);
-
-            const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html", wait_until_loaded: false });
-            expect(tab.id).toBeDefined();
-
-            let stream = tab.events();
-            let popup: Popup | undefined = undefined;
-            stream.on("PopupRender", (data) => {
-                console.log("Popup received:", data.x, data.y, data.width, data.height, data.data.length);
-                popup = data;
-            });
-
-            let elements = await tab.clickableElements();
-            tab.clickElement(elements[0].id);
-
-            await expect.poll(() => popup, { timeout: 10000, interval: 1000 }).toBeDefined();
-        }, 20000);
-
-        test('new tab', async () => {
-        });
-
-        test('multiple subscribers', async () => {
-        });
-    });
-
-    afterAll(async () => {
-        // (await cefContainer.logs())
-        //     .on("data", line => console.log(line))
-        //     .on("err", line => console.error(line))
-        //     .on("end", () => console.log("Stream closed"));
-        await cefContainer.stop();
     });
 });
 

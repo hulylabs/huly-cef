@@ -1,4 +1,7 @@
-use std::hash::Hash;
+use std::{
+    hash::Hash,
+    sync::{Arc, Mutex},
+};
 
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
@@ -48,20 +51,19 @@ pub struct ClickableElement {
     pub text: String,
 }
 
-/// Represents different types of messages that can be sent from CEF to the browser.
-#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Framebuffer {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+}
+
+/// Represents different types of messages that can be sent from CEF browser
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "data")]
 pub enum TabMessage {
-    /// Message to render a frame.
-    Frame(Vec<u8>),
-    ///Message to render a popup frame.
-    Popup {
-        x: i32,
-        y: i32,
-        width: u32,
-        height: u32,
-        data: Vec<u8>,
-    },
+    /// Message indicating that a new frame has been painted.
+    Frame(Arc<Mutex<Framebuffer>>),
     /// Message indicating that cursor has changed.
     Cursor(String),
     /// Message indicating that title has changed.

@@ -5,11 +5,11 @@ use anyhow::Result;
 use cef_ui::{Browser, PaintElementType, StringVisitor, StringVisitorCallbacks};
 use log::error;
 use serde::{Deserialize, Serialize};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc::unbounded_channel, oneshot};
 
 use crate::{
     browser::{devtools::DevTools, mouse::Mouse},
-    state::SharedBrowserState,
+    state::{RenderMode, ScreenshotInfo, SharedBrowserState},
     ClickableElement, MouseButton, GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
@@ -82,17 +82,25 @@ impl Automation {
     }
 
     pub async fn screenshot(&self, width: u32, height: u32) -> Vec<u8> {
-        let (tx, rx) = oneshot::channel::<Vec<u8>>();
+        let (tx, mut rx) = unbounded_channel::<Vec<u8>>();
         self.state.update(|state| {
-            state.screenshot_width = width;
-            state.screenshot_height = height;
-            state.screenshot_channel = Some(tx);
+            state.render_mode = RenderMode::Sreenshot;
+            state.screenshot_info = ScreenshotInfo {
+                width,
+                height,
+                channel: Some(tx),
+            };
         });
 
         let host = self.browser.get_host().unwrap();
         _ = host.was_resized();
         _ = host.invalidate(PaintElementType::View);
-        rx.await.unwrap()
+
+        let data = rx.recv().await.unwrap();
+        self.state.update(|state| {
+            state.render_mode = RenderMode::Stream;
+        });
+        data
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {

@@ -11,3 +11,4 @@ MediaDeviceSalts*
 node_modules
 dist
 coverage
+html

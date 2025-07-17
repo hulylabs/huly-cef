@@ -1,35 +1,60 @@
-use cef_ui::{
-    AccessibilityHandler, Browser, DragData, DragOperations, HorizontalAlignment, PaintElementType,
-    Point, Range, Rect, RenderHandlerCallbacks, ScreenInfo, Size, TextInputMode, TouchHandleState,
-};
+use std::sync::{Arc, Mutex};
 
-use crate::{state::SharedBrowserState, TabMessage};
+use crate::{state::SharedBrowserState, Framebuffer, TabMessage};
+use cef_ui::{Browser, PaintElementType, Rect, RenderHandlerCallbacks, ScreenInfo};
+
+impl Framebuffer {
+    fn new(width: u32, height: u32) -> Self {
+        let size = width * height * 4;
+        Self {
+            width,
+            height,
+            data: vec![0; size as usize],
+        }
+    }
+
+    fn copy_rect(&mut self, src: &[u8], src_stride: usize, src_rect: &Rect, dst_rect: &Rect) {
+        let src_x = src_rect.x as usize;
+        let src_y = src_rect.y as usize;
+        let dst_x = dst_rect.x as usize;
+        let dst_y = dst_rect.y as usize;
+        let width = src_rect.width as usize;
+        let height = src_rect.height as usize;
+        let dst_stride = (self.width * 4) as usize;
+
+        for row in 0..height {
+            let src_start = (src_y + row) * src_stride + src_x * 4;
+            let src_end = src_start + width * 4;
+            let dst_start = (dst_y + row) * dst_stride + dst_x * 4;
+            let dst_end = dst_start + width * 4;
+
+            self.data[dst_start..dst_end].copy_from_slice(&src[src_start..src_end]);
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.data.len()
+    }
+}
 
 pub struct HulyRenderHandlerCallbacks {
     state: SharedBrowserState,
 
+    framebuffer: Arc<Mutex<Framebuffer>>,
     popup_rect: Option<Rect>,
     popup_data: Option<Vec<u8>>,
 }
 
 impl HulyRenderHandlerCallbacks {
     pub fn new(state: SharedBrowserState) -> Self {
+        let (width, height) = state.read(|state| (state.width, state.height));
+        let framebuffer = Arc::new(Mutex::new(Framebuffer::new(width, height)));
+
         Self {
             state,
+            framebuffer,
             popup_rect: None,
             popup_data: None,
-        }
-    }
-
-    fn send_popup(&self) {
-        if let (Some(rect), Some(data)) = (&self.popup_rect, &self.popup_data) {
-            self.state.notify(TabMessage::Popup {
-                x: rect.x,
-                y: rect.y,
-                width: rect.width as u32,
-                height: rect.height as u32,
-                data: data.clone(),
-            });
         }
     }
 
@@ -44,54 +69,63 @@ impl HulyRenderHandlerCallbacks {
         rgba_buffer
     }
 
-    fn try_send_screenshot(&self, buffer: &[u8], width: u32, height: u32) -> bool {
-        let mut state = self.state.lock();
-
-        if state.screenshot_channel.is_some()
-            && width == state.screenshot_width
-            && height == state.screenshot_height
-        {
-            let tx = state.screenshot_channel.take().unwrap();
-            _ = tx.send(buffer.to_vec());
-            return true;
+    fn draw_view(&mut self, buffer: &[u8], width: usize, dirty_rects: &[Rect]) {
+        let mut framebuffer = self.framebuffer.lock().unwrap();
+        if framebuffer.len() != buffer.len() {
+            return;
         }
 
-        false
+        let src_stride = width * 4;
+        for rect in dirty_rects {
+            framebuffer.copy_rect(buffer, src_stride, rect, rect);
+        }
+    }
+
+    fn draw_popup(&mut self) {
+        let mut framebuffer = self.framebuffer.lock().unwrap();
+
+        let popup_rect = self
+            .popup_rect
+            .as_ref()
+            .expect("popup rect can't be None here");
+
+        let popup_data = self
+            .popup_data
+            .as_ref()
+            .expect("popup data can't be None here");
+
+        let src_stride = popup_rect.width as usize * 4;
+        let src_rect = &Rect {
+            x: 0,
+            y: 0,
+            width: popup_rect.width,
+            height: popup_rect.height,
+        };
+
+        framebuffer.copy_rect(popup_data, src_stride, src_rect, popup_rect);
     }
 }
 
 impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
-    fn get_accessibility_handler(&mut self) -> Option<AccessibilityHandler> {
-        None
-    }
-
-    fn get_root_screen_rect(&mut self, _: Browser) -> Option<Rect> {
-        None
-    }
-
     fn get_view_rect(&mut self, _: Browser) -> Rect {
-        let state = self.state.lock();
-        let mut rect = Rect {
-            x: 0,
-            y: 0,
-            width: state.width as i32,
-            height: state.height as i32,
-        };
-
-        if state.screenshot_channel.is_some() {
-            rect.width = state.screenshot_width as i32;
-            rect.height = state.screenshot_height as i32;
+        let (w, h) = self.state.read(|state| (state.width, state.height));
+        let mut framebuffer = self.framebuffer.lock().unwrap();
+        if framebuffer.len() as u32 != w * h * 4 {
+            *framebuffer = Framebuffer::new(w, h);
         }
 
-        rect
-    }
-
-    fn get_screen_point(&mut self, _: Browser, _: &Point) -> Option<Point> {
-        None
+        Rect {
+            x: 0,
+            y: 0,
+            width: w as i32,
+            height: h as i32,
+        }
     }
 
     fn get_screen_info(&mut self, _: Browser) -> Option<ScreenInfo> {
-        let state = self.state.lock();
+        let (w, h) = self
+            .state
+            .read(|state| (state.width as i32, state.height as i32));
 
         Some(ScreenInfo {
             device_scale_factor: 1.0,
@@ -101,14 +135,14 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
             rect: Rect {
                 x: 0,
                 y: 0,
-                width: state.width as i32,
-                height: state.height as i32,
+                width: w,
+                height: h,
             },
             available_rect: Rect {
                 x: 0,
                 y: 0,
-                width: state.width as i32,
-                height: state.height as i32,
+                width: w,
+                height: h,
             },
         })
     }
@@ -128,58 +162,100 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         &mut self,
         _: Browser,
         paint_element_type: PaintElementType,
-        _: &[Rect],
+        dirty_rects: &[Rect],
+        buffer: &[u8],
+        width: usize,
+        _height: usize,
+    ) {
+        let active = self.state.read(|state| state.active);
+        if !active {
+            return;
+        }
+
+        match paint_element_type {
+            PaintElementType::View => {
+                self.draw_view(buffer, width, dirty_rects);
+            }
+            PaintElementType::Popup => {
+                self.popup_data = Some(buffer.to_vec());
+            }
+        }
+
+        if self.popup_rect.is_some() && self.popup_data.is_some() {
+            self.draw_popup();
+        }
+
+        self.state
+            .notify(TabMessage::Frame(self.framebuffer.clone()));
+    }
+}
+
+pub struct ScreenshotRenderHandlerCallbacks {
+    state: SharedBrowserState,
+}
+
+impl ScreenshotRenderHandlerCallbacks {
+    pub fn new(state: SharedBrowserState) -> Self {
+        Self { state }
+    }
+}
+
+impl RenderHandlerCallbacks for ScreenshotRenderHandlerCallbacks {
+    fn get_view_rect(&mut self, _: Browser) -> Rect {
+        let (w, h) = self
+            .state
+            .read(|state| (state.screenshot_info.width, state.screenshot_info.height));
+        Rect {
+            x: 0,
+            y: 0,
+            width: w as i32,
+            height: h as i32,
+        }
+    }
+
+    fn get_screen_info(&mut self, _: Browser) -> Option<ScreenInfo> {
+        let (w, h) = self
+            .state
+            .read(|state| (state.screenshot_info.width, state.screenshot_info.height));
+        let rect = Rect {
+            x: 0,
+            y: 0,
+            width: w as i32,
+            height: h as i32,
+        };
+
+        Some(ScreenInfo {
+            device_scale_factor: 1.0,
+            depth: 32,
+            depth_per_component: 8,
+            is_monochrome: false,
+            rect: rect,
+            available_rect: rect,
+        })
+    }
+
+    fn on_paint(
+        &mut self,
+        _browser: Browser,
+        _paint_element_type: PaintElementType,
+        _dirty_rects: &[Rect],
         buffer: &[u8],
         width: usize,
         height: usize,
     ) {
-        if self.try_send_screenshot(buffer, width as u32, height as u32) {
+        let (w, h) = self
+            .state
+            .read(|state| (state.screenshot_info.width, state.screenshot_info.height));
+        if width != w as usize || height != h as usize {
             return;
         }
 
-        {
-            let state = self.state.lock();
-            if !(state.active && state.width == width as u32 && state.height == height as u32) {
-                return;
-            }
-        }
-
-        match paint_element_type {
-            PaintElementType::Popup => {
-                self.popup_data = Some(buffer.to_vec());
-                self.send_popup();
-            }
-            PaintElementType::View => {
-                self.state.notify(TabMessage::Frame(
-                    self.convert_bgra_to_rgba(buffer, width, height),
-                ));
-                self.send_popup();
-            }
-        }
+        _ = self.state.update_and_return(|s| {
+            s.screenshot_info
+                .channel
+                .as_mut()
+                .expect("screenshot channel can't be None here")
+                .send(buffer.to_vec())
+        });
     }
-
-    fn on_accelerated_paint(&mut self, _: Browser, _: PaintElementType, _: &[Rect]) {}
-
-    fn get_touch_handle_size(&mut self, _: Browser, _: HorizontalAlignment) -> Size {
-        Size {
-            width: 0,
-            height: 0,
-        }
-    }
-
-    fn on_touch_handle_state_changed(&mut self, _: Browser, _: &TouchHandleState) {}
-
-    fn start_dragging(&mut self, _: Browser, _: DragData, _: DragOperations, _: &Point) -> bool {
-        false
-    }
-
-    fn update_drag_cursor(&mut self, _: Browser, _: DragOperations) {}
-
-    fn on_scroll_offset_changed(&mut self, _: Browser, _x: f64, _y: f64) {}
-
-    fn on_ime_composition_range_changed(&mut self, _: Browser, _: &Range, _: &[Rect]) {}
-
-    fn on_text_selection_changed(&mut self, _: Browser, _: Option<String>, _: &Range) {}
-
-    fn on_virtual_keyboard_requested(&mut self, _: Browser, _: TextInputMode) {}
 }

@@ -14,6 +14,27 @@ use crate::{
     LoadState,
 };
 
+pub enum RenderMode {
+    Stream,
+    Sreenshot,
+}
+
+pub struct ScreenshotInfo {
+    pub width: u32,
+    pub height: u32,
+    pub channel: Option<UnboundedSender<Vec<u8>>>,
+}
+
+impl Default for ScreenshotInfo {
+    fn default() -> Self {
+        ScreenshotInfo {
+            width: 0,
+            height: 0,
+            channel: None,
+        }
+    }
+}
+
 pub struct BrowserState {
     pub title: String,
     pub url: String,
@@ -25,14 +46,12 @@ pub struct BrowserState {
     pub active: bool,
     pub left_mouse_button_down: bool,
 
-    pub clickable_elements: Option<Vec<ClickableElement>>,
+    pub render_mode: RenderMode,
 
-    pub screenshot_width: u32,
-    pub screenshot_height: u32,
-    pub screenshot_channel: Option<oneshot::Sender<Vec<u8>>>,
+    pub clickable_elements: Option<Vec<ClickableElement>>,
+    pub screenshot_info: ScreenshotInfo,
 
     pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
-
     pub subscribers: HashMap<i32, UnboundedSender<TabMessage>>,
 }
 
@@ -53,8 +72,9 @@ impl SharedBrowserState {
         reader(&state)
     }
 
-    pub fn lock(&self) -> std::sync::MutexGuard<'_, BrowserState> {
-        self.0.lock().expect("Browser state lock poisoned")
+    pub fn update_and_return<T: FnOnce(&mut BrowserState) -> R, R>(&self, updater: T) -> R {
+        let mut state = self.0.lock().expect("Browser state lock poisoned");
+        updater(&mut state)
     }
 
     pub fn subscribe(&self, id: i32, tx: UnboundedSender<TabMessage>) {

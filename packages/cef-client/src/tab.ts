@@ -5,13 +5,15 @@ import { ClickableElement, detectPlatform, MouseButton, Platform, ScreenshotOpti
 
 export class Tab {
     id: number;
-    private messageHandler: MessageHandler;
 
+    private serverUrl: URL;
+    private messageHandler: MessageHandler;
     private platform: Platform = detectPlatform();
 
-    constructor(messageHandler: MessageHandler, id: number) {
-        this.messageHandler = messageHandler;
+    constructor(id: number, serverUrl: URL, messageHandler: MessageHandler) {
         this.id = id;
+        this.serverUrl = serverUrl;
+        this.messageHandler = messageHandler;
     }
 
     async title(): Promise<string> {
@@ -113,6 +115,7 @@ export class Tab {
     }
 
     events(): TabEventStream {
-        return new TabEventStream(`ws://localhost:8080/tab/${this.id}`);
+        let address = this.serverUrl.origin + "/tab/" + this.id;
+        return new TabEventStream(address);
     }
 }

@@ -3,22 +3,24 @@ import { OpenTabOptions } from './types.js';
 import { MessageHandler } from './messages.js';
 
 export class Browser {
+    private serverUrl: URL;
     private websocket: WebSocket;
     private messageHandler: MessageHandler;
 
-    constructor(websocket: WebSocket) {
+    constructor(serverUrl: URL, websocket: WebSocket) {
+        this.serverUrl = serverUrl;
         this.websocket = websocket;
         this.messageHandler = new MessageHandler(this.websocket);
     }
 
     async openTab(options?: OpenTabOptions): Promise<Tab> {
         let id = await this.messageHandler.send(-1, 'OpenTab', { options: options });
-        return new Tab(this.messageHandler, id);
+        return new Tab(id, this.serverUrl, this.messageHandler);
     }
 
     async tabs(): Promise<Tab[]> {
         let ids = await this.messageHandler.send(-1, 'GetTabs');
-        return ids.map(id => new Tab(this.messageHandler, id));
+        return ids.map(id => new Tab(id, this.serverUrl, this.messageHandler));
     }
 
     resize(width: number, height: number) {

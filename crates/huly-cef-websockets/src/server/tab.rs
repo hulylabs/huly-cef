@@ -18,29 +18,7 @@ pub async fn event_loop(mut tab: Browser, mut websocket: WebSocketStream<TcpStre
 
     while let Some(message) = rx.recv().await {
         let message = match message {
-            TabMessage::Frame(data) => {
-                let mut buffer = Vec::new();
-                buffer.extend(0_i8.to_ne_bytes());
-                buffer.extend(data);
-                Message::Binary(buffer.into())
-            }
-            TabMessage::Popup {
-                x,
-                y,
-                width,
-                height,
-                data,
-            } => {
-                let mut buffer = Vec::new();
-                buffer.extend(1_i8.to_ne_bytes());
-                buffer.extend(x.to_ne_bytes());
-                buffer.extend(y.to_ne_bytes());
-                buffer.extend(width.to_ne_bytes());
-                buffer.extend(height.to_ne_bytes());
-                buffer.extend(data);
-
-                Message::Binary(buffer.into())
-            }
+            TabMessage::Frame(data) => Message::Binary(data.lock().unwrap().data.clone().into()),
             TabMessage::Closed => {
                 break;
             }
@@ -51,7 +29,6 @@ pub async fn event_loop(mut tab: Browser, mut websocket: WebSocketStream<TcpStre
 
         if let Err(e) = websocket.send(message).await {
             error!("failed to send message: {:?}", e);
-
             tab.unsubscribe(id);
             break;
         }
@@ -59,14 +36,18 @@ pub async fn event_loop(mut tab: Browser, mut websocket: WebSocketStream<TcpStre
 }
 
 pub fn generate_events(tab: &Browser, tx: UnboundedSender<TabMessage>) {
-    let state = tab.state.lock();
+    _ = tx.send(TabMessage::Url(tab.state.read(|state| state.url.clone())));
+    _ = tx.send(TabMessage::Title(
+        tab.state.read(|state| state.title.clone()),
+    ));
+    _ = tx.send(TabMessage::Cursor(
+        tab.state.read(|state| state.cursor.clone()),
+    ));
+    _ = tx.send(TabMessage::LoadState(
+        tab.state.read(|state| state.load_state.clone()),
+    ));
 
-    _ = tx.send(TabMessage::Url(state.url.clone()));
-    _ = tx.send(TabMessage::Title(state.title.clone()));
-    _ = tx.send(TabMessage::Cursor(state.cursor.clone()));
-    _ = tx.send(TabMessage::LoadState(state.load_state.clone()));
-
-    if let Some(favicon) = &state.favicon {
+    if let Some(favicon) = tab.state.read(|state| state.favicon.clone()) {
         _ = tx.send(TabMessage::Favicon(favicon.clone()));
     }
 
