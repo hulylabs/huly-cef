@@ -4,7 +4,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use base64::Engine;
 use futures::{SinkExt, StreamExt};
 use huly_cef::browser::Browser;
 
@@ -12,7 +11,6 @@ use super::messages::{
     BrowserMessage, BrowserMessageType, OpenTabOptions, ScreenshotOptions, ServerMessage,
     ServerMessageType,
 };
-use image::ImageEncoder;
 use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
@@ -233,20 +231,12 @@ async fn get_screenshot(tab: Browser, options: Option<ScreenshotOptions>) -> Str
         },
     };
 
-    let data = tab.automation.screenshot(opts.size.0, opts.size.1).await;
-
-    let mut bytes: Vec<u8> = Vec::new();
-    {
-        let encoder = image::codecs::png::PngEncoder::new(&mut bytes);
-        encoder
-            .write_image(
-                &data,
-                opts.size.0,
-                opts.size.1,
-                image::ExtendedColorType::Rgba8,
-            )
-            .expect("PNG encoding failed");
+    let result = tab.automation.screenshot(opts.size.0, opts.size.1).await;
+    match result {
+        Ok(data) => data,
+        Err(e) => {
+            error!("failed to take screenshot: {:?}", e);
+            String::new()
+        }
     }
-
-    base64::engine::general_purpose::STANDARD.encode(bytes)
 }

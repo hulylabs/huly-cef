@@ -16,23 +16,7 @@ use crate::{
 
 pub enum RenderMode {
     Stream,
-    Sreenshot,
-}
-
-pub struct ScreenshotInfo {
-    pub width: u32,
-    pub height: u32,
-    pub channel: Option<UnboundedSender<Vec<u8>>>,
-}
-
-impl Default for ScreenshotInfo {
-    fn default() -> Self {
-        ScreenshotInfo {
-            width: 0,
-            height: 0,
-            channel: None,
-        }
-    }
+    Screenshot,
 }
 
 pub struct BrowserState {
@@ -49,7 +33,6 @@ pub struct BrowserState {
     pub render_mode: RenderMode,
 
     pub clickable_elements: Option<Vec<ClickableElement>>,
-    pub screenshot_info: ScreenshotInfo,
 
     pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
     pub subscribers: HashMap<i32, UnboundedSender<TabMessage>>,

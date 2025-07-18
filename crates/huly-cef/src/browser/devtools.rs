@@ -1,11 +1,16 @@
-use std::sync::{Arc, Mutex};
+use anyhow::Result;
+
+use std::collections::HashMap;
+use std::sync::atomic::Ordering;
+use std::sync::{atomic::AtomicI32, Arc, Mutex};
 
 use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
     Registration,
 };
+use log::info;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Notify;
+use tokio::sync::{oneshot, Notify};
 
 #[derive(Debug)]
 enum LifecycleEventType {
@@ -20,10 +25,22 @@ enum Event {
     PageLifecycleEvent(LifecycleEventType),
 }
 
+struct Response {
+    success: bool,
+    data: Vec<u8>,
+}
+
+#[derive(Deserialize)]
+struct Screenshot {
+    data: String,
+}
+
 #[derive(Default)]
 struct DevToolsState {
     load_fired: bool,
     network_idle_fired: bool,
+
+    pending_requests: HashMap<i32, oneshot::Sender<Response>>,
 }
 
 #[derive(Default)]
@@ -33,7 +50,7 @@ struct SharedDevToolsState {
 }
 
 impl SharedDevToolsState {
-    pub fn on_event(&self, event: Event) {
+    fn on_event(&self, event: Event) {
         self.update_state(&event);
         self.notify.notify_waiters();
     }
@@ -56,7 +73,35 @@ impl SharedDevToolsState {
         }
     }
 
-    pub async fn wait_until<P: Fn(&DevToolsState) -> bool>(&self, predicate: P) {
+    fn on_result(&self, message_id: i32, success: bool, data: Vec<u8>) {
+        let response = Response { success, data };
+        if let Some(tx) = self
+            .inner
+            .lock()
+            .unwrap()
+            .pending_requests
+            .remove(&message_id)
+        {
+            let _ = tx.send(response);
+        } else {
+            info!("No pending request found for message_id: {}", message_id);
+        }
+    }
+
+    fn subscribe(&self, message_id: i32, tx: oneshot::Sender<Response>) {
+        let mut state = self.inner.lock().expect("Browser state lock poisoned");
+        if state.pending_requests.contains_key(&message_id) {
+            info!(
+                "Message ID {} already exists in pending requests",
+                message_id
+            );
+            return;
+        }
+
+        state.pending_requests.insert(message_id, tx);
+    }
+
+    async fn wait_until<P: Fn(&DevToolsState) -> bool>(&self, predicate: P) {
         loop {
             {
                 let state = self.inner.lock().expect("Browser state lock poisoned");
@@ -75,6 +120,7 @@ pub struct DevTools {
     state: Arc<SharedDevToolsState>,
     #[allow(unused)]
     registration: Registration,
+    counter: AtomicI32,
 }
 
 impl DevTools {
@@ -98,6 +144,7 @@ impl DevTools {
             browser,
             state,
             registration,
+            counter: AtomicI32::new(10),
         }
     }
 
@@ -105,6 +152,22 @@ impl DevTools {
         self.state
             .wait_until(|s| s.load_fired && s.network_idle_fired)
             .await;
+    }
+
+    pub async fn screenshot(&self) -> Result<String> {
+        let id = self.counter.fetch_add(1, Ordering::Relaxed);
+        let (tx, rx) = oneshot::channel();
+        self.state.subscribe(id, tx);
+
+        self.browser.get_host().unwrap().execute_dev_tools_method(
+            id,
+            "Page.captureScreenshot",
+            None,
+        )?;
+
+        let devtools_response = rx.await?;
+        let screenshot = serde_json::from_slice::<Screenshot>(&devtools_response.data)?;
+        Ok(screenshot.data)
     }
 }
 
@@ -131,10 +194,11 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
     fn on_dev_tools_method_result(
         &mut self,
         _: Browser,
-        _message_id: i32,
-        _success: bool,
-        _result: &[u8],
+        message_id: i32,
+        success: bool,
+        result: &[u8],
     ) {
+        self.state.on_result(message_id, success, result.to_vec());
     }
 
     fn on_dev_tools_event(&mut self, _: Browser, event: &str, params: &[u8]) {

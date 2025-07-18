@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use cef_ui::{Browser, PaintElementType, StringVisitor, StringVisitorCallbacks};
+use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
 use log::error;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc::unbounded_channel, oneshot};
+use tokio::sync::oneshot;
 
 use crate::{
     browser::{devtools::DevTools, mouse::Mouse},
-    state::{RenderMode, ScreenshotInfo, SharedBrowserState},
+    state::{RenderMode, SharedBrowserState},
     ClickableElement, MouseButton, GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
@@ -81,26 +81,29 @@ impl Automation {
         rx.await.unwrap()
     }
 
-    pub async fn screenshot(&self, width: u32, height: u32) -> Vec<u8> {
-        let (tx, mut rx) = unbounded_channel::<Vec<u8>>();
-        self.state.update(|state| {
-            state.render_mode = RenderMode::Sreenshot;
-            state.screenshot_info = ScreenshotInfo {
-                width,
-                height,
-                channel: Some(tx),
-            };
+    pub async fn screenshot(&self, width: u32, height: u32) -> Result<String> {
+        let (w, h) = self.state.read(|s| (s.width, s.height));
+        self.state.update(|s| {
+            s.render_mode = RenderMode::Screenshot;
+            s.width = width;
+            s.height = height;
         });
 
-        let host = self.browser.get_host().unwrap();
-        _ = host.was_resized();
-        _ = host.invalidate(PaintElementType::View);
+        // TODO: add render_mode checks in render handler and also size checks
+        _ = self.browser.get_host().unwrap().was_resized();
+        let screenshot = self.devtools.screenshot().await;
 
-        let data = rx.recv().await.unwrap();
-        self.state.update(|state| {
-            state.render_mode = RenderMode::Stream;
+        self.state.update(|s| {
+            s.render_mode = RenderMode::Stream;
+            s.width = w;
+            s.height = h;
         });
-        data
+
+        screenshot
+    }
+
+    pub async fn wait_until_loaded(&self) {
+        self.devtools.wait_until_loaded().await;
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
@@ -120,10 +123,6 @@ impl Automation {
             }
         }
         vec![]
-    }
-
-    pub async fn wait_until_loaded(&self) {
-        self.devtools.wait_until_loaded().await;
     }
 
     pub async fn click_element(&self, id: i32) {

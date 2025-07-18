@@ -27,9 +27,6 @@ tungstenite = "0.26.2"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.26.2"
 
-base64 = "0.22.1"
-image = "0.25.6"
-
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }
 
 
