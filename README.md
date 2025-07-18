@@ -1,4 +1,18 @@
-## Crates
+# Huly CEF
+
+A Rust-based framework for building desktop applications using the Chromium Embedded Framework (CEF).
+
+## Overview
+
+Huly CEF provides a set of Rust crates and tools for creating cross-platform desktop applications with web technologies. It includes WebSocket-based communication, instance management, and TypeScript client libraries.
+
+## Prerequisites
+
+- Rust (latest stable version)
+- Node.js and npm (for TypeScript client)
+- Docker (optional, for running the manager in a container)
+
+## Project Structure
 
 | Crate Name            | Description                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
@@ -6,32 +20,32 @@
 | `huly-cef-helper`     | macOS-specific helper app required for proper bundle packaging              |
 | `huly-cef-tools`      | Utility crate providing tools and helpers for building `huly-cef` apps      |
 | `huly-cef-websockets` | WebSocket-based server for streaming and interacting with CEF browser views |
-| `huly-cef-manager`    | A RESTful server that manages Huly CEF instances                            |
+| `huly-cef-manager`    | A RESTful server that manages Huly CEF instances                           |
 
 
-## Launch Instructions For Huly CEF
+## Launch Instructions For Huly CEF Websockets
 Follow these steps to build and run Huly CEF:
 
-1. **Build Huly CEF**  
+1. **Build Huly CEF Websockets**  
    To build Huly CEF, use the following command:
    ```bash
    cargo run --bin huly-cef-build --release -- --profile release
    ```
-2. **Run Huly CEF**  
+2. **Run Huly CEF Websockets**  
    Linux:
    ```bash
    ./target/release/huly-cef-websockets
    ```
 
-   Windows:
-   ```bash
-   ./target/release/huly-cef-websockets.exe
-   ```
+**Windows:**
+```bash
+./target/release/huly-cef-websockets.exe
+```
 
-   MacOS:
-   ```bash
-   ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
-   ```
+**macOS:**
+```bash
+./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
+```
 
 ## Build Instructions For TypeScript CEF Client (For Development)
 
@@ -59,26 +73,34 @@ Follow these steps to build and run Huly CEF:
    npm publish
    ```
 
-## Interacting with Huly CEF Manager
+## Huly CEF Manager
 
-The `huly-cef-manager` provides a RESTful API for managing CEF instances. Here's how to interact with it:
+The manager provides a RESTful API for managing multiple CEF instances.
 
-1. **Start the Manager**  
-   First, ensure the huly-cef-manager is running on the default port (3000).
+### Running with Docker
 
-2. **Create CEF Instance and get its Address**  
-   Fetch the address of a CEF instance by its ID:
-   ```javascript
-   const cef = await fetch("http://localhost:3000/instances/id");
-   const address = await cef.text();
-   ```
+```bash
+# Build the Docker image
+docker build -f Dockerfile.manager . -t huly-cef-manager
 
-3. **Connect and Control Browser**  
-   Use the address to connect and control the browser:
-   ```javascript
-   const browser = await connect(address);
-   let tab = await browser.openTab({ url: "https://google.com", wait_until_loaded: true });
+# Run the container
+docker run -p 3000:3000 -p 40000-40200:40000-40200 -v /path/to/cefcache/on/host:/cefcache --rm huly-cef-manager --port-range 40000-40200
+```
 
-   let title = await tab.title();
-   console.log("Page title: ", title);
-   ```
+### API Usage Example
+
+```javascript
+// Create a CEF instance and get its address
+const response = await fetch("http://localhost:3000/instances/id");
+const address = await response.text();
+
+// Connect and control the browser
+const browser = await connect(address);
+const tab = await browser.openTab({ 
+  url: "https://google.com", 
+  wait_until_loaded: true 
+});
+
+let title = await tab.title();
+console.log("Page title: ", title);
+```

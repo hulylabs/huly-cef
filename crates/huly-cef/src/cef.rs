@@ -18,7 +18,7 @@ pub fn new(port: u16, cache_path: String) -> Result<CefContext> {
     let main_args = MainArgs::new()?;
     let settings = Settings::new()
         .log_severity(LogSeverity::Verbose)
-        .log_file(&cache_dir.join("cef.log"))?
+        .log_file(&log_file)?
         .cache_path(&cache_dir)?
         .windowless_rendering_enabled(true);
 
