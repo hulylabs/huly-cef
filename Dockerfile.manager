@@ -63,4 +63,5 @@ RUN apt-get update && apt-get install -y \
     xvfb
 
 ENV RUST_LOG=info
-ENTRYPOINT ["/apps/huly-cef-manager", "--cache-dir", "/cefcache", "--cef-exe", "/apps/huly-cef-websockets"]
+COPY ./run-huly-cef-manager.sh /run.sh
+ENTRYPOINT ["/run.sh"]
