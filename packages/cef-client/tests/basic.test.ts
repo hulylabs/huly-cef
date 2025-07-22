@@ -231,5 +231,10 @@ describe('Basic API', () => {
 
         await tab.close();
     });
+
+    test('wait for page load', async () => {
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/unknown.html", wait_until_loaded: false });
+        expect(tab.id).toBeDefined();
+    });
 });
 

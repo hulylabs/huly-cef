@@ -47,7 +47,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
 
     fn on_load_end(&mut self, _browser: Browser, frame: Frame, http_status_code: i32) {
         if frame.is_main().unwrap() {
-            if http_status_code == 200 || http_status_code == 0 {
+            if http_status_code == 200 {
                 self.status = LoadStatus::Loaded;
             }
         }

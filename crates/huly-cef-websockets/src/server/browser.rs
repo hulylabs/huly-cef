@@ -188,8 +188,14 @@ async fn open_tab(
     }
 
     if options.wait_until_loaded {
-        tab.automation.wait_until_loaded().await;
+        let result = tab.automation.wait_until_loaded().await;
+        match result {
+            Ok(_) => info!("tab with id {} is loaded", id),
+            Err(e) => error!("failed to wait until tab with id {} is loaded: {}", id, e),
+        }
     }
+
+    info!("tab with id {} opened", id);
 
     ServerMessageType::Tab(id)
 }

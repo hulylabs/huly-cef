@@ -3,6 +3,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicI32, Arc, Mutex};
+use std::time::Duration;
 
 use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
@@ -83,8 +84,6 @@ impl SharedDevToolsState {
             .remove(&message_id)
         {
             let _ = tx.send(response);
-        } else {
-            info!("No pending request found for message_id: {}", message_id);
         }
     }
 
@@ -144,14 +143,24 @@ impl DevTools {
             browser,
             state,
             registration,
-            counter: AtomicI32::new(10),
+            counter: AtomicI32::new(0),
         }
     }
 
-    pub async fn wait_until_loaded(&self) {
-        self.state
-            .wait_until(|s| s.load_fired && s.network_idle_fired)
-            .await;
+    pub async fn wait_until_loaded(&self, time_to_wait: Duration) {
+        let result = tokio::time::timeout(
+            time_to_wait,
+            self.state
+                .wait_until(|s| s.load_fired && s.network_idle_fired),
+        )
+        .await;
+
+        if result.is_err() {
+            info!(
+                "Timeout while waiting for page to load ({} sec)",
+                time_to_wait.as_secs()
+            );
+        }
     }
 
     pub async fn screenshot(&self) -> Result<String> {

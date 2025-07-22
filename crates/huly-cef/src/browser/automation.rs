@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 
@@ -10,7 +10,7 @@ use tokio::sync::oneshot;
 use crate::{
     browser::{devtools::DevTools, mouse::Mouse},
     state::{RenderMode, SharedBrowserState},
-    ClickableElement, MouseButton, GET_CLICKABLE_ELEMENTS_SCRIPT,
+    ClickableElement, LoadStatus, MouseButton, GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
 pub struct DOMVisitor {
@@ -102,8 +102,17 @@ impl Automation {
         screenshot
     }
 
-    pub async fn wait_until_loaded(&self) {
-        self.devtools.wait_until_loaded().await;
+    pub async fn wait_until_loaded(&self) -> Result<(), String> {
+        self.devtools
+            .wait_until_loaded(Duration::from_secs(10))
+            .await;
+
+        let load_state = self.state.read(|s| s.load_state.clone());
+        match load_state.status {
+            LoadStatus::Loaded => Ok(()),
+            LoadStatus::Loading => Err("Page is still loading".to_string()),
+            LoadStatus::LoadError => Err(load_state.error_message),
+        }
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {

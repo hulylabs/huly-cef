@@ -28,7 +28,3 @@ tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.26.2"
 
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }
-
-
-[profile.release]
-debug = true
