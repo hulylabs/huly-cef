@@ -9,7 +9,6 @@ use tokio::net::TcpListener;
 use huly_cef::browser::Browser;
 
 mod browser;
-mod messages;
 mod tab;
 
 enum ConnectionType {
@@ -19,27 +18,52 @@ enum ConnectionType {
 }
 
 struct ServerState {
-    cache_path: String,
+    cache_dir: String,
     tabs: HashMap<i32, Browser>,
-    size: (u32, u32),
 }
 
-impl ServerState {
-    fn new(cache_path: String) -> Self {
-        ServerState {
-            cache_path,
-            tabs: HashMap::new(),
-            size: (tab::DEFAULT_WIDTH, tab::DEFAULT_HEIGHT),
-        }
+struct SharedServerState(Arc<Mutex<ServerState>>);
+
+impl Clone for SharedServerState {
+    fn clone(&self) -> Self {
+        SharedServerState(self.0.clone())
     }
 }
 
-pub async fn serve(addr: String, cache_path: String) {
+impl SharedServerState {
+    fn new(cache_dir: String) -> Self {
+        Self(Arc::new(Mutex::new(ServerState {
+            cache_dir,
+            tabs: HashMap::new(),
+        })))
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, ServerState> {
+        self.0.lock().unwrap()
+    }
+
+    fn set_tab(&self, id: i32, browser: Browser) {
+        let mut state = self.0.lock().unwrap();
+        state.tabs.insert(id, browser);
+    }
+
+    fn get_tab(&self, id: i32) -> Option<Browser> {
+        let state = self.0.lock().unwrap();
+        state.tabs.get(&id).cloned()
+    }
+
+    fn remove_tab(&self, id: i32) -> Option<Browser> {
+        let mut state = self.0.lock().unwrap();
+        state.tabs.remove(&id)
+    }
+}
+
+pub async fn serve(addr: String, cache_dir: String) {
     let server = TcpListener::bind(addr)
         .await
         .expect("failed to start a TCP listener");
 
-    let state = Arc::new(Mutex::new(ServerState::new(cache_path)));
+    let state = SharedServerState::new(cache_dir);
     loop {
         let (stream, _) = server
             .accept()
@@ -88,7 +112,7 @@ pub async fn serve(addr: String, cache_path: String) {
                 info!("new tab connection established");
 
                 let tab = {
-                    let state = state.lock().unwrap();
+                    let state = state.lock();
                     state.tabs.get(&id).cloned()
                 };
                 let Some(tab) = tab else {

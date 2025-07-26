@@ -16,5 +16,7 @@ serde_json = "1.0"
 serde_with = "3.14.0"
 url = "2.5"
 crossbeam-channel = "0.5"
+base64 = "0.22"
+image = "0.25"
 
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }

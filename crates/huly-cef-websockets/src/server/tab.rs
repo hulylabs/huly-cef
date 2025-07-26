@@ -8,9 +8,6 @@ use tokio::{
 use tokio_tungstenite::WebSocketStream;
 use tungstenite::Message;
 
-pub const DEFAULT_WIDTH: u32 = 1280;
-pub const DEFAULT_HEIGHT: u32 = 720;
-
 pub async fn event_loop(mut tab: Browser, mut websocket: WebSocketStream<TcpStream>) {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let id = tab.subscribe(tx.clone());

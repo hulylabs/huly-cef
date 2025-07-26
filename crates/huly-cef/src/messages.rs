@@ -14,7 +14,7 @@ pub enum MouseButton {
     Right = 2,
 }
 
-#[derive(Debug, Clone, Serialize_repr, Deserialize_repr, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize_repr, Hash, PartialEq, Eq)]
 #[repr(u8)]
 pub enum LoadStatus {
     Loading = 0,
@@ -22,7 +22,7 @@ pub enum LoadStatus {
     LoadError = 2,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadState {
     pub status: LoadStatus,
@@ -59,7 +59,7 @@ pub struct Framebuffer {
 }
 
 /// Represents different types of messages that can be sent from CEF browser
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(tag = "type", content = "data")]
 pub enum TabMessage {
     /// Message indicating that a new frame has been painted.

@@ -2,14 +2,16 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 
+use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
+use image::imageops::FilterType;
 use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
 use crate::{
     browser::{devtools::DevTools, mouse::Mouse},
-    state::{RenderMode, SharedBrowserState},
+    state::SharedBrowserState,
     ClickableElement, LoadStatus, MouseButton, GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
@@ -82,24 +84,13 @@ impl Automation {
     }
 
     pub async fn screenshot(&self, width: u32, height: u32) -> Result<String> {
-        let (w, h) = self.state.read(|s| (s.width, s.height));
-        self.state.update(|s| {
-            s.render_mode = RenderMode::Screenshot;
-            s.width = width;
-            s.height = height;
-        });
+        let screenshot = self.devtools.screenshot().await?;
 
-        // TODO: add render_mode checks in render handler and also size checks
-        _ = self.browser.get_host().unwrap().was_resized();
-        let screenshot = self.devtools.screenshot().await;
+        let screenshot = BASE64_STANDARD.decode(screenshot)?;
+        let screenshot = image::load_from_memory(&screenshot)?;
+        let screenshot = screenshot.resize(width, height, FilterType::Lanczos3);
 
-        self.state.update(|s| {
-            s.render_mode = RenderMode::Stream;
-            s.width = w;
-            s.height = h;
-        });
-
-        screenshot
+        Ok(BASE64_STANDARD.encode(screenshot.as_bytes()))
     }
 
     pub async fn wait_until_loaded(&self) -> Result<(), String> {

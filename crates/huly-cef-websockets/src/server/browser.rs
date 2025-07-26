@@ -1,23 +1,28 @@
-use std::{
-    fs::read_to_string,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
-
 use futures::{SinkExt, StreamExt};
-use huly_cef::browser::Browser;
+use huly_cef::{browser::Browser, MouseButton};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::json;
 
-use super::messages::{
-    BrowserMessage, BrowserMessageType, OpenTabOptions, ScreenshotOptions, ServerMessage,
-    ServerMessageType,
-};
+use crate::server::SharedServerState;
 use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
-use super::ServerState;
+#[derive(Debug, Deserialize)]
+pub struct Request {
+    pub id: String,
+    pub method: String,
+    pub params: serde_json::Value,
+}
 
-pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStream<TcpStream>) {
+#[derive(Debug, Serialize)]
+pub struct Response {
+    pub id: String,
+    pub result: Option<serde_json::Value>,
+    pub error: Option<serde_json::Value>,
+}
+
+pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<TcpStream>) {
     while let Some(msg) = websocket.next().await {
         let msg = match msg {
             Ok(msg) => msg,
@@ -31,7 +36,7 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             break;
         }
 
-        let msg = match serde_json::from_slice::<BrowserMessage>(&msg.clone().into_data()) {
+        let request = match serde_json::from_slice::<Request>(&msg.clone().into_data()) {
             Ok(msg) => msg,
             Err(e) => {
                 error!("failed to deserialize message: {:?} (error: {:?})", msg, e);
@@ -39,155 +44,178 @@ pub async fn handle(state: Arc<Mutex<ServerState>>, mut websocket: WebSocketStre
             }
         };
 
-        let tab = state.lock().unwrap().tabs.get(&msg.tab_id).cloned();
-        let mut resp = None;
-        match (msg.body, tab) {
-            (BrowserMessageType::Close, _) => break,
-            (BrowserMessageType::RestoreSession, _) => resp = Some(restore_session(&state)),
-            (BrowserMessageType::OpenTab { options }, _) => {
-                // TODO: pass wait_unti_loaded as a parameter
-                resp = Some(open_tab(&state, options).await)
-            }
-            (BrowserMessageType::CloseTab, _) => close_tab(&state, msg.tab_id),
-            (BrowserMessageType::GetTabs, _) => resp = Some(get_tabs(&state)),
-            (BrowserMessageType::GetTitle, Some(tab)) => {
-                resp = Some(ServerMessageType::Title(tab.get_title()));
-            }
-            (BrowserMessageType::GetUrl, Some(tab)) => {
-                resp = Some(ServerMessageType::Url(tab.get_url()));
-            }
-            (BrowserMessageType::Resize { width, height }, _) => resize(&state, width, height),
-            (BrowserMessageType::Screenshot { options }, Some(tab)) => {
-                resp = Some(ServerMessageType::Screenshot(
-                    get_screenshot(tab, options).await,
-                ));
-            }
-            (BrowserMessageType::Navigate { url }, Some(tab)) => tab.go_to(&url),
-            (BrowserMessageType::MouseMove { x, y }, Some(tab)) => tab.mouse.move_to(x, y),
-            (BrowserMessageType::Click { x, y, button, down }, Some(tab)) => {
-                tab.mouse.click(x, y, button, down)
-            }
-            (BrowserMessageType::Wheel { x, y, dx, dy }, Some(tab)) => {
-                tab.mouse.wheel(x, y, dx, dy)
-            }
-            (
-                BrowserMessageType::Key {
-                    character,
-                    code,
-                    windowscode,
-                    down,
-                    ctrl,
-                    shift,
-                },
-                Some(tab),
-            ) => tab
-                .keyboard
-                .key_press(character, windowscode, code, down, ctrl, shift),
-            (BrowserMessageType::Char { unicode }, Some(tab)) => tab.keyboard.char(unicode),
-            (BrowserMessageType::StopVideo, Some(tab)) => tab.stop_video(),
-            (BrowserMessageType::StartVideo, Some(tab)) => tab.start_video(),
-            (BrowserMessageType::Reload, Some(tab)) => tab.reload(),
-            (BrowserMessageType::GoBack, Some(tab)) => tab.go_back(),
-            (BrowserMessageType::GoForward, Some(tab)) => tab.go_forward(),
-            (BrowserMessageType::SetFocus(focus), Some(tab)) => tab.set_focus(focus),
-            (BrowserMessageType::GetDOM, Some(tab)) => {
-                resp = Some(ServerMessageType::DOM(tab.automation.get_dom().await));
-            }
-            (BrowserMessageType::GetClickableElements, Some(tab)) => {
-                let elements = tab.automation.get_clickable_elements().await;
-                resp = Some(ServerMessageType::ClickableElements(elements));
-            }
-            (BrowserMessageType::ClickElement { id }, Some(tab)) => {
-                tab.automation.click_element(id).await;
-            }
-            (_, None) => {
-                error!("tab with id {} not found", msg.tab_id);
-                continue;
-            }
-        }
+        // TODO: use registry for handlers
+        let result = match request.method.as_str() {
+            "openTab" => match params(request.params) {
+                Ok(params) => open_tab(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "closeTab" => params(request.params).and_then(|params| close_tab(&state, params)),
+            "getTabs" => params(request.params).and_then(|_: EmptyParams| tabs(&state)),
+            "getTitle" => params(request.params).and_then(|params| title(&state, params)),
+            "getUrl" => params(request.params).and_then(|params| url(&state, params)),
+            "resize" => params(request.params).and_then(|params| resize(&state, params)),
+            "screenshot" => match params(request.params) {
+                Ok(params) => screenshot(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "navigate" => params(request.params).and_then(|params| navigate(&state, params)),
+            "mouseMove" => params(request.params).and_then(|params| mouse_move(&state, params)),
+            "click" => params(request.params).and_then(|params| click(&state, params)),
+            "wheel" => params(request.params).and_then(|params| wheel(&state, params)),
+            "key" => params(request.params).and_then(|params| key(&state, params)),
+            "char" => params(request.params).and_then(|params| char(&state, params)),
+            "stopVideo" => params(request.params).and_then(|params| stop_video(&state, params)),
+            "startVideo" => params(request.params).and_then(|params| start_video(&state, params)),
+            "reload" => params(request.params).and_then(|params| reload(&state, params)),
+            "goBack" => params(request.params).and_then(|params| go_back(&state, params)),
+            "goForward" => params(request.params).and_then(|params| go_forward(&state, params)),
+            "setFocus" => params(request.params).and_then(|params| set_focus(&state, params)),
+            // "getDOM" => params(request.params).and_then(|params| Ok(get_dom(&state, params).await)),
+            // "getClickableElements" => params(request.params).and_then(|params| Ok(get_clickable_elements(&state, params).await)),
+            // "clickElement" => params(request.params).and_then(|params| click_element(&state, params).await),
+            _ => Err(json!( {"message": "unknown method"} )),
+        };
 
-        if let Some(resp) = resp {
-            let resp = ServerMessage {
-                id: msg.id,
-                tab_id: msg.tab_id,
-                body: resp,
-            };
+        let response = match result {
+            Ok(v) => Response {
+                id: request.id,
+                result: Some(v),
+                error: None,
+            },
+            Err(v) => Response {
+                id: request.id,
+                result: None,
+                error: Some(v),
+            },
+        };
 
-            let resp = serde_json::to_string(&resp).expect("failed to serialize response message");
-            websocket
-                .send(tungstenite::Message::Text(resp.into()))
-                .await
-                .expect("failed to send session message");
-        }
+        let response =
+            serde_json::to_string(&response).expect("failed to serialize response message");
+        websocket
+            .send(tungstenite::Message::Text(response.into()))
+            .await
+            .expect("failed to send session message");
     }
 }
 
-// fn close(state: Arc<Mutex<ServerState>>) {
-//     let state = state.lock().unwrap();
-//     let tabs: Vec<String> = state
-//         .tabs
-//         .values()
-//         .map(|tab| tab.state.read(|s| s.url.clone()))
-//         .collect();
-//     save_session(&state.cache_path, &tabs);
+#[derive(Debug, Deserialize)]
+struct EmptyParams;
 
-//     for (_, tab) in state.tabs.iter() {
-//         tab.close();
-//     }
-// }
+#[derive(Debug, Deserialize)]
+struct DefaultParams {
+    id: i32,
+}
 
-// fn save_session(cache_path: &str, tabs: &[String]) {
-//     let session_file_path = PathBuf::from(cache_path).join("session.json");
-//     info!(
-//         "saving session to cache path: {}",
-//         session_file_path.display()
-//     );
-//     if let Err(error) = serde_json::to_string(tabs)
-//         .and_then(|content| Ok(std::fs::write(session_file_path, content)))
-//     {
-//         error!("failed to save session file: {:?}", error);
-//     }
-// }
+#[derive(Debug, Deserialize)]
+struct OpenTabParams {
+    url: String,
+    wait_until_loaded: bool,
+    width: u32,
+    height: u32,
+}
 
-fn restore_session(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
-    let state = state.lock().unwrap();
+#[derive(Debug, Deserialize)]
+struct ResizeParams {
+    width: u32,
+    height: u32,
+}
 
-    let session_file_path = PathBuf::from(state.cache_path.clone()).join("session.json");
-    info!(
-        "restoring session from cache path: {}",
-        session_file_path.display()
-    );
-    let vec = read_to_string(session_file_path)
-        .and_then(|content| serde_json::from_str::<Vec<String>>(&content).map_err(|e| e.into()))
-        .unwrap_or_else(|error| {
-            error!("failed to read session file: {:?}", error);
-            Vec::new()
-        });
+#[derive(Debug, Deserialize)]
+struct ScreenshotParams {
+    tab: i32,
+    width: u32,
+    height: u32,
+}
 
-    ServerMessageType::Session(vec)
+#[derive(Debug, Deserialize)]
+struct NavigateParams {
+    tab: i32,
+    url: String,
+    wait_until_loaded: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClickParams {
+    tab: i32,
+    x: i32,
+    y: i32,
+    button: MouseButton,
+    down: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct MouseMoveParams {
+    tab: i32,
+    x: i32,
+    y: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct WheelParams {
+    tab: i32,
+    x: i32,
+    y: i32,
+    dx: i32,
+    dy: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct KeyParams {
+    tab: i32,
+    character: u16,
+    windowscode: i32,
+    code: i32,
+    down: bool,
+    ctrl: bool,
+    shift: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct CharParams {
+    tab: i32,
+    unicode: u16,
+}
+
+#[derive(Debug, Deserialize)]
+struct SetFocusParams {
+    tab: i32,
+    focus: bool,
+}
+
+fn get_tab(state: &SharedServerState, id: i32) -> Result<Browser, serde_json::Value> {
+    state.get_tab(id).ok_or_else(|| {
+        json!({
+            "error": {
+                "message": format!("tab with id {} not found", id)
+            }
+        })
+    })
+}
+
+fn params<T: DeserializeOwned>(params: serde_json::Value) -> Result<T, serde_json::Value> {
+    serde_json::from_value(params).map_err(|e| {
+        error!("failed to deserialize params: {:?}", e);
+        json!({
+            "error": {
+                "message": format!("failed to deserialize params: {}", e)
+            }
+        })
+    })
 }
 
 async fn open_tab(
-    state: &Arc<Mutex<ServerState>>,
-    options: Option<OpenTabOptions>,
-) -> ServerMessageType {
-    let (width, height) = {
-        let state = state.lock().unwrap();
-        state.size
-    };
+    state: &SharedServerState,
+    params: OpenTabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    info!("opening a new tab with url: {}", params.url);
 
-    let options = options.unwrap_or_default();
-
-    info!("opening a new tab with url: {}", options.url);
-
-    let tab = Browser::new(width, height, &options.url);
+    let tab = Browser::new(params.width, params.height, &params.url);
     let id = tab.get_id();
-    {
-        let mut state = state.lock().unwrap();
-        state.tabs.insert(id, tab.clone());
-    }
+    state.set_tab(id, tab.clone());
 
-    if options.wait_until_loaded {
+    // TODO: return json object instead of printing errors
+    if params.wait_until_loaded {
         let result = tab.automation.wait_until_loaded().await;
         match result {
             Ok(_) => info!("tab with id {} is loaded", id),
@@ -197,21 +225,32 @@ async fn open_tab(
 
     info!("tab with id {} opened", id);
 
-    ServerMessageType::Tab(id)
+    Ok(json!({
+        "id": id,
+        "url": params.url,
+        "width": params.width,
+        "height": params.height,
+    }))
 }
 
-fn close_tab(state: &Arc<Mutex<ServerState>>, id: i32) {
-    let tab = state.lock().unwrap().tabs.remove(&id);
+fn close_tab(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = state.remove_tab(params.id);
     if let Some(tab) = tab {
         tab.close();
+        Ok(json!({ "id": params.id }))
     } else {
-        error!("tab with id {} not found", id);
+        Err(json!({
+            "message": format!("tab with id {} not found", params.id)
+        }))
     }
 }
 
-fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
+fn tabs(state: &SharedServerState) -> Result<serde_json::Value, serde_json::Value> {
     let ids = {
-        let state = state.lock().unwrap();
+        let state = state.lock();
         state
             .tabs
             .values()
@@ -219,30 +258,183 @@ fn get_tabs(state: &Arc<Mutex<ServerState>>) -> ServerMessageType {
             .collect::<Vec<_>>()
     };
 
-    ServerMessageType::Tabs(ids)
+    Ok(json!({ "tabs": ids }))
 }
 
-fn resize(state: &Arc<Mutex<ServerState>>, width: u32, height: u32) {
-    let mut state = state.lock().unwrap();
-    state.size = (width, height);
-    state.tabs.iter().for_each(|t| t.1.resize(width, height));
+fn resize(
+    state: &SharedServerState,
+    params: ResizeParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let state = state.lock();
+    state
+        .tabs
+        .iter()
+        .for_each(|t| t.1.resize(params.width, params.height));
+
+    Ok(json!({}))
 }
 
-async fn get_screenshot(tab: Browser, options: Option<ScreenshotOptions>) -> String {
-    let opts = match options {
-        // TODO: add option validation
-        Some(value) => value,
-        None => ScreenshotOptions {
-            size: tab.get_size(),
-        },
-    };
-
-    let result = tab.automation.screenshot(opts.size.0, opts.size.1).await;
-    match result {
-        Ok(data) => data,
-        Err(e) => {
-            error!("failed to take screenshot: {:?}", e);
-            String::new()
+async fn screenshot(
+    state: &SharedServerState,
+    params: ScreenshotParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = match state.get_tab(params.tab) {
+        Some(tab) => tab,
+        None => {
+            return Err(json!({ "message": "tab not found" }));
         }
+    };
+    let result = tab.automation.screenshot(params.width, params.height).await;
+    match result {
+        Ok(data) => Ok(json!({ "screenshot": data })),
+        Err(e) => Err(json!({
+            "message": format!("failed to take screenshot: {}", e)
+        })),
     }
+}
+
+fn title(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    Ok(json!({ "title": tab.get_title() }))
+}
+
+fn url(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    Ok(json!({ "url": tab.get_url() }))
+}
+
+fn navigate(
+    state: &SharedServerState,
+    params: NavigateParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.go_to(&params.url);
+
+    // TODO: add waiting if `wait_until_loaded` is true
+
+    Ok(json!({}))
+}
+
+fn mouse_move(
+    state: &SharedServerState,
+    params: MouseMoveParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.mouse.move_to(params.x, params.y);
+
+    Ok(json!({}))
+}
+
+fn click(
+    state: &SharedServerState,
+    params: ClickParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.mouse
+        .click(params.x, params.y, params.button, params.down);
+
+    Ok(json!({}))
+}
+
+fn wheel(
+    state: &SharedServerState,
+    params: WheelParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.mouse.wheel(params.x, params.y, params.dx, params.dy);
+
+    Ok(json!({}))
+}
+
+fn key(
+    state: &SharedServerState,
+    params: KeyParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.keyboard.key(
+        params.character,
+        params.code,
+        params.windowscode,
+        params.down,
+        params.ctrl,
+        params.shift,
+    );
+
+    Ok(json!({}))
+}
+
+fn char(
+    state: &SharedServerState,
+    params: CharParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.keyboard.char(params.unicode);
+
+    Ok(json!({}))
+}
+
+fn stop_video(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    tab.stop_video();
+
+    Ok(json!({}))
+}
+
+fn start_video(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    tab.start_video();
+
+    Ok(json!({}))
+}
+
+fn reload(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    tab.reload();
+
+    Ok(json!({}))
+}
+
+fn go_back(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    tab.go_back();
+
+    Ok(json!({}))
+}
+
+fn go_forward(
+    state: &SharedServerState,
+    params: DefaultParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.id)?;
+    tab.go_forward();
+
+    Ok(json!({}))
+}
+
+fn set_focus(
+    state: &SharedServerState,
+    params: SetFocusParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.set_focus(params.focus);
+
+    Ok(json!({}))
 }

@@ -21,7 +21,7 @@ impl Keyboard {
         Keyboard { inner, state }
     }
 
-    pub fn key_press(
+    pub fn key(
         &self,
         character: u16,
         windowscode: i32,
