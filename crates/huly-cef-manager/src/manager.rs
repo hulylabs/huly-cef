@@ -10,12 +10,6 @@ use std::{
 use tokio_tungstenite::tungstenite::connect;
 use tracing::info;
 
-#[cfg(unix)]
-use nix::{
-    sys::signal::{self, Signal},
-    unistd::Pid,
-};
-
 #[derive(Default)]
 struct State {
     cef_exe: String,
