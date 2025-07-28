@@ -2,13 +2,14 @@
 target
 
 # Ignore CEF artifacts
-/cef
+cef
 
 # Ignore CEF-generated files
 MediaDeviceSalts*
 
-# Ignore Node.js modules
+# Ignore Node.js folders
 node_modules
 dist
 coverage
 html
+
