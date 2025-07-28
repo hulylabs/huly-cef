@@ -44,37 +44,46 @@ pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<Tcp
             }
         };
 
-        // TODO: use registry for handlers
+        info!("received request: {:?}", request);
+
         let result = match request.method.as_str() {
-            "openTab" => match params(request.params) {
+            "openTab" => match parse_params(request.params) {
                 Ok(params) => open_tab(&state, params).await,
                 Err(err) => Err(err),
             },
-            "closeTab" => params(request.params).and_then(|params| close_tab(&state, params)),
-            "getTabs" => params(request.params).and_then(|_: EmptyParams| tabs(&state)),
-            "getTitle" => params(request.params).and_then(|params| title(&state, params)),
-            "getUrl" => params(request.params).and_then(|params| url(&state, params)),
-            "resize" => params(request.params).and_then(|params| resize(&state, params)),
-            "screenshot" => match params(request.params) {
+            "screenshot" => match parse_params(request.params) {
                 Ok(params) => screenshot(&state, params).await,
                 Err(err) => Err(err),
             },
-            "navigate" => params(request.params).and_then(|params| navigate(&state, params)),
-            "mouseMove" => params(request.params).and_then(|params| mouse_move(&state, params)),
-            "click" => params(request.params).and_then(|params| click(&state, params)),
-            "wheel" => params(request.params).and_then(|params| wheel(&state, params)),
-            "key" => params(request.params).and_then(|params| key(&state, params)),
-            "char" => params(request.params).and_then(|params| char(&state, params)),
-            "stopVideo" => params(request.params).and_then(|params| stop_video(&state, params)),
-            "startVideo" => params(request.params).and_then(|params| start_video(&state, params)),
-            "reload" => params(request.params).and_then(|params| reload(&state, params)),
-            "goBack" => params(request.params).and_then(|params| go_back(&state, params)),
-            "goForward" => params(request.params).and_then(|params| go_forward(&state, params)),
-            "setFocus" => params(request.params).and_then(|params| set_focus(&state, params)),
-            // "getDOM" => params(request.params).and_then(|params| Ok(get_dom(&state, params).await)),
-            // "getClickableElements" => params(request.params).and_then(|params| Ok(get_clickable_elements(&state, params).await)),
-            // "clickElement" => params(request.params).and_then(|params| click_element(&state, params).await),
-            _ => Err(json!( {"message": "unknown method"} )),
+            "navigate" => match parse_params(request.params) {
+                Ok(params) => navigate(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "getDOM" => match parse_params(request.params) {
+                Ok(params) => get_dom(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "getClickableElements" => match parse_params(request.params) {
+                Ok(params) => get_clickable_elements(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "clickElement" => match parse_params(request.params) {
+                Ok(params) => click_element(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "reload" => match parse_params(request.params) {
+                Ok(params) => reload(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "goBack" => match parse_params(request.params) {
+                Ok(params) => go_back(&state, params).await,
+                Err(err) => Err(err),
+            },
+            "goForward" => match parse_params(request.params) {
+                Ok(params) => go_forward(&state, params).await,
+                Err(err) => Err(err),
+            },
+            method => handle_sync_method(&state, method, request.params),
         };
 
         let response = match result {
@@ -99,12 +108,38 @@ pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<Tcp
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct EmptyParams;
+fn handle_sync_method(
+    state: &SharedServerState,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<serde_json::Value, serde_json::Value> {
+    match method {
+        "closeTab" => parse_params(params).and_then(|params| close_tab(&state, params)),
+        "getTabs" => parse_params(params).and_then(|_: EmptyParams| tabs(&state)),
+        "getTitle" => parse_params(params).and_then(|params| title(&state, params)),
+        "getUrl" => parse_params(params).and_then(|params| url(&state, params)),
+        "resize" => parse_params(params).and_then(|params| resize(&state, params)),
+        "mouseMove" => parse_params(params).and_then(|params| mouse_move(&state, params)),
+        "click" => parse_params(params).and_then(|params| click(&state, params)),
+        "wheel" => parse_params(params).and_then(|params| wheel(&state, params)),
+        "key" => parse_params(params).and_then(|params| key(&state, params)),
+        "char" => parse_params(params).and_then(|params| char(&state, params)),
+        "stopVideo" => parse_params(params).and_then(|params| stop_video(&state, params)),
+        "startVideo" => parse_params(params).and_then(|params| start_video(&state, params)),
+        "setFocus" => parse_params(params).and_then(|params| set_focus(&state, params)),
+        _ => Err(json!({
+            "message": "Method not found",
+            "data": { "method": method }
+        })),
+    }
+}
 
 #[derive(Debug, Deserialize)]
-struct DefaultParams {
-    id: i32,
+struct EmptyParams {}
+
+#[derive(Debug, Deserialize)]
+struct TabParam {
+    tab: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -131,8 +166,17 @@ struct ScreenshotParams {
 #[derive(Debug, Deserialize)]
 struct NavigateParams {
     tab: i32,
+    #[serde(default)]
     url: String,
+    #[serde(default)]
     wait_until_loaded: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct PositionParams {
+    tab: i32,
+    x: i32,
+    y: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -142,13 +186,6 @@ struct ClickParams {
     y: i32,
     button: MouseButton,
     down: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct MouseMoveParams {
-    tab: i32,
-    x: i32,
-    y: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -183,6 +220,12 @@ struct SetFocusParams {
     focus: bool,
 }
 
+#[derive(Debug, Deserialize)]
+struct ClickElementParams {
+    tab: i32,
+    element_id: i32,
+}
+
 fn get_tab(state: &SharedServerState, id: i32) -> Result<Browser, serde_json::Value> {
     state.get_tab(id).ok_or_else(|| {
         json!({
@@ -193,13 +236,11 @@ fn get_tab(state: &SharedServerState, id: i32) -> Result<Browser, serde_json::Va
     })
 }
 
-fn params<T: DeserializeOwned>(params: serde_json::Value) -> Result<T, serde_json::Value> {
-    serde_json::from_value(params).map_err(|e| {
-        error!("failed to deserialize params: {:?}", e);
+fn parse_params<T: DeserializeOwned>(params: serde_json::Value) -> Result<T, serde_json::Value> {
+    serde_json::from_value(params.clone()).map_err(|e| {
+        error!("failed to deserialize params {}: {}", params, e);
         json!({
-            "error": {
-                "message": format!("failed to deserialize params: {}", e)
-            }
+            "message": format!("failed to deserialize params {}: {}", params, e)
         })
     })
 }
@@ -214,12 +255,16 @@ async fn open_tab(
     let id = tab.get_id();
     state.set_tab(id, tab.clone());
 
-    // TODO: return json object instead of printing errors
     if params.wait_until_loaded {
-        let result = tab.automation.wait_until_loaded().await;
-        match result {
+        match tab.automation.wait_until_loaded().await {
             Ok(_) => info!("tab with id {} is loaded", id),
-            Err(e) => error!("failed to wait until tab with id {} is loaded: {}", id, e),
+            Err(e) => {
+                error!("failed to wait until tab with id {} is loaded: {}", id, e);
+                return Err(json!({
+                    "message": format!("failed to wait for page load: {}", e),
+                    "data": { "id": id, "url": params.url, "width": params.width, "height": params.height }
+                }));
+            }
         }
     }
 
@@ -235,15 +280,15 @@ async fn open_tab(
 
 fn close_tab(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = state.remove_tab(params.id);
+    let tab = state.remove_tab(params.tab);
     if let Some(tab) = tab {
         tab.close();
-        Ok(json!({ "id": params.id }))
+        Ok(json!({ "id": params.tab }))
     } else {
         Err(json!({
-            "message": format!("tab with id {} not found", params.id)
+            "message": format!("tab with id {} not found", params.tab)
         }))
     }
 }
@@ -271,21 +316,16 @@ fn resize(
         .iter()
         .for_each(|t| t.1.resize(params.width, params.height));
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 async fn screenshot(
     state: &SharedServerState,
     params: ScreenshotParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = match state.get_tab(params.tab) {
-        Some(tab) => tab,
-        None => {
-            return Err(json!({ "message": "tab not found" }));
-        }
-    };
-    let result = tab.automation.screenshot(params.width, params.height).await;
-    match result {
+    let tab = get_tab(state, params.tab)?;
+
+    match tab.automation.screenshot(params.width, params.height).await {
         Ok(data) => Ok(json!({ "screenshot": data })),
         Err(e) => Err(json!({
             "message": format!("failed to take screenshot: {}", e)
@@ -295,40 +335,49 @@ async fn screenshot(
 
 fn title(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     Ok(json!({ "title": tab.get_title() }))
 }
 
 fn url(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     Ok(json!({ "url": tab.get_url() }))
 }
 
-fn navigate(
+async fn navigate(
     state: &SharedServerState,
     params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     tab.go_to(&params.url);
 
-    // TODO: add waiting if `wait_until_loaded` is true
+    if params.wait_until_loaded {
+        match tab.automation.wait_until_loaded().await {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(json!({
+                    "message": format!("failed to wait for navigation: {}", e)
+                }));
+            }
+        }
+    }
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn mouse_move(
     state: &SharedServerState,
-    params: MouseMoveParams,
+    params: PositionParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     tab.mouse.move_to(params.x, params.y);
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn click(
@@ -339,7 +388,7 @@ fn click(
     tab.mouse
         .click(params.x, params.y, params.button, params.down);
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn wheel(
@@ -349,7 +398,7 @@ fn wheel(
     let tab = get_tab(state, params.tab)?;
     tab.mouse.wheel(params.x, params.y, params.dx, params.dy);
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn key(
@@ -366,7 +415,7 @@ fn key(
         params.shift,
     );
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn char(
@@ -376,57 +425,96 @@ fn char(
     let tab = get_tab(state, params.tab)?;
     tab.keyboard.char(params.unicode);
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn stop_video(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     tab.stop_video();
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
 fn start_video(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     tab.start_video();
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
 }
 
-fn reload(
+async fn reload(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     tab.reload();
+    let id = tab.get_id();
 
-    Ok(json!({}))
+    if params.wait_until_loaded {
+        match tab.automation.wait_until_loaded().await {
+            Ok(_) => info!("tab with id {} is loaded", id),
+            Err(e) => {
+                error!("failed to wait until tab with id {} is loaded: {}", id, e);
+                return Err(json!({
+                    "message": format!("failed to wait for page load: {}", e),
+                }));
+            }
+        }
+    }
+
+    Ok(json!({ "success": true }))
 }
 
-fn go_back(
+async fn go_back(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     tab.go_back();
+    let id = tab.get_id();
 
-    Ok(json!({}))
+    if params.wait_until_loaded {
+        match tab.automation.wait_until_loaded().await {
+            Ok(_) => info!("tab with id {} is loaded", id),
+            Err(e) => {
+                error!("failed to wait until tab with id {} is loaded: {}", id, e);
+                return Err(json!({
+                    "message": format!("failed to wait for page load: {}", e),
+                }));
+            }
+        }
+    }
+
+    Ok(json!({ "success": true }))
 }
 
-fn go_forward(
+async fn go_forward(
     state: &SharedServerState,
-    params: DefaultParams,
+    params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.id)?;
+    let tab = get_tab(state, params.tab)?;
     tab.go_forward();
+    let id = tab.get_id();
 
-    Ok(json!({}))
+    if params.wait_until_loaded {
+        match tab.automation.wait_until_loaded().await {
+            Ok(_) => info!("tab with id {} is loaded", id),
+            Err(e) => {
+                error!("failed to wait until tab with id {} is loaded: {}", id, e);
+                return Err(json!({
+                    "message": format!("failed to wait for page load: {}", e),
+                }));
+            }
+        }
+    }
+
+    Ok(json!({ "success": true }))
 }
 
 fn set_focus(
@@ -436,5 +524,35 @@ fn set_focus(
     let tab = get_tab(state, params.tab)?;
     tab.set_focus(params.focus);
 
-    Ok(json!({}))
+    Ok(json!({ "success": true }))
+}
+
+async fn get_dom(
+    state: &SharedServerState,
+    params: TabParam,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    let dom = tab.automation.get_dom().await;
+
+    Ok(json!({ "dom": dom }))
+}
+
+async fn get_clickable_elements(
+    state: &SharedServerState,
+    params: TabParam,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    let elements = tab.automation.get_clickable_elements().await;
+
+    Ok(json!({ "elements": elements }))
+}
+
+async fn click_element(
+    state: &SharedServerState,
+    params: ClickElementParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.automation.click_element(params.element_id).await;
+
+    Ok(json!({ "success": true }))
 }

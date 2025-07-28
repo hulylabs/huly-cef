@@ -50,39 +50,24 @@ describe('Basic API', () => {
 
     test('resize', async () => {
         let [width, height] = [800, 600];
-        browser.resize(width, height);
 
-        const url = "file://" + testdir + "/testpages/title.html";
-        const tab = await browser.openTab({ url });
-        let screenshot = await tab.screenshot();
-        expect(screenshot).toBeDefined();
-
-        let metadata = await sharp(Buffer.from(screenshot, 'base64')).metadata();
-        expect(metadata.width).toBe(width);
-        expect(metadata.height).toBe(height);
-        expect(metadata.format).toBe('png');
+        const url = "file://" + testdir + "/testpages/resize.html";
+        const tab = await browser.openTab({ url, width, height });
+        await expect.poll(() => tab.title()).toBe("800x600");
 
         [width, height] = [1024, 768];
         browser.resize(width, height);
-
-        screenshot = await tab.screenshot();
-        expect(screenshot).toBeDefined();
-
-        metadata = await sharp(Buffer.from(screenshot, 'base64')).metadata();
-        expect(metadata.width).toBe(width);
-        expect(metadata.height).toBe(height);
-        expect(metadata.format).toBe('png');
+        await expect.poll(() => tab.title()).toBe("1024x768");
 
         tab.close();
     });
 
     test('go to a url', async () => {
-        const tab = await browser.openTab();
+        const tab = await browser.openTab({ url: "https://www.google.com", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
 
-        tab.navigate("https://www.google.com/");
-
-        await expect.poll(() => tab.title()).toBe("Google");
+        await tab.navigate("https://www.google.com/", true);
+        expect(await tab.title()).toBe("Google");
         tab.close();
     });
 
@@ -112,17 +97,22 @@ describe('Basic API', () => {
         tab.clickElement(elements[0].id);
         await expect.poll(() => tab.title()).toBe("Title");
 
-        tab.back();
-        await expect.poll(() => tab.title()).toBe("Links");
+        tab.back(true);
+        expect(await tab.title()).toBe("Links");
 
-        tab.forward();
-        await expect.poll(() => tab.title()).toBe("Title");
+        tab.forward(true);
+        expect(await tab.title()).toBe("Title");
 
-        tab.navigate("file://" + testdir + "/testpages/reload.html");
-        await expect.poll(() => tab.title()).toBe("Reloads: 1");
+        tab.close();
+        await expect.poll(() => browser.tabs()).toEqual([]);
+    }, 10000);
 
-        tab.reload();
-        await expect.poll(() => tab.title()).toBe("Reloads: 2");
+    test('tab reloading', async () => {
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/reload.html", wait_until_loaded: true });
+        expect(tab.id).toBeDefined();
+
+        tab.reload(true);
+        expect(await tab.title()).toBe("Reloads: 2");
 
         tab.close();
         await expect.poll(() => browser.tabs()).toEqual([]);
@@ -220,7 +210,7 @@ describe('Basic API', () => {
 
         let width = 800;
         let height = 600;
-        const screenshot = await tab.screenshot({ size: [width, height] });
+        const screenshot = await tab.screenshot({ size: { width, height } });
         expect(screenshot).toBeDefined();
 
         const img = Buffer.from(screenshot, 'base64');
@@ -230,11 +220,6 @@ describe('Basic API', () => {
         expect(metadata.format).toBe('png');
 
         await tab.close();
-    });
-
-    test('wait for page load', async () => {
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/unknown.html", wait_until_loaded: false });
-        expect(tab.id).toBeDefined();
     });
 });
 

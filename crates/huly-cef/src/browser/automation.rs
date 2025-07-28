@@ -1,11 +1,11 @@
-use std::{sync::Arc, time::Duration};
+use std::{io::Cursor, sync::Arc, time::Duration};
 
 use anyhow::Result;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
-use image::imageops::FilterType;
-use log::error;
+use image::{imageops::FilterType, ImageFormat};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
@@ -71,6 +71,10 @@ impl Automation {
         }
     }
 
+    pub fn start_navigation(&self) {
+        self.devtools.start_navigation();
+    }
+
     pub async fn get_dom(&self) -> String {
         let (tx, rx) = oneshot::channel::<String>();
         _ = self
@@ -85,12 +89,14 @@ impl Automation {
 
     pub async fn screenshot(&self, width: u32, height: u32) -> Result<String> {
         let screenshot = self.devtools.screenshot().await?;
-
         let screenshot = BASE64_STANDARD.decode(screenshot)?;
         let screenshot = image::load_from_memory(&screenshot)?;
         let screenshot = screenshot.resize(width, height, FilterType::Lanczos3);
 
-        Ok(BASE64_STANDARD.encode(screenshot.as_bytes()))
+        let mut cursor = Cursor::new(Vec::new());
+        screenshot.write_to(&mut cursor, ImageFormat::Png)?;
+
+        Ok(BASE64_STANDARD.encode(cursor.into_inner()))
     }
 
     pub async fn wait_until_loaded(&self) -> Result<(), String> {
@@ -99,6 +105,7 @@ impl Automation {
             .await;
 
         let load_state = self.state.read(|s| s.load_state.clone());
+        info!("Load state after Devtools events: {:?}", load_state);
         match load_state.status {
             LoadStatus::Loaded => Ok(()),
             LoadStatus::Loading => Err("Page is still loading".to_string()),

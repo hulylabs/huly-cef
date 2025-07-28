@@ -18,6 +18,7 @@ enum ConnectionType {
 }
 
 struct ServerState {
+    #[allow(dead_code)]
     cache_dir: String,
     tabs: HashMap<i32, Browser>,
 }

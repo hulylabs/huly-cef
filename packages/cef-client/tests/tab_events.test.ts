@@ -73,16 +73,19 @@ describe('Tab Events', () => {
     });
 
     test('video', async () => {
-        let width = 1920;
-        let height = 1080;
-        browser.resize(width, height);
 
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html", wait_until_loaded: false });
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html" });
         expect(tab.id).toBeDefined();
 
+        let width = 640;
+        let height = 360;
+        browser.resize(width, height);
+
         let stream = tab.events();
-        let frames: Uint8Array[] = [];
-        stream.on("Frame", (data) => frames.push(data));
+        let frames: number[] = [];
+        stream.on("Frame", (data) => {
+            frames.push(data.length);
+        });
 
         await expect.poll(() => frames.length).toBeGreaterThan(10);
 
@@ -95,7 +98,12 @@ describe('Tab Events', () => {
         tab.startVideo();
         await expect.poll(() => frames.length).toBeGreaterThan(framecount * 2);
 
-        expect(frames.every(frame => frame.length === width * height * 4)).toBe(true);
+        for (let i = 0; i < frames.length; i++) {
+            console.log(`Frame ${i + 1}: ${frames[i]} bytes`);
+        }
+
+        console.log(`width * height * 4 = ${width * height * 4}`);
+        expect(frames.every(frame => frame === width * height * 4)).toBe(true);
 
         tab.close();
     });

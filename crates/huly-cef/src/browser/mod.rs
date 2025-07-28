@@ -101,18 +101,22 @@ impl Browser {
     }
 
     pub fn go_to(&self, url: &str) {
+        self.automation.start_navigation();
         let _ = self.inner.get_main_frame().unwrap().unwrap().load_url(url);
     }
 
     pub fn go_back(&self) {
+        self.automation.start_navigation();
         let _ = self.inner.go_back();
     }
 
     pub fn go_forward(&self) {
+        self.automation.start_navigation();
         let _ = self.inner.go_forward();
     }
 
     pub fn reload(&self) {
+        self.automation.start_navigation();
         let _ = self.inner.reload();
     }
 
@@ -140,6 +144,10 @@ impl Browser {
 
     pub fn get_size(&self) -> (u32, u32) {
         self.state.read(|state| (state.width, state.height))
+    }
+
+    pub fn get_load_state(&self) -> LoadState {
+        self.state.read(|state| state.load_state.clone())
     }
 
     pub fn subscribe(&mut self, tx: UnboundedSender<TabMessage>) -> i32 {

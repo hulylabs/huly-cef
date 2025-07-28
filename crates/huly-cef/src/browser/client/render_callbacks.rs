@@ -58,6 +58,7 @@ impl HulyRenderHandlerCallbacks {
         }
     }
 
+    #[allow(dead_code)]
     fn convert_bgra_to_rgba(&self, buffer: &[u8], width: usize, height: usize) -> Vec<u8> {
         let pixel_count = width * height;
         let mut rgba_buffer = vec![0u8; pixel_count * 4];

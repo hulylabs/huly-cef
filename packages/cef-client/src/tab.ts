@@ -1,7 +1,7 @@
 import { TabEventStream } from "./event_stream.js";
 import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard.js";
 import { MessageHandler } from "./messages.js";
-import { ClickableElement, detectPlatform, MouseButton, Platform, ScreenshotOptions } from "./types.js";
+import { ClickableElement, DEFAULT_HEIGHT, DEFAULT_WIDTH, detectPlatform, MouseButton, Platform, ScreenshotOptions } from "./types.js";
 
 export class Tab {
     id: number;
@@ -17,55 +17,84 @@ export class Tab {
     }
 
     async title(): Promise<string> {
-        return this.messageHandler.send(this.id, 'GetTitle');
+        const result = await this.messageHandler.send('getTitle', { tab: this.id });
+        return result.title;
     }
 
     async url(): Promise<string> {
-        return this.messageHandler.send(this.id, 'GetUrl');
+        const result = await this.messageHandler.send('getUrl', { tab: this.id });
+        return result.url;
     }
 
     async screenshot(options?: ScreenshotOptions): Promise<string> {
-        return this.messageHandler.send(this.id, 'Screenshot', { options: options });
+        const { width, height } = options?.size || { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        const result = await this.messageHandler.send('screenshot', {
+            tab: this.id,
+            width,
+            height
+        });
+        return result.screenshot;
     }
 
-    navigate(url: string): void {
-        return this.messageHandler.sendNoResponse(this.id, 'Navigate', { url: url });
+    async navigate(url: string, waitUntilLoaded: boolean = false): Promise<void> {
+        await this.messageHandler.send('navigate', {
+            tab: this.id,
+            url,
+            wait_until_loaded: waitUntilLoaded
+        });
     }
 
-    back(): void {
-        return this.messageHandler.sendNoResponse(this.id, 'GoBack');
+    async back(waitUntilLoaded: boolean = false): Promise<void> {
+        await this.messageHandler.send('goBack', { tab: this.id, wait_until_loaded: waitUntilLoaded });
     }
 
-    forward(): void {
-        return this.messageHandler.sendNoResponse(this.id, 'GoForward');
+    async forward(waitUntilLoaded: boolean = false): Promise<void> {
+        await this.messageHandler.send('goForward', { tab: this.id, wait_until_loaded: waitUntilLoaded });
     }
 
-    reload(): void {
-        return this.messageHandler.sendNoResponse(this.id, 'Reload');
+    async reload(waitUntilLoaded: boolean = false): Promise<void> {
+        await this.messageHandler.send('reload', { tab: this.id, wait_until_loaded: waitUntilLoaded });
     }
 
-    close(): void {
-        return this.messageHandler.sendNoResponse(this.id, 'CloseTab');
+    async close(): Promise<void> {
+        await this.messageHandler.send('closeTab', { tab: this.id });
     }
 
-    mouseMove(x: number, y: number): void {
-        return this.messageHandler.sendNoResponse(this.id, 'MouseMove', { x, y });
+    async mouseMove(x: number, y: number): Promise<void> {
+        await this.messageHandler.send('mouseMove', {
+            tab: this.id,
+            x: Math.floor(x),
+            y: Math.floor(y)
+        });
     }
 
-    click(x: number, y: number, button: MouseButton, down: boolean): void {
-        return this.messageHandler.sendNoResponse(this.id, 'Click', { x, y, button, down });
+    async click(x: number, y: number, button: MouseButton = MouseButton.Left, down: boolean = true): Promise<void> {
+        await this.messageHandler.send('click', {
+            tab: this.id,
+            x: Math.floor(x),
+            y: Math.floor(y),
+            button,
+            down
+        });
     }
 
-    scroll(x: number, y: number, dx: number, dy: number): void {
-        return this.messageHandler.sendNoResponse(this.id, 'Wheel', { x, y, dx, dy });
+    async scroll(x: number, y: number, dx: number, dy: number): Promise<void> {
+        await this.messageHandler.send('wheel', {
+            tab: this.id,
+            x: Math.floor(x),
+            y: Math.floor(y),
+            dx: Math.floor(dx),
+            dy: Math.floor(dy)
+        });
     }
 
-    key(keycode: KeyCode,
+    async key(
+        keycode: KeyCode,
         character: number,
         down: boolean,
-        ctrl: boolean,
-        shift: boolean,
-    ): void {
+        ctrl: boolean = false,
+        shift: boolean = false,
+    ): Promise<void> {
         let platformKeyCode = 0;
         switch (this.platform) {
             case Platform.Windows:
@@ -76,7 +105,9 @@ export class Tab {
                 platformKeyCode = keyCodeToMacOSVirtualKey(keycode);
                 break;
         }
-        return this.messageHandler.sendNoResponse(this.id, 'Key', {
+
+        await this.messageHandler.send('key', {
+            tab: this.id,
             character: character,
             windowscode: keyCodeToWindowsVirtualKey(keycode),
             code: platformKeyCode,
@@ -86,32 +117,43 @@ export class Tab {
         });
     }
 
-    char(unicode: number): void {
-        return this.messageHandler.sendNoResponse(this.id, 'Char', { unicode });
+    async char(unicode: number): Promise<void> {
+        await this.messageHandler.send('char', {
+            tab: this.id,
+            unicode
+        });
     }
 
-    clickableElements(): Promise<ClickableElement[]> {
-        return this.messageHandler.send(this.id, 'GetClickableElements');
+    async clickableElements(): Promise<ClickableElement[]> {
+        const result = await this.messageHandler.send('getClickableElements', { tab: this.id });
+        return result.elements;
     }
 
-    clickElement(id: number) {
-        return this.messageHandler.send(this.id, 'ClickElement', { id: id });
+    async clickElement(elementId: number): Promise<void> {
+        await this.messageHandler.send('clickElement', {
+            tab: this.id,
+            element_id: elementId
+        });
     }
 
-    stopVideo() {
-        return this.messageHandler.sendNoResponse(this.id, 'StopVideo');
+    async stopVideo(): Promise<void> {
+        await this.messageHandler.send('stopVideo', { tab: this.id });
     }
 
-    startVideo() {
-        return this.messageHandler.sendNoResponse(this.id, 'StartVideo');
+    async startVideo(): Promise<void> {
+        await this.messageHandler.send('startVideo', { tab: this.id });
     }
 
-    focus(focus: boolean) {
-        this.messageHandler.sendNoResponse(this.id, 'SetFocus', focus);
+    async focus(focus: boolean): Promise<void> {
+        await this.messageHandler.send('setFocus', {
+            tab: this.id,
+            focus
+        });
     }
 
-    dom(): Promise<string> {
-        return this.messageHandler.send(this.id, 'GetDOM');
+    async dom(): Promise<string> {
+        const result = await this.messageHandler.send('getDOM', { tab: this.id });
+        return result.dom;
     }
 
     events(): TabEventStream {

@@ -16,14 +16,6 @@ export enum Cursor {
     Pointer = "Pointer",
 }
 
-export type Popup = {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    data: Uint8Array;
-}
-
 type TabEvent = {
     Title: string;
     Url: string;

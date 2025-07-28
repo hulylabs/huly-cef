@@ -1,12 +1,20 @@
 export const REQUEST_TIMEOUT = 30000;
+export const DEFAULT_URL = 'about:blank';
+export const DEFAULT_WIDTH = 800;
+export const DEFAULT_HEIGHT = 600;
 
 export interface OpenTabOptions {
-    url?: string;
-    wait_until_loaded?: boolean;
+    url: string;
+    wait_until_loaded: boolean;
+    width: number;
+    height: number;
 }
 
 export interface ScreenshotOptions {
-    size?: [number, number]
+    size?: {
+        width: number;
+        height: number;
+    }
 }
 
 export interface ClickableElement {

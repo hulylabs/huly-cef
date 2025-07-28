@@ -1,4 +1,5 @@
 use anyhow::Result;
+use tokio::time::error::Elapsed;
 
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
@@ -10,7 +11,7 @@ use cef_ui::{
     Registration,
 };
 use log::info;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tokio::sync::{oneshot, Notify};
 
 #[derive(Debug)]
@@ -26,7 +27,18 @@ enum Event {
     PageLifecycleEvent(LifecycleEventType),
 }
 
+#[derive(Default, PartialEq, Debug)]
+enum LoadState {
+    #[default]
+    Idle,
+    Navigating,
+    Loading,
+    Loaded,
+    Ready,
+}
+
 struct Response {
+    #[allow(dead_code)]
     success: bool,
     data: Vec<u8>,
 }
@@ -38,8 +50,7 @@ struct Screenshot {
 
 #[derive(Default)]
 struct DevToolsState {
-    load_fired: bool,
-    network_idle_fired: bool,
+    load_state: LoadState,
 
     pending_requests: HashMap<i32, oneshot::Sender<Response>>,
 }
@@ -59,18 +70,23 @@ impl SharedDevToolsState {
     fn update_state(&self, event: &Event) {
         let mut state = self.inner.lock().unwrap();
         match event {
-            Event::PageLifecycleEvent(name) => match name {
-                LifecycleEventType::Init => {
-                    state.network_idle_fired = false;
-                    state.load_fired = false;
-                }
-                LifecycleEventType::Load => state.load_fired = true,
-                LifecycleEventType::NetworkAlmostIdle | LifecycleEventType::NetworkIdle => {
-                    if state.load_fired {
-                        state.network_idle_fired = true;
+            Event::PageLifecycleEvent(lifecycle_event) => {
+                match (&state.load_state, lifecycle_event) {
+                    (_, LifecycleEventType::Init) => {
+                        state.load_state = LoadState::Loading;
                     }
+                    (LoadState::Loading, LifecycleEventType::Load) => {
+                        state.load_state = LoadState::Loaded;
+                    }
+                    (LoadState::Loaded, LifecycleEventType::NetworkIdle) => {
+                        state.load_state = LoadState::Ready;
+                    }
+                    (LoadState::Loaded, LifecycleEventType::NetworkAlmostIdle) => {
+                        state.load_state = LoadState::Ready;
+                    }
+                    _ => {}
                 }
-            },
+            }
         }
     }
 
@@ -83,6 +99,7 @@ impl SharedDevToolsState {
             .pending_requests
             .remove(&message_id)
         {
+            info!("Sending response for message ID: {}", message_id);
             let _ = tx.send(response);
         }
     }
@@ -96,20 +113,26 @@ impl SharedDevToolsState {
             );
             return;
         }
-
         state.pending_requests.insert(message_id, tx);
     }
 
-    async fn wait_until<P: Fn(&DevToolsState) -> bool>(&self, predicate: P) {
-        loop {
-            {
-                let state = self.inner.lock().expect("Browser state lock poisoned");
-                if predicate(&state) {
-                    return;
+    async fn wait_until<P: Fn(&DevToolsState) -> bool>(
+        &self,
+        predicate: P,
+        timeout: Duration,
+    ) -> Result<(), Elapsed> {
+        tokio::time::timeout(timeout, async {
+            loop {
+                {
+                    let state = self.inner.lock().expect("Browser state lock poisoned");
+                    if predicate(&state) {
+                        return;
+                    }
                 }
+                self.notify.notified().await;
             }
-            self.notify.notified().await;
-        }
+        })
+        .await
     }
 }
 
@@ -143,22 +166,26 @@ impl DevTools {
             browser,
             state,
             registration,
-            counter: AtomicI32::new(0),
+            counter: AtomicI32::new(10),
         }
     }
 
-    pub async fn wait_until_loaded(&self, time_to_wait: Duration) {
-        let result = tokio::time::timeout(
-            time_to_wait,
-            self.state
-                .wait_until(|s| s.load_fired && s.network_idle_fired),
-        )
-        .await;
+    pub fn start_navigation(&self) {
+        self.state.inner.lock().unwrap().load_state = LoadState::Navigating;
+    }
+
+    pub async fn wait_until_loaded(&self, timeout: Duration) {
+        let result = self
+            .state
+            .wait_until(|s| s.load_state == LoadState::Ready, timeout)
+            .await;
+
+        info!("Load and NetworkIdle events fired: {:?}", result);
 
         if result.is_err() {
             info!(
                 "Timeout while waiting for page to load ({} sec)",
-                time_to_wait.as_secs()
+                timeout.as_secs()
             );
         }
     }
@@ -180,7 +207,7 @@ impl DevTools {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize)]
 struct LifecycleEvent {
     name: String,
 }
@@ -196,10 +223,6 @@ impl DevToolsObserverCallbacks {
 }
 
 impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
-    fn on_dev_tools_message(&mut self, _: Browser, _: &[u8]) -> bool {
-        false
-    }
-
     fn on_dev_tools_method_result(
         &mut self,
         _: Browser,
@@ -215,25 +238,16 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
             let params: LifecycleEvent = serde_json::from_slice(params)
                 .expect("failed to parse params of Page.lifecycleEvent");
 
-            match params.name.as_str() {
-                "init" => self
-                    .state
-                    .on_event(Event::PageLifecycleEvent(LifecycleEventType::Init)),
-                "load" => self
-                    .state
-                    .on_event(Event::PageLifecycleEvent(LifecycleEventType::Load)),
-                "networkIdle" => self
-                    .state
-                    .on_event(Event::PageLifecycleEvent(LifecycleEventType::NetworkIdle)),
-                "networkAlmostIdle" => self.state.on_event(Event::PageLifecycleEvent(
-                    LifecycleEventType::NetworkAlmostIdle,
-                )),
-                _ => {}
-            }
+            let event_type = match params.name.as_str() {
+                "init" => LifecycleEventType::Init,
+                "load" => LifecycleEventType::Load,
+                "networkIdle" => LifecycleEventType::NetworkIdle,
+                "networkAlmostIdle" => LifecycleEventType::NetworkAlmostIdle,
+                _ => {
+                    return;
+                }
+            };
+            self.state.on_event(Event::PageLifecycleEvent(event_type));
         }
     }
-
-    fn on_dev_tools_agent_attached(&mut self, _: Browser) {}
-
-    fn on_dev_tools_agent_detached(&mut self, _: Browser) {}
 }
