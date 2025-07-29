@@ -22,21 +22,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Download CEF Artifacts
-      run: |
-        if [ "${{ matrix.os }}" == "windows-latest" ]; then
-          curl -L -o cef.zip https://github.com/hulylabs/cef-ui/releases/download/cef-artifacts-131/cef-windows-x86_64.zip
-          echo "CEF_ARTIFACTS_DIR=$(pwd)/cef-windows-x86_64" >> $GITHUB_ENV
-        elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-          curl -L -o cef.zip https://github.com/hulylabs/cef-ui/releases/download/cef-artifacts-131/cef-macos-arm64.zip
-          echo "CEF_ARTIFACTS_DIR=$(pwd)/cef-macos-arm64" >> $GITHUB_ENV
-        else
-          curl -L -o cef.zip https://github.com/hulylabs/cef-ui/releases/download/cef-artifacts-131/cef-linux-x86_64.zip
-          echo "CEF_ARTIFACTS_DIR=$(pwd)/cef-linux-x86_64" >> $GITHUB_ENV
-        fi
-
-        unzip cef.zip
 
     - name: Build
       run: |

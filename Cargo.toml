@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.dependencies]
-log = "0.4"
+log = { version = "0.4", features = ["kv"] }
 anyhow = "1.0"
 tracing = "0.1"
 tracing-log = "0.2"

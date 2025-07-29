@@ -1,18 +1,29 @@
 {
   "name": "cef-client",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest",
+    "coverage": "vitest run --coverage --reporter=html"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^22.13.10",
-    "typescript": "^5.8.2"
+    "@types/node": "^22.15.30",
+    "@vitest/coverage-v8": "^3.2.2",
+    "@vitest/ui": "^3.2.2",
+    "sharp": "^0.34.2",
+    "testcontainers": "^11.0.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.2"
+  },
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "uuid": "^11.1.0"
   }
 }

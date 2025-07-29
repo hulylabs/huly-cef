@@ -1,0 +1,83 @@
+use std::{
+    hash::Hash,
+    sync::{Arc, Mutex},
+};
+
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
+
+#[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq)]
+#[repr(u8)]
+pub enum MouseButton {
+    Left = 0,
+    Middle = 1,
+    Right = 2,
+}
+
+#[derive(Debug, Clone, Serialize_repr, Hash, PartialEq, Eq)]
+#[repr(u8)]
+pub enum LoadStatus {
+    Loading = 0,
+    Loaded = 1,
+    LoadError = 2,
+}
+
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadState {
+    pub status: LoadStatus,
+    pub can_go_back: bool,
+    pub can_go_forward: bool,
+    pub error_code: i32,
+    pub error_message: String,
+}
+
+impl Default for LoadState {
+    fn default() -> Self {
+        LoadState {
+            status: LoadStatus::Loading,
+            can_go_back: false,
+            can_go_forward: false,
+            error_code: 0,
+            error_message: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClickableElement {
+    pub id: i32,
+    pub tag: String,
+    pub text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Framebuffer {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+}
+
+/// Represents different types of messages that can be sent from CEF browser
+#[derive(Debug, Serialize, Clone)]
+#[serde(tag = "type", content = "data")]
+pub enum TabMessage {
+    /// Message indicating that a new frame has been painted.
+    Frame(Arc<Mutex<Framebuffer>>),
+    /// Message indicating that cursor has changed.
+    Cursor(String),
+    /// Message indicating that title has changed.
+    Title(String),
+    /// Message indicating that URL has changed.
+    Url(String),
+    /// Message indicating that favicon has changed.
+    Favicon(String),
+    /// Message indicating that CEF has closed the browser.
+    Closed,
+    /// Message indicating that the mouse has hovered over a URL.
+    UrlHovered { url: String, hovered: bool },
+    /// Message indicating that a new tab has been requested.
+    NewTab(String),
+    /// Message indicating that load state has changed.
+    LoadState(LoadState),
+}
