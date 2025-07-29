@@ -32,20 +32,20 @@ Follow these steps to build and run Huly CEF:
    cargo run --bin huly-cef-build --release -- --profile release
    ```
 2. **Run Huly CEF Websockets**  
-   Linux:
+   **Linux**:
    ```bash
    ./target/release/huly-cef-websockets
    ```
 
-**Windows:**
-```bash
-./target/release/huly-cef-websockets.exe
-```
+   **Windows:**
+   ```bash
+   ./target/release/huly-cef-websockets.exe
+   ```
 
-**macOS:**
-```bash
-./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
-```
+   **macOS:**
+   ```bash
+   ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
+   ```
 
 ## Build Instructions For TypeScript CEF Client (For Development)
 
