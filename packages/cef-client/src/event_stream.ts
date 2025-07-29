@@ -14,6 +14,9 @@ export type LoadState = {
 
 export enum Cursor {
     Pointer = "Pointer",
+    Hand = "Hand",
+    IBeam = "IBeam",
+    Crosshair = "Crosshair",
 }
 
 type TabEvent = {

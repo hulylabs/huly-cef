@@ -28,7 +28,17 @@ impl Framebuffer {
             let dst_start = (dst_y + row) * dst_stride + dst_x * 4;
             let dst_end = dst_start + width * 4;
 
-            self.data[dst_start..dst_end].copy_from_slice(&src[src_start..src_end]);
+            Self::convert_bgra_to_rgba(
+                &mut self.data[dst_start..dst_end],
+                &src[src_start..src_end],
+            );
+        }
+    }
+
+    fn convert_bgra_to_rgba(dst: &mut [u8], src: &[u8]) {
+        for (src, dst) in src.chunks_exact(4).zip(dst.chunks_exact_mut(4)) {
+            let [b, g, r, a] = src.try_into().unwrap();
+            dst.copy_from_slice(&[r, g, b, a]);
         }
     }
 
@@ -56,18 +66,6 @@ impl HulyRenderHandlerCallbacks {
             popup_rect: None,
             popup_data: None,
         }
-    }
-
-    #[allow(dead_code)]
-    fn convert_bgra_to_rgba(&self, buffer: &[u8], width: usize, height: usize) -> Vec<u8> {
-        let pixel_count = width * height;
-        let mut rgba_buffer = vec![0u8; pixel_count * 4];
-        for (src, dst) in buffer.chunks_exact(4).zip(rgba_buffer.chunks_exact_mut(4)) {
-            let [b, g, r, a] = src.try_into().unwrap();
-            dst.copy_from_slice(&[r, g, b, a]);
-        }
-
-        rgba_buffer
     }
 
     fn draw_view(&mut self, buffer: &[u8], width: usize, dirty_rects: &[Rect]) {
