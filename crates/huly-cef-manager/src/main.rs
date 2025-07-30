@@ -46,10 +46,12 @@ async fn main() {
 
     let state = InstanceManager::new(args.cef_exe, args.cache_dir, args.port_range);
     let app = Router::new()
-        .route("/instances", get(list_instances))
-        .route("/instance/{id}", get(create_instance))
-        .route("/instance/{id}", delete(destroy_instance))
-        .with_state(state.clone());
+    .route("/profiles/{id}", post(create_profile))
+    .route("/profiles/{id}", get(get_profile))
+    .route("/profiles", get(list_profiles))
+    .route("/profiles/{id}/cef", post(create_cef_instance))
+    .route("/profiles/{id}/cef", delete(destroy_cef_instance))
+    .with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app)
