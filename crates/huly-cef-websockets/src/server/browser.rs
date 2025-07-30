@@ -44,8 +44,6 @@ pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<Tcp
             }
         };
 
-        info!("received request: {:?}", request);
-
         let result = match request.method.as_str() {
             "openTab" => match parse_params(request.params) {
                 Ok(params) => open_tab(&state, params).await,
@@ -408,8 +406,8 @@ fn key(
     let tab = get_tab(state, params.tab)?;
     tab.keyboard.key(
         params.character,
-        params.code,
         params.windowscode,
+        params.code,
         params.down,
         params.ctrl,
         params.shift,

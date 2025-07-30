@@ -53,12 +53,10 @@ impl Keyboard {
             focus_on_editable_field: false,
         };
 
-        _ = self.inner.get_host().unwrap().send_key_event(event.clone());
-
-        if event_type == KeyEventType::KeyDown && character != 0 {
-            event.event_type = KeyEventType::Char;
-            _ = self.inner.get_host().unwrap().send_key_event(event);
+        if cfg!(target_os = "macos") && event.event_type == KeyEventType::KeyUp {
+            return;
         }
+        _ = self.inner.get_host().unwrap().send_key_event(event.clone());
     }
 
     pub fn char(&self, character: u16) {
