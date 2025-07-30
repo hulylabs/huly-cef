@@ -46,8 +46,9 @@ async fn main() {
 
     let state = InstanceManager::new(args.cef_exe, args.cache_dir, args.port_range);
     let app = Router::new()
-        .route("/instances/{id}", get(create_instance))
-        .route("/instances/{id}", delete(destroy_instance))
+        .route("/instances", get(list_instances))
+        .route("/instance/{id}", get(create_instance))
+        .route("/instance/{id}", delete(destroy_instance))
         .with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -65,6 +66,24 @@ async fn main() {
         })
         .await
         .unwrap();
+}
+
+async fn list_instances(State(manager): State<InstanceManager>) -> (StatusCode, String) {
+    info!("Received request to list all CEF instances");
+
+    let ids = manager.get_instance_ids();
+    if ids.is_empty() {
+        info!("No CEF instances found");
+        return (StatusCode::NO_CONTENT, "No instances found".to_string());
+    }
+
+    match serde_json::to_string(&ids) {
+        Ok(json) => (StatusCode::OK, json),
+        Err(e) => {
+            info!("Failed to serialize instance IDs: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to serialize instance IDs".into())
+        }
+    }
 }
 
 async fn create_instance(

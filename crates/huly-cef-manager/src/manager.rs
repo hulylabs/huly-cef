@@ -33,6 +33,11 @@ impl InstanceManager {
         })))
     }
 
+    pub fn get_instance_ids(&self) -> Vec<String> {
+        let state = self.0.lock().unwrap();
+        state.instances.keys().cloned().collect()
+    }
+
     pub fn get_port(&self, id: &str) -> Option<u16> {
         let state = self.0.lock().unwrap();
         state.ports.get(id).cloned()
