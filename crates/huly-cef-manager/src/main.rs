@@ -1,18 +1,27 @@
-use std::sync::Arc;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use axum::{
-    Router,
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get},
+    routing::{delete, get, post},
 };
 use clap::Parser;
+use serde::Serialize;
+use serde_json::json;
 use tokio::sync::Notify;
 use tracing::info;
 
-use crate::manager::InstanceManager;
+use crate::{
+    instances::InstanceManager,
+    profiles::{Profile, ProfileManager},
+};
 
-mod manager;
+mod instances;
+mod profiles;
 
 #[derive(Parser, Debug)]
 struct Arguments {
@@ -37,6 +46,18 @@ fn parse_port_range(s: &str) -> Result<(u16, u16), String> {
     Ok((start, end))
 }
 
+#[derive(Serialize)]
+struct Response {
+    status: bool,
+    data: Option<serde_json::Value>,
+    error: Option<String>,
+}
+
+struct ServerState {
+    instances: InstanceManager,
+    profiles: ProfileManager,
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
@@ -44,14 +65,21 @@ async fn main() {
     let args = Arguments::parse();
     info!("Starting huly-cef-manager with args: {:?}", args);
 
-    let state = InstanceManager::new(args.cef_exe, args.cache_dir, args.port_range);
+    if !PathBuf::from(&args.cache_dir).exists() {
+        std::fs::create_dir_all(&args.cache_dir).expect("failed to create cache directory");
+    }
+
+    let state = Arc::new(Mutex::new(ServerState {
+        instances: InstanceManager::new(args.cef_exe, args.cache_dir.clone(), args.port_range),
+        profiles: ProfileManager::new(args.cache_dir),
+    }));
     let app = Router::new()
-    .route("/profiles/{id}", post(create_profile))
-    .route("/profiles/{id}", get(get_profile))
-    .route("/profiles", get(list_profiles))
-    .route("/profiles/{id}/cef", post(create_cef_instance))
-    .route("/profiles/{id}/cef", delete(destroy_cef_instance))
-    .with_state(state.clone());
+        .route("/profiles/{id}", post(create_profile))
+        .route("/profiles/{id}", get(get_profile))
+        .route("/profiles", get(list_profiles))
+        .route("/profiles/{id}/cef", get(create_cef_instance))
+        .route("/profiles/{id}/cef", delete(destroy_cef_instance))
+        .with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app)
@@ -60,7 +88,7 @@ async fn main() {
             let signal_clone = signal.clone();
             tokio::spawn(async move {
                 tokio::signal::ctrl_c().await.unwrap();
-                state.cleanup();
+                state.lock().unwrap().instances.cleanup();
                 signal_clone.notify_waiters();
             });
 
@@ -70,72 +98,196 @@ async fn main() {
         .unwrap();
 }
 
-async fn list_instances(State(manager): State<InstanceManager>) -> (StatusCode, String) {
-    info!("Received request to list all CEF instances");
-
-    let ids = manager.get_instance_ids();
-    if ids.is_empty() {
-        info!("No CEF instances found");
-        return (StatusCode::NO_CONTENT, "No instances found".to_string());
-    }
-
-    match serde_json::to_string(&ids) {
-        Ok(json) => (StatusCode::OK, json),
+async fn create_profile(
+    State(state): State<Arc<Mutex<ServerState>>>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<Response>) {
+    info!("Received request to create profile with ID: {}", id);
+    match state.lock().unwrap().profiles.create(&id) {
+        Ok(_) => {
+            info!("Profile {} created successfully", id);
+            (
+                StatusCode::CREATED,
+                Json(Response {
+                    status: true,
+                    data: Some(json!({ "id": id.clone() })),
+                    error: None,
+                }),
+            )
+        }
         Err(e) => {
-            info!("Failed to serialize instance IDs: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to serialize instance IDs".into())
+            info!("Failed to create profile {}: {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Response {
+                    status: false,
+                    data: None,
+                    error: Some(e),
+                }),
+            )
         }
     }
 }
 
-async fn create_instance(
-    State(manager): State<InstanceManager>,
+async fn get_profile(
+    State(state): State<Arc<Mutex<ServerState>>>,
     Path(id): Path<String>,
-) -> (StatusCode, String) {
-    info!("Received request for instance with ID: {}", id);
+) -> (StatusCode, Json<Response>) {
+    info!("Received request for profile with ID: {}", id);
 
-    let port = manager.get_port(&id);
-    if let Some(port) = port {
-        info!("Returning existing CEF instance with ID: {}", id);
-        return (StatusCode::OK, format!("ws://localhost:{}/browser", port));
+    match state.lock().unwrap().profiles.get(&id).cloned() {
+        Some(profile) => {
+            info!("Returning profile: {:?}", profile);
+            (
+                StatusCode::OK,
+                Json(Response {
+                    status: true,
+                    data: Some(json!({ "profile": profile })),
+                    error: None,
+                }),
+            )
+        }
+        None => {
+            info!("Profile {} not found", id);
+            (
+                StatusCode::NOT_FOUND,
+                Json(Response {
+                    status: false,
+                    data: None,
+                    error: Some(format!("Profile with id {} not found", id)),
+                }),
+            )
+        }
+    }
+}
+
+async fn list_profiles(
+    State(state): State<Arc<Mutex<ServerState>>>,
+) -> (StatusCode, Json<Response>) {
+    info!("Received request to list all profiles");
+
+    let profiles = state.lock().unwrap().profiles.list();
+    if profiles.is_empty() {
+        info!("No profiles found");
+        return (
+            StatusCode::NO_CONTENT,
+            Json(Response {
+                status: true,
+                data: Some(json!({ "profiles": [] })),
+                error: None,
+            }),
+        );
     }
 
-    let id_clone = id.clone();
-    let port = tokio::task::spawn_blocking(move || manager.create_instance(&id_clone))
-        .await
-        .unwrap_or_else(|e| Err(format!("Failed to create instance: {}", e)));
+    info!("Returning profiles: {:?}", profiles);
+    let response = Response {
+        status: true,
+        data: Some(json!({ "profiles": profiles })),
+        error: None,
+    };
 
+    (StatusCode::OK, Json(response))
+}
+
+async fn create_cef_instance(
+    State(state): State<Arc<Mutex<ServerState>>>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<Response>) {
+    info!(
+        "Received request to create CEF instance for profile ID: {}",
+        id
+    );
+
+    if !state.lock().unwrap().profiles.exists(&id) {
+        info!("Profile with id {} does not exist", id);
+        return (
+            StatusCode::NOT_FOUND,
+            Json(Response {
+                status: false,
+                data: None,
+                error: Some(format!("Profile with id {} does not exist", id)),
+            }),
+        );
+    }
+
+    let port = state.lock().unwrap().instances.create(&id);
     match port {
         Ok(port) => {
-            info!("Created new CEF instance with ID: {} on port {}", id, port);
-            (StatusCode::OK, format!("ws://localhost:{}/browser", port))
+            info!(
+                "CEF instance created for profile ID: {} on port {}",
+                id, port
+            );
+            (
+                StatusCode::OK,
+                Json(Response {
+                    status: true,
+                    data: Some(json!({ "address": format!("ws://localhost:{}/browser", port) })),
+                    error: None,
+                }),
+            )
         }
         Err(e) => {
-            info!("Failed to create CEF instance with ID: {}: {}", id, e);
-            (StatusCode::INTERNAL_SERVER_ERROR, e)
+            info!("Failed to create CEF instance for profile ID {}: {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Response {
+                    status: false,
+                    data: None,
+                    error: Some(e),
+                }),
+            )
         }
     }
 }
 
-async fn destroy_instance(
-    State(manager): State<InstanceManager>,
+async fn destroy_cef_instance(
+    State(state): State<Arc<Mutex<ServerState>>>,
     Path(id): Path<String>,
-) -> (StatusCode, String) {
-    info!("Received request to destroy instance with ID: {}", id);
+) -> (StatusCode, Json<Response>) {
+    info!(
+        "Received request to destroy CEF instance for profile ID: {}",
+        id
+    );
 
-    let id_clone = id.clone();
-    let result = tokio::task::spawn_blocking(move || manager.destroy_instance(&id_clone))
-        .await
-        .unwrap_or_else(|e| Err(format!("Failed to destroy instance: {}", e)));
+    if !state.lock().unwrap().profiles.exists(&id) {
+        info!("Profile with id {} does not exist", id);
+        return (
+            StatusCode::NOT_FOUND,
+            Json(Response {
+                status: false,
+                data: None,
+                error: Some(format!("Profile with id {} does not exist", id)),
+            }),
+        );
+    }
 
-    match result {
+    match state.lock().unwrap().instances.destroy(&id) {
         Ok(_) => {
-            info!("Successfully destroyed instance with ID: {}", id);
-            (StatusCode::OK, format!("Instance {} destroyed", id))
+            info!("CEF instance for profile ID {} destroyed successfully", id);
+            (
+                StatusCode::OK,
+                Json(Response {
+                    status: true,
+                    data: Some(json!({
+                        "message": format!("CEF instance {} destroyed", id)
+                    })),
+                    error: None,
+                }),
+            )
         }
         Err(e) => {
-            info!("Failed to destroy instance with ID {}: {}", id, e);
-            (StatusCode::NO_CONTENT, e)
+            info!(
+                "Failed to destroy CEF instance for profile ID {}: {}",
+                id, e
+            );
+            (
+                StatusCode::NO_CONTENT,
+                Json(Response {
+                    status: false,
+                    data: None,
+                    error: Some(e),
+                }),
+            )
         }
     }
 }

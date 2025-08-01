@@ -1168,6 +1168,7 @@ dependencies = [
  "axum",
  "clap",
  "log",
+ "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.27.0",

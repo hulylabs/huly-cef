@@ -171,12 +171,14 @@ impl Automation {
                 script = format!(
                     r#"
                     let clicked = false;
-                    let element = document.querySelector('[data-clickable-id="{id}"][data-clicked="true"');
-                    if (element) {{
+                    let element = document.querySelector('[data-clickable-id="{id}"]');
+                    if (element && element.hasAttribute('data-clicked')) {{
                         clicked = true;
                         element.removeAttribute('data-clicked');
+                    }} else {{
+                        clicked = true;
                     }}
-                    "#
+                "#
                 );
 
                 let msg = self.execute_javascript(&script, "clicked").await;
