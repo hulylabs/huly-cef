@@ -4,14 +4,13 @@ use std::{
     net::TcpListener,
     path::Path,
     process::{Child, Command, Stdio},
-    sync::{Arc, Mutex},
 };
 
 use tokio_tungstenite::tungstenite::connect;
 use tracing::info;
 
 #[derive(Default)]
-struct State {
+pub struct InstanceManager {
     cef_exe: String,
     cache_dir: String,
     available_ports: HashSet<u16>,
@@ -19,31 +18,22 @@ struct State {
     instances: HashMap<String, Child>,
 }
 
-#[derive(Clone)]
-pub struct InstanceManager(Arc<Mutex<State>>);
-
 impl InstanceManager {
     pub fn new(cef_exe: String, cache_dir: String, port_range: (u16, u16)) -> Self {
-        Self(Arc::new(Mutex::new(State {
+        Self {
             cef_exe,
             cache_dir,
             available_ports: (port_range.0..=port_range.1).collect(),
             ports: HashMap::new(),
             instances: HashMap::new(),
-        })))
+        }
     }
 
-    pub fn get_instance_ids(&self) -> Vec<String> {
-        let state = self.0.lock().unwrap();
-        state.instances.keys().cloned().collect()
-    }
+    pub fn create(&mut self, id: &str) -> Result<u16, String> {
+        if self.instances.contains_key(id) {
+            return Ok(self.ports.get(id).cloned().expect("port can't be None"));
+        }
 
-    pub fn get_port(&self, id: &str) -> Option<u16> {
-        let state = self.0.lock().unwrap();
-        state.ports.get(id).cloned()
-    }
-
-    pub fn create_instance(&self, id: &str) -> Result<u16, String> {
         let port = self.find_available_port()?;
         let instance = self.start_cef_instance(id, port)?;
 
@@ -67,20 +57,18 @@ impl InstanceManager {
             ));
         }
 
-        let mut state = self.0.lock().unwrap();
-        state.instances.insert(id.to_string(), instance);
-        state.ports.insert(id.to_string(), port);
-        state.available_ports.remove(&port);
+        self.instances.insert(id.to_string(), instance);
+        self.ports.insert(id.to_string(), port);
+        self.available_ports.remove(&port);
 
         Ok(port)
     }
 
-    pub fn destroy_instance(&self, id: &str) -> Result<(), String> {
+    pub fn destroy(&mut self, id: &str) -> Result<(), String> {
         let instance_to_remove = {
-            let mut state = self.0.lock().unwrap();
-            if let Some(port) = state.ports.remove(id) {
-                state.available_ports.insert(port);
-                state.instances.remove(id)
+            if let Some(port) = self.ports.remove(id) {
+                self.available_ports.insert(port);
+                self.instances.remove(id)
             } else {
                 None
             }
@@ -97,9 +85,8 @@ impl InstanceManager {
         }
     }
 
-    pub fn cleanup(&self) {
-        let mut state = self.0.lock().unwrap();
-        for (id, mut instance) in state.instances.drain() {
+    pub fn cleanup(&mut self) {
+        for (id, mut instance) in self.instances.drain() {
             if let Err(e) = instance.kill() {
                 info!("Failed to kill instance {}: {}", id, e);
             }
@@ -107,8 +94,7 @@ impl InstanceManager {
     }
 
     fn start_cef_instance(&self, id: &str, port: u16) -> Result<Child, String> {
-        let state = self.0.lock().unwrap();
-        let cache_dir = format!("{}/{}", state.cache_dir, id);
+        let cache_dir = format!("{}/{}", self.cache_dir, id);
         create_dir_all(&cache_dir).map_err(|e| {
             format!(
                 "Failed to create cache directory for instance with ID {}: {}",
@@ -128,7 +114,7 @@ impl InstanceManager {
         let error_file = File::create(format!("{}/huly-cef-websockets.error", cache_dir))
             .map_err(|e| format!("Failed to create log file: {}", e))?;
 
-        let instance = Command::new(&state.cef_exe)
+        let instance = Command::new(&self.cef_exe)
             .args(["--port", port.to_string().as_str()])
             .args(["--cache-path", &cache_dir])
             .args(["--no-sandbox"])
@@ -140,9 +126,8 @@ impl InstanceManager {
         Ok(instance)
     }
 
-    fn find_available_port(&self) -> Result<u16, String> {
-        let mut state = self.0.lock().unwrap();
-        let available_ports = &mut state.available_ports;
+    fn find_available_port(&mut self) -> Result<u16, String> {
+        let available_ports = &mut self.available_ports;
 
         for port in available_ports.iter() {
             if let Ok(_) = TcpListener::bind(format!("0.0.0.0:{}", port)) {
