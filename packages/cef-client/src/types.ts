@@ -46,3 +46,24 @@ export enum MouseButton {
     Middle = 1,
     Right = 2,
 }
+
+export enum LoadStatus {
+    Loading = 0,
+    Loaded = 1,
+    Error = 2,
+}
+
+export type LoadState = {
+    status: LoadStatus;
+    canGoBack: boolean;
+    canGoForward: boolean;
+    errorCode?: number;
+    errorMessage?: string;
+};
+
+export enum Cursor {
+    Pointer = "Pointer",
+    Hand = "Hand",
+    IBeam = "IBeam",
+    Crosshair = "Crosshair",
+}

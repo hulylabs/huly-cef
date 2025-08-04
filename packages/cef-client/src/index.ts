@@ -1,7 +1,7 @@
 import { Browser } from "./browser.js";
 export { KeyCode } from "./keyboard.js";
 export { Browser } from "./browser.js";
-export { MouseButton } from "./types.js";
+export { MouseButton, Cursor } from "./types.js";
 export { TabEventStream } from "./event_stream.js";
 
 export async function connect(serverAddress: string): Promise<Browser> {
