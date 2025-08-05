@@ -1,4 +1,4 @@
-name: Rust Build & Test
+name: Build & Push
 
 on:
   push:
@@ -49,12 +49,12 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - run: echo VERSION=$(grep '^version =' Cargo.toml | cut -d '"' -f 2) >> $GITHUB_ENV
+      - run: echo VERSION=$(grep '^version =' crates/huly-cef-manager/Cargo.toml | cut -d '"' -f 2) >> $GITHUB_ENV
 
       - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           file: Dockerfile.manager
           push: true
-          tags: "${{ secrets.DOCKER_USER }}/huly-cef:${{ env.VERSION }},${{ secrets.DOCKER_USER }}/huly-cef:latest"
+          tags: "${{ vars.DOCKER_USER }}/huly-cef:${{ env.VERSION }},${{ vars.DOCKER_USER }}/huly-cef:latest"
           platforms: linux/amd64
