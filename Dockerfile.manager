@@ -20,10 +20,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY . /huly-cef
 WORKDIR /huly-cef
-RUN cargo build --bin huly-cef-websockets --release
+RUN cargo run --bin huly-cef-build -- --profile=release
 RUN cargo build --bin huly-cef-manager --release
-
-# TODO: add one more stage to build the manager separately
 
 FROM debian:bookworm-slim AS runtime
 COPY --from=build /huly-cef/target/release/huly-cef-websockets /apps/huly-cef-websockets
