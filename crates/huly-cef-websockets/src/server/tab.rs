@@ -13,9 +13,21 @@ pub async fn event_loop(mut tab: Browser, mut websocket: WebSocketStream<TcpStre
     let id = tab.subscribe(tx.clone());
     generate_events(&tab, tx);
 
+    let mut buffer = vec![0u8; (4 + 4 + tab.state.read(|s| s.width * s.height * 4)) as usize];
+
     while let Some(message) = rx.recv().await {
         let message = match message {
-            TabMessage::Frame(data) => Message::Binary(data.lock().unwrap().data.clone().into()),
+            TabMessage::Frame(data) => {
+                let frame = data.lock().unwrap();
+                if frame.data.len() + 8 != buffer.len() {
+                    buffer = vec![0u8; (4 + 4 + frame.data.len()) as usize];
+                }
+
+                buffer[0..4].copy_from_slice(&frame.width.to_le_bytes());
+                buffer[4..8].copy_from_slice(&frame.height.to_le_bytes());
+                buffer[8..].copy_from_slice(&frame.data);
+                Message::Binary(buffer.clone().into())
+            }
             TabMessage::Closed => {
                 break;
             }

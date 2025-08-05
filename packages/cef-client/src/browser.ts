@@ -41,6 +41,18 @@ export class Browser {
         throw new Error('Invalid response from getTabs');
     }
 
+    async size(): Promise<{ width: number; height: number }> {
+        const result = await this.messageHandler.send('getSize', {});
+        if (result && typeof result.width === 'number' && typeof result.height === 'number') {
+            return {
+                width: result.width,
+                height: result.height
+            };
+        }
+
+        throw new Error('Invalid response from getSize');
+    }
+
     async resize(width: number, height: number): Promise<void> {
         await this.messageHandler.send('resize', {
             width: Math.floor(width),

@@ -11,6 +11,9 @@ use huly_cef::browser::Browser;
 mod browser;
 mod tab;
 
+pub const WIDTH: u32 = 1920;
+pub const HEIGHT: u32 = 1080;
+
 enum ConnectionType {
     Browser,
     Tab(i32),
@@ -21,6 +24,8 @@ struct ServerState {
     #[allow(dead_code)]
     cache_dir: String,
     tabs: HashMap<i32, Browser>,
+
+    size: (u32, u32),
 }
 
 struct SharedServerState(Arc<Mutex<ServerState>>);
@@ -36,6 +41,7 @@ impl SharedServerState {
         Self(Arc::new(Mutex::new(ServerState {
             cache_dir,
             tabs: HashMap::new(),
+            size: (WIDTH, HEIGHT),
         })))
     }
 

@@ -1,5 +1,10 @@
 import { Cursor, LoadState } from "./types.js";
 
+interface Frame {
+    width: number;
+    height: number;
+    data: Uint8Array;
+}
 
 type TabEvent = {
     Title: string;
@@ -8,7 +13,7 @@ type TabEvent = {
     Favicon: string;
     Cursor: Cursor;
     NewTab: string;
-    Frame: Uint8Array;
+    Frame: Frame;
 }
 
 interface Message<T extends keyof TabEvent> {
@@ -45,9 +50,18 @@ export class TabEventStream {
         }
 
         if (event.data instanceof ArrayBuffer) {
+            let view = new DataView(event.data);
+            let width = view.getUint32(0, true);
+            let height = view.getUint32(4, true);
+            let data = new Uint8Array(event.data, 8);
+
             let message: Message<keyof TabEvent> = {
                 type: "Frame",
-                data: new Uint8Array(event.data)
+                data: {
+                    width,
+                    height,
+                    data
+                }
             };
 
             this.emit(message.type, message.data);

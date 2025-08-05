@@ -114,6 +114,7 @@ fn handle_sync_method(
     match method {
         "closeTab" => parse_params(params).and_then(|params| close_tab(&state, params)),
         "getTabs" => parse_params(params).and_then(|_: EmptyParams| tabs(&state)),
+        "getSize" => parse_params(params).and_then(|_: EmptyParams| size(&state)),
         "getTitle" => parse_params(params).and_then(|params| title(&state, params)),
         "getUrl" => parse_params(params).and_then(|params| url(&state, params)),
         "resize" => parse_params(params).and_then(|params| resize(&state, params)),
@@ -304,11 +305,20 @@ fn tabs(state: &SharedServerState) -> Result<serde_json::Value, serde_json::Valu
     Ok(json!({ "tabs": ids }))
 }
 
+fn size(state: &SharedServerState) -> Result<serde_json::Value, serde_json::Value> {
+    let state = state.lock();
+    Ok(json!({
+        "width": state.size.0,
+        "height": state.size.1,
+    }))
+}
+
 fn resize(
     state: &SharedServerState,
     params: ResizeParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let state = state.lock();
+    let mut state = state.lock();
+    state.size = (params.width, params.height);
     state
         .tabs
         .iter()
