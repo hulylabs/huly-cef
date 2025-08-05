@@ -15,10 +15,7 @@ use serde_json::json;
 use tokio::sync::Notify;
 use tracing::info;
 
-use crate::{
-    instances::InstanceManager,
-    profiles::{Profile, ProfileManager},
-};
+use crate::{instances::InstanceManager, profiles::ProfileManager};
 
 mod instances;
 mod profiles;
@@ -75,7 +72,6 @@ async fn main() {
     }));
     let app = Router::new()
         .route("/profiles/{id}", post(create_profile))
-        .route("/profiles/{id}", get(get_profile))
         .route("/profiles", get(list_profiles))
         .route("/profiles/{id}/cef", get(create_cef_instance))
         .route("/profiles/{id}/cef", delete(destroy_cef_instance))
@@ -129,45 +125,24 @@ async fn create_profile(
     }
 }
 
-async fn get_profile(
-    State(state): State<Arc<Mutex<ServerState>>>,
-    Path(id): Path<String>,
-) -> (StatusCode, Json<Response>) {
-    info!("Received request for profile with ID: {}", id);
-
-    match state.lock().unwrap().profiles.get(&id).cloned() {
-        Some(profile) => {
-            info!("Returning profile: {:?}", profile);
-            (
-                StatusCode::OK,
-                Json(Response {
-                    status: true,
-                    data: Some(json!({ "profile": profile })),
-                    error: None,
-                }),
-            )
-        }
-        None => {
-            info!("Profile {} not found", id);
-            (
-                StatusCode::NOT_FOUND,
-                Json(Response {
-                    status: false,
-                    data: None,
-                    error: Some(format!("Profile with id {} not found", id)),
-                }),
-            )
-        }
-    }
-}
-
 async fn list_profiles(
     State(state): State<Arc<Mutex<ServerState>>>,
 ) -> (StatusCode, Json<Response>) {
     info!("Received request to list all profiles");
 
-    let profiles = state.lock().unwrap().profiles.list();
-    if profiles.is_empty() {
+    let Ok(profiles) = state.lock().unwrap().profiles.list() else {
+        info!("Failed to list profiles");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(Response {
+                status: false,
+                data: None,
+                error: Some("Failed to list profiles".to_string()),
+            }),
+        );
+    };
+
+    if profiles.len() == 0 {
         info!("No profiles found");
         return (
             StatusCode::NO_CONTENT,
