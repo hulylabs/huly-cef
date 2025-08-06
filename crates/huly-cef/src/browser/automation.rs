@@ -100,15 +100,16 @@ impl Automation {
     }
 
     pub async fn wait_until_loaded(&self) -> Result<(), String> {
-        self.devtools
-            .wait_until_loaded(Duration::from_secs(10))
-            .await;
+        let timeout = Duration::from_secs(10);
+        self.devtools.wait_until_loaded(timeout).await;
 
         let load_state = self.state.read(|s| s.load_state.clone());
-        info!("Load state after Devtools events: {:?}", load_state);
         match load_state.status {
             LoadStatus::Loaded => Ok(()),
-            LoadStatus::Loading => Err("Page is still loading".to_string()),
+            LoadStatus::Loading => Err(format!(
+                "Page is still loading after {} seconds",
+                timeout.as_secs()
+            )),
             LoadStatus::LoadError => Err(load_state.error_message),
         }
     }

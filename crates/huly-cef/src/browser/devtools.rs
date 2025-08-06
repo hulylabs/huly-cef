@@ -20,9 +20,9 @@ enum LifecycleEventType {
     Load,
     NetworkAlmostIdle,
     NetworkIdle,
+    InteractiveTime,
 }
 
-#[derive(Debug, strum::Display)]
 enum Event {
     PageLifecycleEvent(LifecycleEventType),
 }
@@ -33,7 +33,6 @@ enum LoadState {
     Idle,
     Navigating,
     Loading,
-    Loaded,
     Ready,
 }
 
@@ -75,13 +74,7 @@ impl SharedDevToolsState {
                     (_, LifecycleEventType::Init) => {
                         state.load_state = LoadState::Loading;
                     }
-                    (LoadState::Loading, LifecycleEventType::Load) => {
-                        state.load_state = LoadState::Loaded;
-                    }
-                    (LoadState::Loaded, LifecycleEventType::NetworkIdle) => {
-                        state.load_state = LoadState::Ready;
-                    }
-                    (LoadState::Loaded, LifecycleEventType::NetworkAlmostIdle) => {
+                    (LoadState::Loading, LifecycleEventType::InteractiveTime) => {
                         state.load_state = LoadState::Ready;
                     }
                     _ => {}
@@ -99,7 +92,6 @@ impl SharedDevToolsState {
             .pending_requests
             .remove(&message_id)
         {
-            info!("Sending response for message ID: {}", message_id);
             let _ = tx.send(response);
         }
     }
@@ -180,8 +172,6 @@ impl DevTools {
             .wait_until(|s| s.load_state == LoadState::Ready, timeout)
             .await;
 
-        info!("Load and NetworkIdle events fired: {:?}", result);
-
         if result.is_err() {
             info!(
                 "Timeout while waiting for page to load ({} sec)",
@@ -201,8 +191,16 @@ impl DevTools {
             None,
         )?;
 
-        let devtools_response = rx.await?;
-        let screenshot = serde_json::from_slice::<Screenshot>(&devtools_response.data)?;
+        let response = rx.await?;
+
+        if !response.success {
+            return Err(anyhow::anyhow!(
+                "Failed to capture screenshot: {}",
+                String::from_utf8_lossy(&response.data)
+            ));
+        }
+
+        let screenshot = serde_json::from_slice::<Screenshot>(&response.data)?;
         Ok(screenshot.data)
     }
 }
@@ -243,6 +241,7 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
                 "load" => LifecycleEventType::Load,
                 "networkIdle" => LifecycleEventType::NetworkIdle,
                 "networkAlmostIdle" => LifecycleEventType::NetworkAlmostIdle,
+                "InteractiveTime" => LifecycleEventType::InteractiveTime,
                 _ => {
                     return;
                 }
