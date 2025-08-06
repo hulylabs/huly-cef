@@ -20,14 +20,18 @@ use crate::{instances::InstanceManager, profiles::ProfileManager};
 mod instances;
 mod profiles;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 struct Arguments {
     #[clap(long, help = "Root directory for CEF cache storage")]
     cache_dir: String,
     #[clap(long, help = "Path to the CEF executable")]
     cef_exe: String,
-    #[arg(long, value_parser = parse_port_range, help = "Port range for CEF instances in format START-END")]
+    #[clap(long, value_parser = parse_port_range, help = "Port range for CEF instances in format START-END")]
     port_range: (u16, u16),
+    #[clap(long, help = "Huly CEF servers and Manager host")]
+    host: String,
+    #[clap(long, help = "Huly CEF Manager port")]
+    manager_port: u16,
 }
 
 fn parse_port_range(s: &str) -> Result<(u16, u16), String> {
@@ -51,6 +55,7 @@ struct Response {
 }
 
 struct ServerState {
+    args: Arguments,
     instances: InstanceManager,
     profiles: ProfileManager,
 }
@@ -67,9 +72,11 @@ async fn main() {
     }
 
     let state = Arc::new(Mutex::new(ServerState {
+        args: args.clone(),
         instances: InstanceManager::new(args.cef_exe, args.cache_dir.clone(), args.port_range),
         profiles: ProfileManager::new(args.cache_dir),
     }));
+
     let app = Router::new()
         .route("/profiles/{id}", post(create_profile))
         .route("/profiles", get(list_profiles))
@@ -77,7 +84,10 @@ async fn main() {
         .route("/profiles/{id}/cef", delete(destroy_cef_instance))
         .with_state(state.clone());
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", args.host, args.manager_port))
+        .await
+        .unwrap();
+
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let signal = Arc::new(Notify::new());
@@ -196,7 +206,9 @@ async fn create_cef_instance(
                 StatusCode::OK,
                 Json(Response {
                     status: true,
-                    data: Some(json!({ "address": format!("ws://localhost:{}/browser", port) })),
+                    data: Some(
+                        json!({ "address": format!("ws://{}:{}/browser", state.lock().unwrap().args.host, port) }),
+                    ),
                     error: None,
                 }),
             )
