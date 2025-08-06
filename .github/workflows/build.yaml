@@ -15,24 +15,45 @@ defaults:
 
 jobs:
   build:
-    name: Build Huly CEF
+    name: Build and Test Huly CEF
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Install xvfb
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt install -y xvfb
+
+    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Build
       run: |
         cargo run --bin huly-cef-build --release -- --profile release
-  
+
+    - name: Launch
+      run: |
+        if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets --no-sandbox
+        elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          xvfb-run -a ./target/release/huly-cef-websockets --no-sandbox
+        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          ./target/release/huly-cef-websockets.exe --no-sandbox
+        fi
+    - name: Test
+      working-directory: packages/cef-client
+      run: |
+        npm i
+        npm run test
+
   build-manager-image:
     name: Build and Push Huly CEF Manager Docker Image
     runs-on: ubuntu-latest
+    needs: build
+    if: false
     timeout-minutes: 60
     steps:
       - name: Checkout repository

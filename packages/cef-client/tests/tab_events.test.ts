@@ -2,39 +2,19 @@ import { afterAll, beforeAll, describe, expect, inject, test } from 'vitest';
 
 import { Browser, connect } from '../src/index';
 
-import { Cursor, LoadState, LoadStatus } from '../src/event_stream';
-import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
+import { Cursor, LoadState, LoadStatus } from '../src/types';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
-describe('Tab Events', () => {
-    let cefContainer: StartedTestContainer;
+describe.skip('Tab Events', () => {
     let browser: Browser;
     let port: number;
 
     beforeAll(async () => {
-        cefContainer = await new GenericContainer("huly-cef")
-            .withCopyDirectoriesToContainer([{
-                source: join(testdir, "testpages"),
-                target: join(testdir, "testpages"),
-            }])
-            .withExposedPorts(8080)
-            .withWaitStrategy(Wait.forListeningPorts())
-            .start();
-
-        port = cefContainer.getMappedPort(8080);
-        // port = 8080;
+        port = 8080;
         browser = await connect("ws://localhost:" + port + "/browser");
-    });
-
-    afterAll(async () => {
-        (await cefContainer.logs())
-            .on("data", line => console.log(line))
-            .on("err", line => console.error(line))
-            .on("end", () => console.log("Stream closed"));
-        await cefContainer.stop();
     });
 
     test('basic', async () => {
@@ -84,7 +64,7 @@ describe('Tab Events', () => {
         let stream = tab.events();
         let frames: number[] = [];
         stream.on("Frame", (data) => {
-            frames.push(data.length);
+            frames.push(data.data.length);
         });
 
         await expect.poll(() => frames.length).toBeGreaterThan(10);

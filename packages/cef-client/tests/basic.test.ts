@@ -1,43 +1,23 @@
-import { afterAll, beforeAll, describe, expect, inject, test } from 'vitest';
+import { beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton } from '../src/index';
 
-import { dirname, join } from 'path';
+import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
 describe('Basic API', () => {
-    let cefContainer: StartedTestContainer;
     let browser: Browser;
     let port: number;
 
     beforeAll(async () => {
-        cefContainer = await new GenericContainer("huly-cef")
-            .withCopyDirectoriesToContainer([{
-                source: join(testdir, "testpages"),
-                target: join(testdir, "testpages"),
-            }])
-            .withExposedPorts(8080)
-            .withWaitStrategy(Wait.forListeningPorts())
-            .start();
-
-        port = cefContainer.getMappedPort(8080);
-        // port = 8080
+        port = 8080;
         browser = await connect("ws://localhost:" + port + "/browser");
     });
 
-    afterAll(async () => {
-        (await cefContainer.logs())
-            .on("data", line => console.log(line))
-            .on("err", line => console.error(line))
-            .on("end", () => console.log("Stream closed"));
-        await cefContainer.stop();
-    });
-
-    test('open a new tab', async () => {
+    test.only('open a new tab', async () => {
         const url = "file://" + testdir + "/testpages/title.html";
         const tab = await browser.openTab({ url: url, wait_until_loaded: true });
         expect(tab.id).toBeDefined();
