@@ -42,7 +42,7 @@ impl Keyboard {
         if shift {
             modifiers = modifiers.union(EventFlags::ShiftDown);
         }
-        let mut event = KeyEvent {
+        let event = KeyEvent {
             event_type,
             modifiers,
             windows_key_code: windowscode.into(),

@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import { Browser, connect, KeyCode, MouseButton } from '../src/index';
 
 import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
@@ -18,7 +18,7 @@ describe('Basic API', () => {
     });
 
     test.only('open a new tab', async () => {
-        const url = "file://" + testdir + "/testpages/title.html";
+        const url = pathToFileURL(testdir + "/testpages/title.html").href;
         const tab = await browser.openTab({ url: url, wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Title");

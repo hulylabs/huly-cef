@@ -58,26 +58,17 @@ pub struct Framebuffer {
     pub data: Vec<u8>,
 }
 
-/// Represents different types of messages that can be sent from CEF browser
+/// Represents different types of events that can be sent from CEF browser
 #[derive(Debug, Serialize, Clone)]
 #[serde(tag = "type", content = "data")]
 pub enum TabMessage {
-    /// Message indicating that a new frame has been painted.
     Frame(Arc<Mutex<Framebuffer>>),
-    /// Message indicating that cursor has changed.
     Cursor(String),
-    /// Message indicating that title has changed.
     Title(String),
-    /// Message indicating that URL has changed.
     Url(String),
-    /// Message indicating that favicon has changed.
     Favicon(String),
-    /// Message indicating that CEF has closed the browser.
     Closed,
-    /// Message indicating that the mouse has hovered over a URL.
     UrlHovered { url: String, hovered: bool },
-    /// Message indicating that a new tab has been requested.
     NewTab(String),
-    /// Message indicating that load state has changed.
     LoadState(LoadState),
 }

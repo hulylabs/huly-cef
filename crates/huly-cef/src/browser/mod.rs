@@ -6,7 +6,6 @@ use cef_ui::{
     BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, PaintElementType, ThreadId, WindowInfo,
 };
 
-use log::info;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{browser::state::SharedBrowserState, ClickableElement, LoadState, TabMessage};
@@ -21,7 +20,7 @@ pub(crate) mod state;
 // TODO: add sub structs:
 // 1. Navigation
 // 2. Graphics
-// TODO: move counter to state
+// TODO: make counter atomic
 pub struct Browser {
     inner: cef_ui::Browser,
     pub state: state::SharedBrowserState,
@@ -102,7 +101,6 @@ impl Browser {
     }
 
     pub fn go_to(&self, url: &str) {
-        info!("Going to URL: {}", url);
         self.automation.start_navigation();
         let _ = self.inner.get_main_frame().unwrap().unwrap().load_url(url);
     }
@@ -127,9 +125,7 @@ impl Browser {
     }
 
     pub fn get_id(&self) -> i32 {
-        self.inner
-            .get_identifier()
-            .expect("failed to get browser ID")
+        self.inner.get_identifier().unwrap()
     }
 
     pub fn set_focus(&self, focus: bool) {

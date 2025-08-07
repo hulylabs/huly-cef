@@ -5,7 +5,7 @@ use anyhow::Result;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
 use image::{imageops::FilterType, ImageFormat};
-use log::{error, info};
+use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 
@@ -176,7 +176,7 @@ impl Automation {
                     if (element && element.hasAttribute('data-clicked')) {{
                         clicked = true;
                         element.removeAttribute('data-clicked');
-                    }} else {{
+                    }} else if (!element) {{
                         clicked = true;
                     }}
                 "#

@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use crate::{browser::state::SharedBrowserState, LoadState, LoadStatus, TabMessage};
 use cef_ui::{Browser, ErrorCode, Frame, LoadHandlerCallbacks, TransitionType};
-use log::info;
 
 struct Flags {
     is_loading: bool,
