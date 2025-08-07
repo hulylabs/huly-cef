@@ -84,7 +84,7 @@ async fn main() {
         .route("/profiles/{id}/cef", delete(destroy_cef_instance))
         .with_state(state.clone());
 
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", args.host, args.manager_port))
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.manager_port))
         .await
         .unwrap();
 
