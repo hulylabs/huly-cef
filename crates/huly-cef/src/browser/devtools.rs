@@ -14,8 +14,8 @@ use log::info;
 use serde::Deserialize;
 use tokio::sync::{oneshot, Notify};
 
-#[derive(Debug)]
-enum LifecycleEventType {
+#[derive(Debug, Clone)]
+pub enum LifecycleEventType {
     Init,
     DOMContentLoaded,
     Load,
@@ -24,19 +24,20 @@ enum LifecycleEventType {
     InteractiveTime,
 }
 
-enum Event {
-    PageLifecycleEvent(LifecycleEventType),
+pub enum Event {
+    PageLifecycleEvent {
+        frame_id: String,
+        loader_id: String,
+        name: LifecycleEventType,
+    },
+    PageFrameNavigated {
+        frame_id: String,
+        is_main: bool,
+        url: String,
+    },
 }
 
-#[derive(Default, PartialEq, Debug)]
-enum LoadState {
-    #[default]
-    Idle,
-    Navigating,
-    Loading,
-    Ready,
-}
-
+#[derive(Debug)]
 struct Response {
     #[allow(dead_code)]
     success: bool,
@@ -49,9 +50,14 @@ struct Screenshot {
 }
 
 #[derive(Default)]
-struct DevToolsState {
-    load_state: LoadState,
+struct FrameEvents {
+    main_frame_id: String,
+    events: HashMap<String, Vec<LifecycleEventType>>,
+}
 
+#[derive(Default)]
+struct DevToolsState {
+    frame_events: FrameEvents,
     pending_requests: HashMap<i32, oneshot::Sender<Response>>,
 }
 
@@ -70,15 +76,20 @@ impl SharedDevToolsState {
     fn update_state(&self, event: &Event) {
         let mut state = self.inner.lock().unwrap();
         match event {
-            Event::PageLifecycleEvent(lifecycle_event) => {
-                match (&state.load_state, lifecycle_event) {
-                    (_, LifecycleEventType::Init) => {
-                        state.load_state = LoadState::Loading;
-                    }
-                    (LoadState::Loading, LifecycleEventType::InteractiveTime) => {
-                        state.load_state = LoadState::Ready;
-                    }
-                    _ => {}
+            Event::PageLifecycleEvent { name, frame_id, .. } => {
+                state
+                    .frame_events
+                    .events
+                    .entry(frame_id.clone())
+                    .or_insert(Vec::new())
+                    .push(name.clone());
+            }
+
+            Event::PageFrameNavigated {
+                frame_id, is_main, ..
+            } => {
+                if *is_main {
+                    state.frame_events.main_frame_id = frame_id.clone();
                 }
             }
         }
@@ -164,52 +175,26 @@ impl DevTools {
     }
 
     pub fn start_navigation(&self) {
-        self.state.inner.lock().unwrap().load_state = LoadState::Navigating;
+        self.state.inner.lock().unwrap().frame_events.events.clear();
     }
 
-    pub async fn wait_until_loaded(&self, timeout: Duration) {
-        // info!("wait_until_loaded");
-        // let (tx, rx) = oneshot::channel();
-        // self.state.subscribe(100, tx);
-        // self.browser
-        //     .get_host()
-        //     .unwrap()
-        //     .execute_dev_tools_method(100, "Page.getFrameTree", None)
-        //     .expect("failed to enable Page domain");
+    pub fn get_frame_events(&self) {
+        info!("==============================");
+        {
+            let state = self.state.inner.lock().unwrap();
 
-        // info!("Awaiting for frame tree response");
-        // let resp = rx.await.expect("failed to receive response");
-        // info!("Received response: {:?}", resp);
-
-        // let value = serde_json::from_slice::<serde_json::Value>(&resp.data)
-        //     .expect("failed to parse response data");
-        // info!("Frame tree: {:?}", value);
-
-        let result = self
-            .state
-            .wait_until(|s| s.load_state == LoadState::Ready, timeout)
-            .await;
-
-        if result.is_err() {
-            info!(
-                "Timeout while waiting for page to load ({} sec)",
-                timeout.as_secs()
-            );
+            info!("Main Frame ID: {}", state.frame_events.main_frame_id);
+            for entry in state.frame_events.events.iter() {
+                info!("Frame ID: {}", entry.0);
+                for event in entry.1 {
+                    info!("     Event: {:?}", event);
+                }
+            }
         }
     }
 
     pub async fn screenshot(&self) -> Result<String> {
-        let id = self.counter.fetch_add(1, Ordering::Relaxed);
-        let (tx, rx) = oneshot::channel();
-        self.state.subscribe(id, tx);
-
-        self.browser.get_host().unwrap().execute_dev_tools_method(
-            id,
-            "Page.captureScreenshot",
-            None,
-        )?;
-
-        let response = rx.await?;
+        let response = self.execute_method("Page.captureScreenshot", None).await;
 
         if !response.success {
             return Err(anyhow::anyhow!(
@@ -221,11 +206,41 @@ impl DevTools {
         let screenshot = serde_json::from_slice::<Screenshot>(&response.data)?;
         Ok(screenshot.data)
     }
+
+    async fn execute_method(&self, name: &str, params: Option<DictionaryValue>) -> Response {
+        let id = self.counter.fetch_add(1, Ordering::Relaxed);
+        let (tx, rx) = oneshot::channel();
+        self.state.subscribe(id, tx);
+
+        self.browser
+            .get_host()
+            .unwrap()
+            .execute_dev_tools_method(id, name, params);
+
+        rx.await.unwrap()
+    }
+}
+
+#[derive(Deserialize)]
+struct FrameNavigated {
+    frame: Frame,
+}
+
+#[derive(Deserialize)]
+struct Frame {
+    id: String,
+    #[serde(rename = "parentId")]
+    parent_id: Option<String>,
+    url: String,
 }
 
 #[derive(Deserialize)]
 struct LifecycleEvent {
     name: String,
+    #[serde(rename = "frameId")]
+    frame_id: String,
+    #[serde(rename = "loaderId")]
+    loader_id: String,
 }
 
 struct DevToolsObserverCallbacks {
@@ -254,7 +269,12 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
             let params: LifecycleEvent = serde_json::from_slice(params)
                 .expect("failed to parse params of Page.lifecycleEvent");
 
-            let event_type = match params.name.as_str() {
+            info!(
+                "                               Lifecycle event: {} for frame: {}",
+                params.name, params.frame_id
+            );
+
+            let name = match params.name.as_str() {
                 "init" => LifecycleEventType::Init,
                 "DOMContentLoaded" => LifecycleEventType::DOMContentLoaded,
                 "load" => LifecycleEventType::Load,
@@ -265,7 +285,32 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
                     return;
                 }
             };
-            self.state.on_event(Event::PageLifecycleEvent(event_type));
+            let frame_id = params.frame_id;
+            let loader_id = params.loader_id;
+
+            self.state.on_event(Event::PageLifecycleEvent {
+                name,
+                frame_id,
+                loader_id,
+            });
+        }
+
+        if event == "Page.frameNavigated" {
+            let params = serde_json::from_slice::<FrameNavigated>(params)
+                .expect("failed to parse params of Page.frameNavigated");
+
+            if params.frame.parent_id.is_none() {
+                info!(
+                    "                               Main frame navigated: id={}, url={}",
+                    params.frame.id, params.frame.url
+                );
+
+                self.state.on_event(Event::PageFrameNavigated {
+                    frame_id: params.frame.id,
+                    is_main: true,
+                    url: params.frame.url,
+                });
+            }
         }
     }
 }

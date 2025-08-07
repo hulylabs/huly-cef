@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use crate::{browser::state::SharedBrowserState, LoadState, LoadStatus, TabMessage};
 use cef_ui::{Browser, ErrorCode, Frame, LoadHandlerCallbacks, TransitionType};
+use log::info;
 
 struct Flags {
     is_loading: bool,
@@ -42,6 +43,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
 
     fn on_load_start(&mut self, _: Browser, frame: Frame, _: TransitionType) {
         if frame.is_main().unwrap() {
+            info!("[on_load_start] Main frame started loading");
             let flags = self.flags.lock().unwrap();
             let load_state = LoadState {
                 status: LoadStatus::Loading,
@@ -57,6 +59,11 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
 
     fn on_load_end(&mut self, _browser: Browser, frame: Frame, http_status_code: i32) {
         if frame.is_main().unwrap() {
+            info!(
+                "[on_load_end] Main frame loaded with status code: {}",
+                http_status_code
+            );
+
             if http_status_code >= 200 && http_status_code < 299 {
                 let flags = self.flags.lock().unwrap();
                 let load_state = LoadState {

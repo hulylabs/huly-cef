@@ -363,13 +363,15 @@ async fn navigate(
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     tab.go_to(&params.url);
+    let id = tab.get_id();
 
     if params.wait_until_loaded {
         match tab.automation.wait_until_loaded(params.url.clone()).await {
-            Ok(_) => {}
+            Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
+                error!("failed to wait until tab with id {} is loaded: {}", id, e);
                 return Err(json!({
-                    "message": format!("failed to wait for navigation: {}", e)
+                    "message": format!("failed to wait for page load: {}", e),
                 }));
             }
         }

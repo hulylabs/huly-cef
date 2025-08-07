@@ -6,6 +6,7 @@ use cef_ui::{
     BrowserHost, BrowserSettings, CefTask, CefTaskCallbacks, PaintElementType, ThreadId, WindowInfo,
 };
 
+use log::info;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{browser::state::SharedBrowserState, ClickableElement, LoadState, TabMessage};
@@ -101,6 +102,7 @@ impl Browser {
     }
 
     pub fn go_to(&self, url: &str) {
+        info!("Navigating to URL: {}", url);
         self.automation.start_navigation();
         let _ = self.inner.get_main_frame().unwrap().unwrap().load_url(url);
     }

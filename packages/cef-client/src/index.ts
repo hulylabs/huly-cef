@@ -8,7 +8,6 @@ export { Tab } from "./tab.js";
 
 export async function connect(serverAddress: string): Promise<Browser> {
     let serverUrl = new URL(serverAddress);
-    const WebSocket = require('ws');
     const websocket = new WebSocket(serverUrl.toString());
     await new Promise<void>((resolve, reject) => {
         websocket.onopen = () => resolve();

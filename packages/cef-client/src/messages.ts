@@ -32,6 +32,8 @@ export class MessageHandler {
             params
         };
 
+        console.log(`Sending message: ${JSON.stringify(message)}`);
+
         return new Promise((resolve, reject) => {
             this.pendingPromises.set(id, { resolve, reject });
             this.websocket.send(JSON.stringify(message));
@@ -46,6 +48,8 @@ export class MessageHandler {
     }
 
     private resolve(response: Response): void {
+        console.log(`Received response: ${JSON.stringify(response)}`);
+
         const pendingPromise = this.pendingPromises.get(response.id);
         if (!pendingPromise) {
             console.warn(`No pending promise for response ID: ${response.id}`);

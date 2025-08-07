@@ -104,12 +104,12 @@ impl Automation {
         _ = self
             .state
             .wait_for(
-                |s| s.load_state.status == LoadStatus::Loaded && s.url == url,
+                |state| state.load_state.status == LoadStatus::Loaded && state.url == url,
                 timeout,
             )
             .await;
 
-        let load_state = self.state.read(|s| s.load_state.clone());
+        let load_state = self.state.read(|state| state.load_state.clone());
         match load_state.status {
             LoadStatus::Loaded => Ok(()),
             LoadStatus::Loading => Err(format!(
@@ -118,6 +118,9 @@ impl Automation {
             )),
             LoadStatus::LoadError => Err(load_state.error_message),
         }
+        // tokio::time::sleep(Duration::from_secs(5)).await;
+        // self.devtools.get_frame_events();
+        // Ok(())
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
