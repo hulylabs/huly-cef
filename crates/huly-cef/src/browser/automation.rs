@@ -99,9 +99,15 @@ impl Automation {
         Ok(BASE64_STANDARD.encode(cursor.into_inner()))
     }
 
-    pub async fn wait_until_loaded(&self) -> Result<(), String> {
+    pub async fn wait_until_loaded(&self, url: String) -> Result<(), String> {
         let timeout = Duration::from_secs(10);
-        self.devtools.wait_until_loaded(timeout).await;
+        _ = self
+            .state
+            .wait_for(
+                |s| s.load_state.status == LoadStatus::Loaded && s.url == url,
+                timeout,
+            )
+            .await;
 
         let load_state = self.state.read(|s| s.load_state.clone());
         match load_state.status {

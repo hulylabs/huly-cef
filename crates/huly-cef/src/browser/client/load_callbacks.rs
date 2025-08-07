@@ -57,7 +57,7 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
 
     fn on_load_end(&mut self, _browser: Browser, frame: Frame, http_status_code: i32) {
         if frame.is_main().unwrap() {
-            if http_status_code == 200 {
+            if http_status_code >= 200 && http_status_code < 299 {
                 let flags = self.flags.lock().unwrap();
                 let load_state = LoadState {
                     status: LoadStatus::Loaded,

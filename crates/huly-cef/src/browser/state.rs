@@ -4,9 +4,13 @@ use log::{error, info};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
-use tokio::sync::{mpsc::UnboundedSender, oneshot};
+use tokio::{
+    sync::{mpsc::UnboundedSender, oneshot, Notify},
+    time::error::Elapsed,
+};
 
 use crate::{
     browser::{automation::JSMessage, ClickableElement},
@@ -38,57 +42,89 @@ pub struct BrowserState {
     pub subscribers: HashMap<i32, UnboundedSender<TabMessage>>,
 }
 
-pub struct SharedBrowserState(Arc<Mutex<BrowserState>>);
+pub struct SharedBrowserState {
+    state: Arc<Mutex<BrowserState>>,
+    notify: Arc<Notify>,
+}
 
 impl SharedBrowserState {
     pub fn new(state: BrowserState) -> Self {
-        SharedBrowserState(Arc::new(Mutex::new(state)))
+        SharedBrowserState {
+            state: Arc::new(Mutex::new(state)),
+            notify: Arc::new(Notify::new()),
+        }
     }
 
     pub fn update<T: FnOnce(&mut BrowserState)>(&self, updater: T) {
-        let mut state = self.0.lock().expect("Browser state lock poisoned");
+        let mut state = self.state.lock().expect("Browser state lock poisoned");
         updater(&mut state);
+        self.notify.notify_waiters();
     }
 
     pub fn read<T: FnOnce(&BrowserState) -> R, R>(&self, reader: T) -> R {
-        let state = self.0.lock().expect("Browser state lock poisoned");
+        let state = self.state.lock().expect("Browser state lock poisoned");
         reader(&state)
     }
 
     pub fn update_and_return<T: FnOnce(&mut BrowserState) -> R, R>(&self, updater: T) -> R {
-        let mut state = self.0.lock().expect("Browser state lock poisoned");
-        updater(&mut state)
+        let mut state = self.state.lock().expect("Browser state lock poisoned");
+        let result = updater(&mut state);
+        self.notify.notify_waiters();
+        result
     }
 
     pub fn subscribe(&self, id: i32, tx: UnboundedSender<TabMessage>) {
-        let mut state = self.0.lock().expect("Browser state lock poisoned");
+        let mut state = self.state.lock().expect("Browser state lock poisoned");
         state.subscribers.insert(id, tx);
     }
 
     pub fn unsubscribe(&self, id: i32) {
-        let mut state = self.0.lock().expect("Browser state lock poisoned");
+        let mut state = self.state.lock().expect("Browser state lock poisoned");
         state.subscribers.remove(&id);
     }
 
     pub fn notify(&self, message: TabMessage) {
-        let state = self.0.lock().expect("Browser state lock poisoned");
+        let state = self.state.lock().expect("Browser state lock poisoned");
         for (_, tx) in &state.subscribers {
             if let Err(e) = tx.send(message.clone()) {
                 error!("Failed to send message to subscriber: {}", e);
             }
         }
     }
+
+    pub async fn wait_for<F: Fn(&BrowserState) -> bool>(
+        &self,
+        condition: F,
+        timeout: Duration,
+    ) -> Result<(), Elapsed> {
+        tokio::time::timeout(timeout, async {
+            loop {
+                {
+                    let state = self.state.lock().expect("Browser state lock poisoned");
+                    if condition(&state) {
+                        return;
+                    }
+                }
+
+                self.notify.notified().await;
+            }
+        })
+        .await
+    }
 }
 
 impl Clone for SharedBrowserState {
     fn clone(&self) -> Self {
-        SharedBrowserState(self.0.clone())
+        SharedBrowserState {
+            state: self.state.clone(),
+            notify: self.notify.clone(),
+        }
     }
 }
 
 impl Drop for SharedBrowserState {
     fn drop(&mut self) {
-        if Arc::strong_count(&self.0) == 1 {
+        if Arc::strong_count(&self.state) == 1 {
             info!("BrowserState dropped");
         }
     }

@@ -85,7 +85,7 @@ describe('Basic API', () => {
 
         tab.close();
         await expect.poll(() => browser.tabs()).toEqual([]);
-    }, 10000);
+    });
 
     test('tab reloading', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/reload.html", wait_until_loaded: true });

@@ -17,6 +17,7 @@ use tokio::sync::{oneshot, Notify};
 #[derive(Debug)]
 enum LifecycleEventType {
     Init,
+    DOMContentLoaded,
     Load,
     NetworkAlmostIdle,
     NetworkIdle,
@@ -167,6 +168,23 @@ impl DevTools {
     }
 
     pub async fn wait_until_loaded(&self, timeout: Duration) {
+        // info!("wait_until_loaded");
+        // let (tx, rx) = oneshot::channel();
+        // self.state.subscribe(100, tx);
+        // self.browser
+        //     .get_host()
+        //     .unwrap()
+        //     .execute_dev_tools_method(100, "Page.getFrameTree", None)
+        //     .expect("failed to enable Page domain");
+
+        // info!("Awaiting for frame tree response");
+        // let resp = rx.await.expect("failed to receive response");
+        // info!("Received response: {:?}", resp);
+
+        // let value = serde_json::from_slice::<serde_json::Value>(&resp.data)
+        //     .expect("failed to parse response data");
+        // info!("Frame tree: {:?}", value);
+
         let result = self
             .state
             .wait_until(|s| s.load_state == LoadState::Ready, timeout)
@@ -238,6 +256,7 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
 
             let event_type = match params.name.as_str() {
                 "init" => LifecycleEventType::Init,
+                "DOMContentLoaded" => LifecycleEventType::DOMContentLoaded,
                 "load" => LifecycleEventType::Load,
                 "networkIdle" => LifecycleEventType::NetworkIdle,
                 "networkAlmostIdle" => LifecycleEventType::NetworkAlmostIdle,

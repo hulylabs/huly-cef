@@ -255,7 +255,7 @@ async fn open_tab(
     state.set_tab(id, tab.clone());
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded().await {
+        match tab.automation.wait_until_loaded(params.url.clone()).await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -365,7 +365,7 @@ async fn navigate(
     tab.go_to(&params.url);
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded().await {
+        match tab.automation.wait_until_loaded(params.url.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 return Err(json!({
@@ -465,7 +465,7 @@ async fn reload(
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded().await {
+        match tab.automation.wait_until_loaded(params.url.clone()).await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -488,7 +488,7 @@ async fn go_back(
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded().await {
+        match tab.automation.wait_until_loaded(params.url.clone()).await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -511,7 +511,7 @@ async fn go_forward(
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded().await {
+        match tab.automation.wait_until_loaded(params.url.clone()).await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
