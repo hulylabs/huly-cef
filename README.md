@@ -84,15 +84,22 @@ The manager provides a RESTful API for managing multiple CEF instances.
 docker build -f Dockerfile.manager . -t huly-cef-manager
 
 # Run the container
-docker run -p 3000:3000 -p 40000-40200:40000-40200 -v /path/to/cefcache/on/host:/cefcache --rm huly-cef-manager --port-range 40000-40200
+docker run \
+   -e MANAGER_PORT=3001 \
+   -e PORT_RANGE=40000-40100 \
+   -e HOST=localhost \
+   -p 3001:3001 \
+   -p 40000-40100:40000-40100 \
+   -v /path/to/cefcache/on/host:/cefcache \
+   --rm huly-cef-manager
 ```
 
 ### API Usage Example
 
 ```javascript
 // Create a CEF instance and get its address
-const response = await fetch("http://localhost:3000/instances/id");
-const address = await response.text();
+const response = await fetch("http://localhost:3000/profiles/<profile-id>/cef");
+const address = await response.json();
 
 // Connect and control the browser
 const browser = await connect(address);

@@ -7,7 +7,7 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post},
+    routing::{delete, get},
 };
 use clap::Parser;
 use serde::Serialize;
@@ -22,15 +22,15 @@ mod profiles;
 
 #[derive(Parser, Debug, Clone)]
 struct Arguments {
-    #[clap(long, help = "Root directory for CEF cache storage")]
+    #[clap(long, env = "CACHE_DIR", help = "Root directory for CEF cache storage")]
     cache_dir: String,
-    #[clap(long, help = "Path to the CEF executable")]
+    #[clap(long, env = "CEF_EXE", help = "Path to the CEF executable")]
     cef_exe: String,
-    #[clap(long, value_parser = parse_port_range, help = "Port range for CEF instances in format START-END")]
+    #[clap(long, env = "PORT_RANGE", value_parser = parse_port_range, help = "Port range for CEF instances in format START-END")]
     port_range: (u16, u16),
-    #[clap(long, help = "Huly CEF servers and Manager host")]
+    #[clap(long, env = "HOST", help = "Huly CEF servers and Manager host")]
     host: String,
-    #[clap(long, help = "Huly CEF Manager port")]
+    #[clap(long, env = "MANAGER_PORT", help = "Huly CEF Manager port")]
     manager_port: u16,
 }
 
@@ -52,6 +52,24 @@ struct Response {
     status: bool,
     data: Option<serde_json::Value>,
     error: Option<String>,
+}
+
+impl Response {
+    fn new(data: serde_json::Value) -> Self {
+        Self {
+            status: true,
+            data: Some(data),
+            error: None,
+        }
+    }
+
+    fn new_with_error(error: String) -> Self {
+        Self {
+            status: false,
+            data: None,
+            error: Some(error),
+        }
+    }
 }
 
 struct ServerState {
@@ -78,7 +96,6 @@ async fn main() {
     }));
 
     let app = Router::new()
-        .route("/profiles/{id}", post(create_profile))
         .route("/profiles", get(list_profiles))
         .route("/profiles/{id}/cef", get(create_cef_instance))
         .route("/profiles/{id}/cef", delete(destroy_cef_instance))
@@ -104,37 +121,6 @@ async fn main() {
         .unwrap();
 }
 
-async fn create_profile(
-    State(state): State<Arc<Mutex<ServerState>>>,
-    Path(id): Path<String>,
-) -> (StatusCode, Json<Response>) {
-    info!("Received request to create profile with ID: {}", id);
-    match state.lock().unwrap().profiles.create(&id) {
-        Ok(_) => {
-            info!("Profile {} created successfully", id);
-            (
-                StatusCode::CREATED,
-                Json(Response {
-                    status: true,
-                    data: Some(json!({ "id": id.clone() })),
-                    error: None,
-                }),
-            )
-        }
-        Err(e) => {
-            info!("Failed to create profile {}: {}", id, e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(Response {
-                    status: false,
-                    data: None,
-                    error: Some(e),
-                }),
-            )
-        }
-    }
-}
-
 async fn list_profiles(
     State(state): State<Arc<Mutex<ServerState>>>,
 ) -> (StatusCode, Json<Response>) {
@@ -144,34 +130,17 @@ async fn list_profiles(
         info!("Failed to list profiles");
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(Response {
-                status: false,
-                data: None,
-                error: Some("Failed to list profiles".to_string()),
-            }),
+            Json(Response::new_with_error(
+                "Failed to list profiles".to_string(),
+            )),
         );
     };
-
-    if profiles.len() == 0 {
-        info!("No profiles found");
-        return (
-            StatusCode::NO_CONTENT,
-            Json(Response {
-                status: true,
-                data: Some(json!({ "profiles": [] })),
-                error: None,
-            }),
-        );
-    }
 
     info!("Returning profiles: {:?}", profiles);
-    let response = Response {
-        status: true,
-        data: Some(json!({ "profiles": profiles })),
-        error: None,
-    };
-
-    (StatusCode::OK, Json(response))
+    (
+        StatusCode::OK,
+        Json(Response::new(json!({ "profiles": profiles }))),
+    )
 }
 
 async fn create_cef_instance(
@@ -183,16 +152,22 @@ async fn create_cef_instance(
         id
     );
 
-    if !state.lock().unwrap().profiles.exists(&id) {
-        info!("Profile with id {} does not exist", id);
-        return (
-            StatusCode::NOT_FOUND,
-            Json(Response {
-                status: false,
-                data: None,
-                error: Some(format!("Profile with id {} does not exist", id)),
-            }),
-        );
+    {
+        let mut state = state.lock().unwrap();
+        if !state.profiles.exists(&id) {
+            info!(
+                "Profile with id {} does not exist, creating new profile",
+                id
+            );
+            if let Err(e) = state.profiles.create(&id) {
+                info!("Failed to create profile with id {}: {}", id, e);
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(Response::new_with_error(e)),
+                );
+            };
+            info!("Profile with id {} created", id);
+        }
     }
 
     let port = state.lock().unwrap().instances.create(&id);
@@ -202,26 +177,17 @@ async fn create_cef_instance(
                 "CEF instance created for profile ID: {} on port {}",
                 id, port
             );
+            let address = format!("ws://{}:{}/browser", state.lock().unwrap().args.host, port);
             (
                 StatusCode::OK,
-                Json(Response {
-                    status: true,
-                    data: Some(
-                        json!({ "address": format!("ws://{}:{}/browser", state.lock().unwrap().args.host, port) }),
-                    ),
-                    error: None,
-                }),
+                Json(Response::new(json!({ "address": address }))),
             )
         }
         Err(e) => {
             info!("Failed to create CEF instance for profile ID {}: {}", id, e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(Response {
-                    status: false,
-                    data: None,
-                    error: Some(e),
-                }),
+                Json(Response::new_with_error(e)),
             )
         }
     }
@@ -240,11 +206,10 @@ async fn destroy_cef_instance(
         info!("Profile with id {} does not exist", id);
         return (
             StatusCode::NOT_FOUND,
-            Json(Response {
-                status: false,
-                data: None,
-                error: Some(format!("Profile with id {} does not exist", id)),
-            }),
+            Json(Response::new_with_error(format!(
+                "Profile with id {} does not exist",
+                id
+            ))),
         );
     }
 
@@ -253,13 +218,9 @@ async fn destroy_cef_instance(
             info!("CEF instance for profile ID {} destroyed successfully", id);
             (
                 StatusCode::OK,
-                Json(Response {
-                    status: true,
-                    data: Some(json!({
-                        "message": format!("CEF instance {} destroyed", id)
-                    })),
-                    error: None,
-                }),
+                Json(Response::new(json!({
+                    "message": format!("CEF instance {} destroyed", id)
+                }))),
             )
         }
         Err(e) => {
@@ -267,14 +228,7 @@ async fn destroy_cef_instance(
                 "Failed to destroy CEF instance for profile ID {}: {}",
                 id, e
             );
-            (
-                StatusCode::NO_CONTENT,
-                Json(Response {
-                    status: false,
-                    data: None,
-                    error: Some(e),
-                }),
-            )
+            (StatusCode::NO_CONTENT, Json(Response::new_with_error(e)))
         }
     }
 }

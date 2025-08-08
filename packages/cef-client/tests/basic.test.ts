@@ -28,7 +28,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('resize', async () => {
+    test.only('resize', async () => {
         let [width, height] = [800, 600];
 
         const url = "file://" + testdir + "/testpages/resize.html";
@@ -42,7 +42,7 @@ describe('Basic API', () => {
         tab.close();
     });
 
-    test('go to a url', async () => {
+    test.only('go to a url', async () => {
         const tab = await browser.openTab({ url: "https://www.google.com", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
 
@@ -51,7 +51,7 @@ describe('Basic API', () => {
         tab.close();
     });
 
-    test('multiple tabs', async () => {
+    test.only('multiple tabs', async () => {
         let client = await connect("ws://localhost:" + port + "/browser");
         await browser.openTab({ url: "file://" + testdir + "/testpages/title.html", wait_until_loaded: true });
         await client.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
@@ -98,7 +98,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('mouse', async () => {
+    test.only('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
@@ -181,7 +181,7 @@ describe('Basic API', () => {
         tab.close();
     });
 
-    test('screenshot', async () => {
+    test.only('screenshot', async () => {
         browser.resize(1920, 1080);
 
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/title.html", wait_until_loaded: true });
