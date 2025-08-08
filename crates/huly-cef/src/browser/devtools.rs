@@ -50,14 +50,8 @@ struct Screenshot {
 }
 
 #[derive(Default)]
-struct FrameEvents {
-    main_frame_id: String,
-    events: HashMap<String, Vec<LifecycleEventType>>,
-}
-
-#[derive(Default)]
 struct DevToolsState {
-    frame_events: FrameEvents,
+    frame_events: HashMap<String, Vec<LifecycleEventType>>,
     pending_requests: HashMap<i32, oneshot::Sender<Response>>,
 }
 
@@ -77,21 +71,28 @@ impl SharedDevToolsState {
         let mut state = self.inner.lock().unwrap();
         match event {
             Event::PageLifecycleEvent { name, frame_id, .. } => {
-                state
-                    .frame_events
-                    .events
-                    .entry(frame_id.clone())
-                    .or_insert(Vec::new())
-                    .push(name.clone());
-            }
-
-            Event::PageFrameNavigated {
-                frame_id, is_main, ..
-            } => {
-                if *is_main {
-                    state.frame_events.main_frame_id = frame_id.clone();
+                if state.frame_events.contains_key(frame_id) {
+                    state.frame_events.entry(frame_id.clone()).and_modify(|e| {
+                        e.push(name.clone());
+                    });
+                } else {
+                    info!(
+                        "                               state doesn't have an entry for frame_id: {}",
+                        frame_id
+                    );
+                    if matches!(name, LifecycleEventType::Init) {
+                        info!(
+                        "                               init event received. Creating new entry for frame_id: {}",
+                            frame_id
+                        );
+                        state
+                            .frame_events
+                            .insert(frame_id.clone(), vec![name.clone()]);
+                    }
                 }
             }
+
+            Event::PageFrameNavigated { .. } => {}
         }
     }
 
@@ -175,7 +176,18 @@ impl DevTools {
     }
 
     pub fn start_navigation(&self) {
-        self.state.inner.lock().unwrap().frame_events.events.clear();
+        self.state.inner.lock().unwrap().frame_events.clear();
+    }
+
+    pub async fn get_main_frame_id(&self) {
+        let resp = self.execute_method("Page.getFrameTree", None).await;
+        let frame_tree: serde_json::Value =
+            serde_json::from_slice(&resp.data).expect("failed to parse Page.getFrameTree response");
+
+        info!(
+            "Frame tree: {}",
+            serde_json::to_string_pretty(&frame_tree).unwrap()
+        );
     }
 
     pub fn get_frame_events(&self) {
@@ -183,8 +195,7 @@ impl DevTools {
         {
             let state = self.state.inner.lock().unwrap();
 
-            info!("Main Frame ID: {}", state.frame_events.main_frame_id);
-            for entry in state.frame_events.events.iter() {
+            for entry in state.frame_events.iter() {
                 info!("Frame ID: {}", entry.0);
                 for event in entry.1 {
                     info!("     Event: {:?}", event);

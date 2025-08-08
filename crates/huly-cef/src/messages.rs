@@ -51,11 +51,24 @@ pub struct ClickableElement {
     pub text: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Framebuffer {
     pub width: u32,
     pub height: u32,
     pub data: Vec<u8>,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub enum TabMessageType {
+    Frame,
+    Cursor,
+    Title,
+    Url,
+    Favicon,
+    Closed,
+    UrlHovered,
+    NewTab,
+    LoadState,
 }
 
 /// Represents different types of events that can be sent from CEF browser
@@ -71,4 +84,20 @@ pub enum TabMessage {
     UrlHovered { url: String, hovered: bool },
     NewTab(String),
     LoadState(LoadState),
+}
+
+impl TabMessage {
+    pub fn event_type(&self) -> TabMessageType {
+        match self {
+            TabMessage::Frame(_) => TabMessageType::Frame,
+            TabMessage::Cursor(_) => TabMessageType::Cursor,
+            TabMessage::Title(_) => TabMessageType::Title,
+            TabMessage::Url(_) => TabMessageType::Url,
+            TabMessage::Favicon(_) => TabMessageType::Favicon,
+            TabMessage::Closed => TabMessageType::Closed,
+            TabMessage::UrlHovered { .. } => TabMessageType::UrlHovered,
+            TabMessage::NewTab(_) => TabMessageType::NewTab,
+            TabMessage::LoadState(_) => TabMessageType::LoadState,
+        }
+    }
 }

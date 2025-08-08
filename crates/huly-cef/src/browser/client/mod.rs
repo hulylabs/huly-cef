@@ -3,10 +3,7 @@ use cef_ui::{
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
 
-use crate::{
-    browser::{automation::JSMessage, state::SharedBrowserState},
-    state::RenderMode,
-};
+use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 
 mod display_callbacks;
 mod life_span_callbacks;
@@ -21,7 +18,6 @@ pub struct HulyClientCallbacks {
     display_handler: DisplayHandler,
     life_span_handler: LifeSpanHandler,
     request_handler: RequestHandler,
-    // screenshot_handler: RenderHandler,
 }
 
 impl HulyClientCallbacks {
@@ -69,10 +65,7 @@ impl ClientCallbacks for HulyClientCallbacks {
     }
 
     fn get_render_handler(&mut self) -> Option<RenderHandler> {
-        self.state.read(|s| match s.render_mode {
-            RenderMode::Stream => Some(self.render_handler.clone()),
-            RenderMode::Screenshot => Some(self.render_handler.clone()),
-        })
+        Some(self.render_handler.clone())
     }
 
     fn get_load_handler(&mut self) -> Option<cef_ui::LoadHandler> {

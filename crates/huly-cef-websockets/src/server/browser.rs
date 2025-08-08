@@ -250,12 +250,12 @@ async fn open_tab(
 ) -> Result<serde_json::Value, serde_json::Value> {
     info!("opening a new tab with url: {}", params.url);
 
-    let tab = Browser::new(params.width, params.height, &params.url);
+    let mut tab = Browser::new(params.width, params.height, &params.url);
     let id = tab.get_id();
     state.set_tab(id, tab.clone());
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded(params.url.clone()).await {
+        match tab.automation.wait_until_loaded().await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -361,12 +361,12 @@ async fn navigate(
     state: &SharedServerState,
     params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.tab)?;
+    let mut tab = get_tab(state, params.tab)?;
     tab.go_to(&params.url);
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded(params.url.clone()).await {
+        match tab.automation.wait_until_loaded().await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -462,12 +462,12 @@ async fn reload(
     state: &SharedServerState,
     params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.tab)?;
+    let mut tab = get_tab(state, params.tab)?;
     tab.reload();
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded(params.url.clone()).await {
+        match tab.automation.wait_until_loaded().await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -485,12 +485,12 @@ async fn go_back(
     state: &SharedServerState,
     params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.tab)?;
+    let mut tab = get_tab(state, params.tab)?;
     tab.go_back();
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded(params.url.clone()).await {
+        match tab.automation.wait_until_loaded().await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
@@ -508,12 +508,12 @@ async fn go_forward(
     state: &SharedServerState,
     params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    let tab = get_tab(state, params.tab)?;
+    let mut tab = get_tab(state, params.tab)?;
     tab.go_forward();
     let id = tab.get_id();
 
     if params.wait_until_loaded {
-        match tab.automation.wait_until_loaded(params.url.clone()).await {
+        match tab.automation.wait_until_loaded().await {
             Ok(_) => info!("tab with id {} is loaded", id),
             Err(e) => {
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);

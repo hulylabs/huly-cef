@@ -2,7 +2,7 @@ use cef_ui::{
     Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, LogSeverity,
     Size,
 };
-use log::error;
+use log::{error, info};
 use url::Url;
 
 use crate::{browser::state::SharedBrowserState, messages::TabMessage};
@@ -23,6 +23,7 @@ impl HulyDisplayHandlerCallbacks {
 
 impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
     fn on_address_change(&mut self, _: Browser, _: Frame, url: &str) {
+        info!("[on_address_change] {}", url);
         self.state.update(|state| {
             state.url = url.to_string();
         });

@@ -101,23 +101,23 @@ impl Browser {
             .invalidate(PaintElementType::View);
     }
 
-    pub fn go_to(&self, url: &str) {
-        info!("Navigating to URL: {}", url);
+    pub fn go_to(&mut self, url: &str) {
+        info!("navigating to URL: {}", url);
         self.automation.start_navigation();
         let _ = self.inner.get_main_frame().unwrap().unwrap().load_url(url);
     }
 
-    pub fn go_back(&self) {
+    pub fn go_back(&mut self) {
         self.automation.start_navigation();
         let _ = self.inner.go_back();
     }
 
-    pub fn go_forward(&self) {
+    pub fn go_forward(&mut self) {
         self.automation.start_navigation();
         let _ = self.inner.go_forward();
     }
 
-    pub fn reload(&self) {
+    pub fn reload(&mut self) {
         self.automation.start_navigation();
         let _ = self.inner.reload();
     }
@@ -185,12 +185,11 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             active: true,
             left_mouse_button_down: false,
 
-            render_mode: state::RenderMode::Stream,
-
             clickable_elements: None,
 
             javascript_messages: HashMap::new(),
             subscribers: HashMap::new(),
+            single_event_subscribers: HashMap::new(),
         });
 
         let client = client::new(state.clone());

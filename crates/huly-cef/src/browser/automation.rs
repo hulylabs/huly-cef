@@ -1,18 +1,23 @@
-use std::{io::Cursor, sync::Arc, time::Duration};
+use std::{
+    io::Cursor,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use anyhow::Result;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
 use image::{imageops::FilterType, ImageFormat};
-use log::error;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, Notify};
 
 use crate::{
     browser::{devtools::DevTools, mouse::Mouse},
     state::SharedBrowserState,
-    ClickableElement, LoadStatus, MouseButton, GET_CLICKABLE_ELEMENTS_SCRIPT,
+    ClickableElement, LoadState, LoadStatus, MouseButton, TabMessage, TabMessageType,
+    GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
 pub struct DOMVisitor {
@@ -46,6 +51,8 @@ pub struct Automation {
     devtools: Arc<DevTools>,
     mouse: Mouse,
     state: SharedBrowserState,
+    load_states: Arc<Mutex<Vec<LoadState>>>,
+    notify: Arc<Notify>,
 }
 
 impl Clone for Automation {
@@ -55,6 +62,8 @@ impl Clone for Automation {
             devtools: self.devtools.clone(),
             mouse: self.mouse.clone(),
             state: self.state.clone(),
+            load_states: self.load_states.clone(),
+            notify: self.notify.clone(),
         }
     }
 }
@@ -63,16 +72,36 @@ impl Automation {
     pub fn new(browser: Browser, state: SharedBrowserState, mouse: Mouse) -> Self {
         let devtools = Arc::new(DevTools::new(browser.clone()));
 
+        let notify = Arc::new(Notify::new());
+        let notify_clone = notify.clone();
+
+        let load_states = Arc::new(Mutex::new(Vec::new()));
+        let load_states_clone = load_states.clone();
+        state.on(
+            TabMessageType::LoadState,
+            Box::new(move |message| match message {
+                TabMessage::LoadState(load_state) => {
+                    load_states_clone.lock().unwrap().push(load_state);
+                    notify_clone.notify_waiters();
+                }
+                _ => {}
+            }),
+        );
+
         Automation {
             browser,
             devtools,
             mouse,
             state,
+            load_states,
+            notify,
         }
     }
 
-    pub fn start_navigation(&self) {
+    pub fn start_navigation(&mut self) {
         self.devtools.start_navigation();
+        self.load_states.lock().unwrap().clear();
+        info!("navigation started: load states cleared");
     }
 
     pub async fn get_dom(&self) -> String {
@@ -99,15 +128,23 @@ impl Automation {
         Ok(BASE64_STANDARD.encode(cursor.into_inner()))
     }
 
-    pub async fn wait_until_loaded(&self, url: String) -> Result<(), String> {
-        let timeout = Duration::from_secs(10);
-        _ = self
-            .state
-            .wait_for(
-                |state| state.load_state.status == LoadStatus::Loaded && state.url == url,
-                timeout,
-            )
-            .await;
+    pub async fn wait_until_loaded(&mut self) -> Result<(), String> {
+        let timeout = Duration::from_secs(30);
+        _ = tokio::time::timeout(timeout, async {
+            loop {
+                {
+                    let load_states = self.load_states.lock().unwrap();
+                    if let Some(last_state) = load_states.last() {
+                        if last_state.status == LoadStatus::Loaded {
+                            info!("got load status Loaded");
+                            return;
+                        }
+                    }
+                }
+                self.notify.notified().await;
+            }
+        })
+        .await;
 
         let load_state = self.state.read(|state| state.load_state.clone());
         match load_state.status {
@@ -118,9 +155,6 @@ impl Automation {
             )),
             LoadStatus::LoadError => Err(load_state.error_message),
         }
-        // tokio::time::sleep(Duration::from_secs(5)).await;
-        // self.devtools.get_frame_events();
-        // Ok(())
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {

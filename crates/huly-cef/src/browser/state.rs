@@ -15,13 +15,10 @@ use tokio::{
 use crate::{
     browser::{automation::JSMessage, ClickableElement},
     messages::TabMessage,
-    LoadState,
+    LoadState, TabMessageType,
 };
 
-pub enum RenderMode {
-    Stream,
-    Screenshot,
-}
+type TabMessageCallback = Box<dyn Fn(TabMessage) + Send + Sync>;
 
 pub struct BrowserState {
     pub title: String,
@@ -34,12 +31,11 @@ pub struct BrowserState {
     pub active: bool,
     pub left_mouse_button_down: bool,
 
-    pub render_mode: RenderMode,
-
     pub clickable_elements: Option<Vec<ClickableElement>>,
 
     pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
     pub subscribers: HashMap<i32, UnboundedSender<TabMessage>>,
+    pub single_event_subscribers: HashMap<TabMessageType, TabMessageCallback>,
 }
 
 pub struct SharedBrowserState {
@@ -90,6 +86,10 @@ impl SharedBrowserState {
                 error!("Failed to send message to subscriber: {}", e);
             }
         }
+
+        if let Some(callback) = state.single_event_subscribers.get(&message.event_type()) {
+            callback(message);
+        }
     }
 
     pub async fn wait_for<F: Fn(&BrowserState) -> bool>(
@@ -110,6 +110,12 @@ impl SharedBrowserState {
             }
         })
         .await
+    }
+
+    pub fn on(&self, event: TabMessageType, callback: TabMessageCallback) {
+        self.update(|s| {
+            s.single_event_subscribers.insert(event, callback);
+        });
     }
 }
 
