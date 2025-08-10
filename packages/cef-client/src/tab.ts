@@ -1,7 +1,7 @@
 import { TabEventStream } from "./event_stream.js";
 import { KeyCode, keyCodeToMacOSVirtualKey, keyCodeToWindowsVirtualKey } from "./keyboard.js";
 import { MessageHandler } from "./messages.js";
-import { ClickableElement, DEFAULT_HEIGHT, DEFAULT_WIDTH, detectPlatform, MouseButton, Platform, ScreenshotOptions } from "./types.js";
+import { ClickableElement, detectPlatform, MouseButton, Platform, ScreenshotOptions } from "./types.js";
 
 export class Tab {
     id: number;
@@ -27,7 +27,7 @@ export class Tab {
     }
 
     async screenshot(options?: ScreenshotOptions): Promise<string> {
-        const { width, height } = options?.size || { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        const { width, height } = options?.size || { width: 800, height: 600 };
         const result = await this.messageHandler.send('screenshot', {
             tab: this.id,
             width,

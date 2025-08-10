@@ -17,7 +17,7 @@ describe('Basic API', () => {
         browser = await connect("ws://localhost:" + port + "/browser");
     });
 
-    test.only('open a new tab', async () => {
+    test('open a new tab', async () => {
         const url = pathToFileURL(testdir + "/testpages/title.html").href;
         const tab = await browser.openTab({ url: url, wait_until_loaded: true });
         expect(tab.id).toBeDefined();
@@ -28,11 +28,12 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.only('resize', async () => {
+    test('resize', async () => {
         let [width, height] = [800, 600];
+        browser.resize(width, height);
 
         const url = "file://" + testdir + "/testpages/resize.html";
-        const tab = await browser.openTab({ url, width, height });
+        const tab = await browser.openTab({ url });
         await expect.poll(() => tab.title()).toBe("800x600");
 
         [width, height] = [1024, 768];
@@ -42,7 +43,7 @@ describe('Basic API', () => {
         tab.close();
     });
 
-    test.only('go to a url', async () => {
+    test('go to a url', async () => {
         const tab = await browser.openTab({ url: "https://www.google.com", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
 
@@ -51,7 +52,7 @@ describe('Basic API', () => {
         tab.close();
     });
 
-    test.only('multiple tabs', async () => {
+    test('multiple tabs', async () => {
         let client = await connect("ws://localhost:" + port + "/browser");
         await browser.openTab({ url: "file://" + testdir + "/testpages/title.html", wait_until_loaded: true });
         await client.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
@@ -87,7 +88,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.only('tab reloading', async () => {
+    test('tab reloading', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/reload.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
 

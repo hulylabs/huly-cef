@@ -145,8 +145,6 @@ struct TabParam {
 struct OpenTabParams {
     url: String,
     wait_until_loaded: bool,
-    width: u32,
-    height: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,7 +248,8 @@ async fn open_tab(
 ) -> Result<serde_json::Value, serde_json::Value> {
     info!("opening a new tab with url: {}", params.url);
 
-    let mut tab = Browser::new(params.width, params.height, &params.url);
+    let (width, height) = { state.lock().size };
+    let mut tab = Browser::new(width, height, &params.url);
     let id = tab.get_id();
     state.set_tab(id, tab.clone());
 
@@ -261,7 +260,7 @@ async fn open_tab(
                 error!("failed to wait until tab with id {} is loaded: {}", id, e);
                 return Err(json!({
                     "message": format!("failed to wait for page load: {}", e),
-                    "data": { "id": id, "url": params.url, "width": params.width, "height": params.height }
+                    "data": { "id": id, "url": params.url, "width": width, "height": height }
                 }));
             }
         }
@@ -272,8 +271,8 @@ async fn open_tab(
     Ok(json!({
         "id": id,
         "url": params.url,
-        "width": params.width,
-        "height": params.height,
+        "width": width,
+        "height": height,
     }))
 }
 

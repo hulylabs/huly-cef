@@ -1,4 +1,5 @@
-import { REQUEST_TIMEOUT } from './types.js';
+import { get } from "http";
+import { getConfig } from "./config.js";
 
 interface Request {
     id: string;
@@ -32,7 +33,9 @@ export class MessageHandler {
             params
         };
 
-        console.log(`Sending message: ${JSON.stringify(message)}`);
+        if (getConfig().logging) {
+            console.log(`Sending message: ${method} with params:`, params);
+        }
 
         return new Promise((resolve, reject) => {
             this.pendingPromises.set(id, { resolve, reject });
@@ -43,12 +46,14 @@ export class MessageHandler {
                     this.pendingPromises.delete(id);
                     reject(new Error(`Timeout waiting for response to ${method}`));
                 }
-            }, REQUEST_TIMEOUT);
+            }, getConfig().requestTimeout);
         });
     }
 
     private resolve(response: Response): void {
-        console.log(`Received response: ${JSON.stringify(response)}`);
+        if (getConfig().logging) {
+            console.log(`Received response for ID ${response.id}:`, response);
+        }
 
         const pendingPromise = this.pendingPromises.get(response.id);
         if (!pendingPromise) {

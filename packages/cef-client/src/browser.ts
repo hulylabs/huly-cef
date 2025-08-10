@@ -1,6 +1,7 @@
 import { Tab } from './tab.js';
-import { DEFAULT_HEIGHT, DEFAULT_URL, DEFAULT_WIDTH, OpenTabOptions } from './types.js';
+import { OpenTabOptions } from './types.js';
 import { MessageHandler } from './messages.js';
+import { getConfig } from './config.js';
 
 export class Browser {
     private serverUrl: URL;
@@ -15,10 +16,8 @@ export class Browser {
 
     async openTab(options?: Partial<OpenTabOptions>): Promise<Tab> {
         const params = {
-            url: options?.url || DEFAULT_URL,
+            url: options?.url || getConfig().defaultUrl,
             wait_until_loaded: options?.wait_until_loaded ?? false,
-            width: options?.width || DEFAULT_WIDTH,
-            height: options?.height || DEFAULT_HEIGHT
         };
 
         const result = await this.messageHandler.send('openTab', params);
