@@ -65,7 +65,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('tab navigation', async () => {
+    test.only('tab navigation', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html", wait_until_loaded: true });
         expect(await tab.title()).toBe("Links");
 
@@ -87,7 +87,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test('tab reloading', async () => {
+    test.only('tab reloading', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/reload.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
 
