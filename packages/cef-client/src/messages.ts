@@ -34,7 +34,7 @@ export class MessageHandler {
         };
 
         if (getConfig().logging) {
-            console.log(`Sending message: ${method} with params:`, params);
+            console.log(`[${Date.now()}] Sending message:`, JSON.stringify(message));
         }
 
         return new Promise((resolve, reject) => {
@@ -52,7 +52,7 @@ export class MessageHandler {
 
     private resolve(response: Response): void {
         if (getConfig().logging) {
-            console.log(`Received response for ID ${response.id}:`, response);
+            console.log(`[${Date.now()}] Received response:`, response);
         }
 
         const pendingPromise = this.pendingPromises.get(response.id);
