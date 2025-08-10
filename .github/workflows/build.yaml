@@ -40,11 +40,11 @@ jobs:
     - name: Launch
       run: |
         if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-          ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets --no-sandbox &
+          ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets --no-sandbox --cache-dir /cefcache &
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-          xvfb-run -a ./target/release/huly-cef-websockets --no-sandbox &
+          xvfb-run -a ./target/release/huly-cef-websockets --no-sandbox --cache-dir /cefcache &
         elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          powershell -Command "Start-Process -FilePath './target/release/huly-cef-websockets.exe' -ArgumentList '--no-sandbox' -WindowStyle Hidden"
+          powershell -Command "Start-Process -FilePath './target/release/huly-cef-websockets.exe' -ArgumentList '--no-sandbox --cache-dir /cefcache' -WindowStyle Hidden"
         fi
 
     - name: Test
@@ -52,6 +52,13 @@ jobs:
       run: |
         npm i
         npm run test
+
+    - name: Upload CEF Cache
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cef-cache
+        path: /cefcache
 
   build-manager-image:
     name: Build and Push Huly CEF Manager Docker Image
