@@ -6,7 +6,7 @@ export interface Config {
 
 // Default configuration
 const DEFAULT_CONFIG: Config = {
-    requestTimeout: 30000,
+    requestTimeout: 50000,
     defaultUrl: 'about:blank',
     logging: true,
 };

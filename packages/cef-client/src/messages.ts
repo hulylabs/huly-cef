@@ -34,7 +34,7 @@ export class MessageHandler {
         };
 
         if (getConfig().logging) {
-            console.log(`[${Date.now()}] Sending message:`, JSON.stringify(message));
+            console.log(`[${new Date().toISOString()}] Sending message:`, message);
         }
 
         return new Promise((resolve, reject) => {
@@ -52,7 +52,7 @@ export class MessageHandler {
 
     private resolve(response: Response): void {
         if (getConfig().logging) {
-            console.log(`[${Date.now()}] Received response:`, response);
+            console.log(`[${new Date().toISOString()}] Received response:`, response);
         }
 
         const pendingPromise = this.pendingPromises.get(response.id);
