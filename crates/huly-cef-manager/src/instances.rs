@@ -6,8 +6,8 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
+use log::info;
 use tokio_tungstenite::tungstenite::connect;
-use tracing::info;
 
 #[derive(Default)]
 pub struct InstanceManager {

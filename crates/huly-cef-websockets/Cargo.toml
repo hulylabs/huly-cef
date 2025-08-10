@@ -11,11 +11,9 @@ zip = "4.1.0"
 cef-ui-util = { git = "https://github.com/hulylabs/cef-ui.git" }
 
 [dependencies]
-log = { workspace = true }
 anyhow = { workspace = true }
-tracing = { workspace = true }
-tracing-log = { workspace = true }
-tracing-subscriber = { workspace = true }
+log = { workspace = true }
+log4rs = { workspace = true }
 
 huly-cef = { path = "../huly-cef" }
 

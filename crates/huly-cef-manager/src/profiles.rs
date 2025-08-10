@@ -1,7 +1,7 @@
 use std::{fs, io, path::PathBuf};
 
+use log::info;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Profile;

@@ -10,10 +10,16 @@ use axum::{
     routing::{delete, get},
 };
 use clap::Parser;
+use log::{SetLoggerError, info};
+use log4rs::{
+    Config,
+    append::console::ConsoleAppender,
+    config::{Appender, Root},
+    encode::pattern::PatternEncoder,
+};
 use serde::Serialize;
 use serde_json::json;
 use tokio::sync::Notify;
-use tracing::info;
 
 use crate::{instances::InstanceManager, profiles::ProfileManager};
 
@@ -45,6 +51,24 @@ fn parse_port_range(s: &str) -> Result<(u16, u16), String> {
         return Err("Start port must be <= end port".into());
     }
     Ok((start, end))
+}
+
+fn setup_logging() -> Result<log4rs::Handle, SetLoggerError> {
+    let stdout_pattern = "\x1b[90m{d(%H:%M:%S)} \x1b[0m{h({l})} \x1b[90m{f}:{L} \x1b[0m{m}{n}";
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(stdout_pattern)))
+        .build();
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(
+            Root::builder()
+                .appender("stdout")
+                .build(log::LevelFilter::Info),
+        )
+        .unwrap();
+
+    log4rs::init_config(config)
 }
 
 #[derive(Serialize)]
@@ -80,7 +104,7 @@ struct ServerState {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    setup_logging().expect("Failed to set up logging");
 
     let args = Arguments::parse();
     info!("Starting huly-cef-manager with args: {:?}", args);

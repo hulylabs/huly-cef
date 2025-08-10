@@ -27,14 +27,9 @@ pub enum LifecycleEventType {
 pub enum Event {
     PageLifecycleEvent {
         frame_id: String,
-        loader_id: String,
         name: LifecycleEventType,
     },
-    PageFrameNavigated {
-        frame_id: String,
-        is_main: bool,
-        url: String,
-    },
+    PageFrameNavigated {},
 }
 
 #[derive(Debug)]
@@ -121,6 +116,7 @@ impl SharedDevToolsState {
         state.pending_requests.insert(message_id, tx);
     }
 
+    #[allow(dead_code)]
     async fn wait_until<P: Fn(&DevToolsState) -> bool>(
         &self,
         predicate: P,
@@ -179,6 +175,7 @@ impl DevTools {
         self.state.inner.lock().unwrap().frame_events.clear();
     }
 
+    #[allow(dead_code)]
     pub async fn get_main_frame_id(&self) {
         let resp = self.execute_method("Page.getFrameTree", None).await;
         let frame_tree: serde_json::Value =
@@ -190,6 +187,7 @@ impl DevTools {
         );
     }
 
+    #[allow(dead_code)]
     pub fn get_frame_events(&self) {
         info!("==============================");
         {
@@ -223,7 +221,8 @@ impl DevTools {
         let (tx, rx) = oneshot::channel();
         self.state.subscribe(id, tx);
 
-        self.browser
+        _ = self
+            .browser
             .get_host()
             .unwrap()
             .execute_dev_tools_method(id, name, params);
@@ -250,8 +249,6 @@ struct LifecycleEvent {
     name: String,
     #[serde(rename = "frameId")]
     frame_id: String,
-    #[serde(rename = "loaderId")]
-    loader_id: String,
 }
 
 struct DevToolsObserverCallbacks {
@@ -297,13 +294,9 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
                 }
             };
             let frame_id = params.frame_id;
-            let loader_id = params.loader_id;
 
-            self.state.on_event(Event::PageLifecycleEvent {
-                name,
-                frame_id,
-                loader_id,
-            });
+            self.state
+                .on_event(Event::PageLifecycleEvent { name, frame_id });
         }
 
         if event == "Page.frameNavigated" {
@@ -316,11 +309,7 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
                     params.frame.id, params.frame.url
                 );
 
-                self.state.on_event(Event::PageFrameNavigated {
-                    frame_id: params.frame.id,
-                    is_main: true,
-                    url: params.frame.url,
-                });
+                self.state.on_event(Event::PageFrameNavigated {});
             }
         }
     }

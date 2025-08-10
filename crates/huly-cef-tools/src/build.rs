@@ -3,9 +3,6 @@ use std::{fs, path::PathBuf};
 use anyhow::Result;
 use cef_ui_util::{get_cef_artifacts_dir, get_cef_workspace_dir, AppBundleSettings, BuildCommand};
 use clap::Parser;
-use tracing::{level_filters::LevelFilter, subscriber::set_global_default, Level};
-use tracing_log::LogTracer;
-use tracing_subscriber::FmtSubscriber;
 
 #[cfg(target_os = "linux")]
 const CEF_URL: &str =
@@ -24,14 +21,6 @@ struct BuildArgs {
 }
 
 fn main() -> Result<()> {
-    LogTracer::init()?;
-
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(LevelFilter::from_level(Level::INFO))
-        .finish();
-
-    set_global_default(subscriber)?;
-
     let artifacts_dir = get_cef_artifacts_dir()?;
     let dir = PathBuf::from(artifacts_dir);
     if !dir.exists() {

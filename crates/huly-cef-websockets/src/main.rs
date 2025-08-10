@@ -1,8 +1,12 @@
 use anyhow::Result;
 
-use tracing::{level_filters::LevelFilter, subscriber::set_global_default};
-use tracing_log::LogTracer;
-use tracing_subscriber::FmtSubscriber;
+use log::SetLoggerError;
+use log4rs::{
+    append::{console::ConsoleAppender, file::FileAppender},
+    config::{Appender, Root},
+    encode::pattern::PatternEncoder,
+    Config,
+};
 
 mod server;
 
@@ -65,15 +69,38 @@ fn parse_arguments() -> Arguments {
     result
 }
 
+fn setup_logging(cache_dir: &str) -> Result<log4rs::Handle, SetLoggerError> {
+    let stdout_pattern = "\x1b[90m{d(%H:%M:%S%.3f)} \x1b[0m{h({l})} \x1b[90m{f}:{L} \x1b[0m{m}{n}";
+    let file_pattern = "{d(%H:%M:%S%.3f)} {h({l})} {f}:{L} {m}{n}";
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(stdout_pattern)))
+        .build();
+    let file = FileAppender::builder()
+        .append(false)
+        .encoder(Box::new(PatternEncoder::new(file_pattern)))
+        .build(format!("{}/huly_cef.log", cache_dir))
+        .unwrap();
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .appender(Appender::builder().build("file", Box::new(file)))
+        .build(
+            Root::builder()
+                .appender("stdout")
+                .appender("file")
+                .build(log::LevelFilter::Info),
+        )
+        .unwrap();
+
+    log4rs::init_config(config)
+}
+
 fn main() -> Result<()> {
-    LogTracer::init()?;
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(LevelFilter::INFO)
-        .finish();
-
-    set_global_default(subscriber)?;
-
     let args = parse_arguments();
+
+    setup_logging(&args.cache_path)
+        .map_err(|e| anyhow::anyhow!("Failed to initialize logging: {}", e))?;
+
     let cef = huly_cef::new(args.port, args.cache_path.clone())?;
     if let Some(code) = cef.is_cef_subprocess() {
         std::process::exit(code);
