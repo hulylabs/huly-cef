@@ -1,6 +1,8 @@
 
 use anyhow::{anyhow, Result};
+use cef_ui::{AppCallbacks, RenderProcessHandlerCallbacks};
 use cef_ui_helper::{cef_main_args_t, MainArgs, ScopedSandbox};
+use cef_ui_sys::cef_app_t;
 use libloading::{Library, Symbol};
 use log::{error, info, SetLoggerError};
 use log4rs::{append::{console::ConsoleAppender, file::FileAppender}, config::{Appender, Root}, encode::pattern::PatternEncoder, Config};
@@ -58,6 +60,8 @@ fn try_run(sandbox: bool) -> Result<i32> {
         false => None
     };
 
+    let app = cef_ui::App::new(HelperAppCallbacks {});
+
     // Manually load CEF and execute the subprocess.
     let ret = unsafe {
         // Load our main args.
@@ -71,13 +75,13 @@ fn try_run(sandbox: bool) -> Result<i32> {
 
         // Manually load the cef_execute_process function.
         let cef_execute_process: Symbol<
-            unsafe extern "C" fn(args: *const cef_main_args_t, *mut c_void, *mut c_void) -> c_int
+            unsafe extern "C" fn(args: *const cef_main_args_t, *mut cef_app_t, *mut c_void) -> c_int
         > = lib.get(b"cef_execute_process")?;
 
         info!("Executing CEF subprocess ..");
 
         // Execute the CEF subprocess.
-        let ret = cef_execute_process(main_args.as_raw(), null_mut(), null_mut()) as i32;
+        let ret = cef_execute_process(main_args.as_raw(), app.into_raw(), null_mut()) as i32;
 
         info!("CEF exited with code: {}", ret);
 
@@ -107,4 +111,57 @@ fn get_cef_path(relative_path: &str) -> Result<PathBuf> {
 
 fn main() {
     run(true);
+}
+
+
+struct HelperRenderProcessCallbacks;
+
+impl RenderProcessHandlerCallbacks for HelperRenderProcessCallbacks {
+    fn on_web_kit_initialized(&mut self) {
+        info!("on_web_kit_initialized");
+    }
+
+    fn on_browser_created(&mut self, browser: cef_ui::Browser, extra_info: Option<cef_ui::DictionaryValue>) {
+        info!("on_browser_created");
+    }
+
+    fn on_browser_destroyed(&mut self, browser: cef_ui::Browser) {
+        info!("on_browser_destroyed");
+    }
+
+    fn on_context_created(&mut self, browser: cef_ui::Browser, frame: cef_ui::Frame, context: cef_ui::V8Context) {
+        info!("on_context_created");
+    }
+
+    fn on_process_message_received(
+        &mut self,
+        browser: cef_ui::Browser,
+        frame: cef_ui::Frame,
+        source_process: cef_ui::ProcessId,
+        message: &mut cef_ui::ProcessMessage
+    ) -> bool {
+        info!("on_process_message_received");
+        // Handle the message here if needed.
+        false // Return true if the message was handled, false otherwise.
+    }
+}
+struct HelperAppCallbacks;
+
+impl AppCallbacks for HelperAppCallbacks {
+    fn on_before_command_line_processing(
+        &mut self,
+        process_type: Option<&str>,
+        command_line: Option<cef_ui::CommandLine>
+    ) {
+        info!("on_before_command_line_processing");
+    }
+
+    fn get_browser_process_handler(&mut self) -> Option<cef_ui::BrowserProcessHandler> {
+        info!("get_browser_process_handler");
+        None
+    }
+
+    fn get_render_process_handler(&mut self) -> Option<cef_ui::RenderProcessHandler> {
+        Some(cef_ui::RenderProcessHandler::new(HelperRenderProcessCallbacks {}))
+    }
 }

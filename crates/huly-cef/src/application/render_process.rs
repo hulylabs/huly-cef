@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::info;
 
 use crate::javascript::{
     INTERACTIVE_ELEMENT_FUNCTION, IS_ELEMENT_VISIBLE_FUNCTION, WALK_DOM_FUNCTION,
