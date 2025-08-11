@@ -158,9 +158,12 @@ impl Automation {
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
+        info!("[getting clickable elements] start");
         let msg = self
             .execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "elements")
             .await;
+
+        info!("[getting clickable elements] got elements: {:?}", msg);
 
         match msg {
             Ok(JSMessage::ClickableElements(elements)) => {
