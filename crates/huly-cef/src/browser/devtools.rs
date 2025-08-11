@@ -10,7 +10,7 @@ use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
     Registration,
 };
-use log::info;
+use log::{info, trace};
 use serde::Deserialize;
 use tokio::sync::{oneshot, Notify};
 
@@ -71,13 +71,10 @@ impl SharedDevToolsState {
                         e.push(name.clone());
                     });
                 } else {
-                    info!(
-                        "                               state doesn't have an entry for frame_id: {}",
-                        frame_id
-                    );
+                    trace!("state doesn't have an entry for frame_id: {}", frame_id);
                     if matches!(name, LifecycleEventType::Init) {
-                        info!(
-                        "                               init event received. Creating new entry for frame_id: {}",
+                        trace!(
+                            "init event received. Creating new entry for frame_id: {}",
                             frame_id
                         );
                         state
@@ -107,7 +104,7 @@ impl SharedDevToolsState {
     fn subscribe(&self, message_id: i32, tx: oneshot::Sender<Response>) {
         let mut state = self.inner.lock().expect("Browser state lock poisoned");
         if state.pending_requests.contains_key(&message_id) {
-            info!(
+            trace!(
                 "Message ID {} already exists in pending requests",
                 message_id
             );
@@ -173,33 +170,6 @@ impl DevTools {
 
     pub fn start_navigation(&self) {
         self.state.inner.lock().unwrap().frame_events.clear();
-    }
-
-    #[allow(dead_code)]
-    pub async fn get_main_frame_id(&self) {
-        let resp = self.execute_method("Page.getFrameTree", None).await;
-        let frame_tree: serde_json::Value =
-            serde_json::from_slice(&resp.data).expect("failed to parse Page.getFrameTree response");
-
-        info!(
-            "Frame tree: {}",
-            serde_json::to_string_pretty(&frame_tree).unwrap()
-        );
-    }
-
-    #[allow(dead_code)]
-    pub fn get_frame_events(&self) {
-        info!("==============================");
-        {
-            let state = self.state.inner.lock().unwrap();
-
-            for entry in state.frame_events.iter() {
-                info!("Frame ID: {}", entry.0);
-                for event in entry.1 {
-                    info!("     Event: {:?}", event);
-                }
-            }
-        }
     }
 
     pub async fn screenshot(&self) -> Result<String> {
@@ -277,9 +247,10 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
             let params: LifecycleEvent = serde_json::from_slice(params)
                 .expect("failed to parse params of Page.lifecycleEvent");
 
-            info!(
-                "                               Lifecycle event: {} for frame: {}",
-                params.name, params.frame_id
+            trace!(
+                "Lifecycle event: {} for frame: {}",
+                params.name,
+                params.frame_id
             );
 
             let name = match params.name.as_str() {
@@ -304,9 +275,10 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
                 .expect("failed to parse params of Page.frameNavigated");
 
             if params.frame.parent_id.is_none() {
-                info!(
-                    "                               Main frame navigated: id={}, url={}",
-                    params.frame.id, params.frame.url
+                trace!(
+                    "Main frame navigated: id={}, url={}",
+                    params.frame.id,
+                    params.frame.url
                 );
 
                 self.state.on_event(Event::PageFrameNavigated {});
