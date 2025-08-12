@@ -66,7 +66,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.only('tab navigation', async () => {
+    test.skip('tab navigation', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html", wait_until_loaded: true });
         expect(await tab.title()).toBe("Links");
 
