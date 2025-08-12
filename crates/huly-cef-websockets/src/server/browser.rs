@@ -319,6 +319,13 @@ fn resize(
     params: ResizeParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let mut state = state.lock();
+    if state.use_server_size {
+        error!("cannot resize, server size is used");
+        return Err(json!({
+            "message": "server size is used, cannot resize"
+        }));
+    }
+
     state.size = (params.width, params.height);
     state
         .tabs

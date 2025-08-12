@@ -36,8 +36,6 @@ impl HulyClientCallbacks {
         let request_handler = RequestHandler::new(
             request_callbacks::HulyRequestHandlerCallbacks::new(state.clone()),
         );
-        // let screenshot_handler =
-        //     RenderHandler::new(ScreenshotRenderHandlerCallbacks::new(state.clone()));
 
         Self {
             state: state,
@@ -46,7 +44,6 @@ impl HulyClientCallbacks {
             display_handler,
             life_span_handler,
             request_handler,
-            // screenshot_handler,
         }
     }
 }

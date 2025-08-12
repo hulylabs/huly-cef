@@ -25,6 +25,7 @@ struct ServerState {
     cache_dir: String,
     tabs: HashMap<i32, Browser>,
 
+    use_server_size: bool,
     size: (u32, u32),
 }
 
@@ -41,6 +42,7 @@ impl SharedServerState {
         Self(Arc::new(Mutex::new(ServerState {
             cache_dir,
             tabs: HashMap::new(),
+            use_server_size: true,
             size: (WIDTH, HEIGHT),
         })))
     }
@@ -118,15 +120,13 @@ pub async fn serve(addr: String, cache_dir: String) {
             ConnectionType::Tab(id) => {
                 info!("new tab connection established");
 
-                let tab = {
-                    let state = state.lock();
-                    state.tabs.get(&id).cloned()
+                match state.get_tab(id) {
+                    Some(tab) => tokio::spawn(tab::event_loop(tab, websocket)),
+                    None => {
+                        error!("tab with id {} not found", id);
+                        continue;
+                    }
                 };
-                let Some(tab) = tab else {
-                    error!("tab with id {} not found", id);
-                    continue;
-                };
-                tokio::spawn(tab::event_loop(tab, websocket));
             }
             ConnectionType::None => {
                 error!("unknown connection type, expected /browser or /tab/<id>");

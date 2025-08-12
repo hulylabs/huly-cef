@@ -1,7 +1,6 @@
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
-    vec,
 };
 
 use axum::{

@@ -24,7 +24,7 @@ interface Message<T extends keyof TabEvent> {
 export class TabEventStream {
     websocket: WebSocket;
 
-    subscribers: Map<keyof TabEvent, Set<(data: any) => void>> = new Map();
+    subscribers: Map<keyof TabEvent, (data: any) => void> = new Map();
 
     constructor(url: string) {
         this.websocket = new WebSocket(url);
@@ -34,13 +34,8 @@ export class TabEventStream {
 
     public on<K extends keyof TabEvent>(eventType: K, callback: (data: TabEvent[K]) => void) {
         if (!this.subscribers.has(eventType)) {
-            this.subscribers.set(eventType, new Set());
+            this.subscribers.set(eventType, callback);
         }
-        this.subscribers.get(eventType)!.add(callback);
-    }
-
-    public off<K extends keyof TabEvent>(eventType: K, callback: (data: TabEvent[K]) => void) {
-        this.subscribers.get(eventType)?.delete(callback);
     }
 
     private onmessage(event: MessageEvent) {
@@ -69,9 +64,9 @@ export class TabEventStream {
     }
 
     private emit<K extends keyof TabEvent>(type: K, data: TabEvent[K]) {
-        let callbacks = this.subscribers.get(type);
-        if (callbacks) {
-            callbacks.forEach(cb => cb(data));
+        let callback = this.subscribers.get(type);
+        if (callback) {
+            callback(data);
         }
     }
 }
