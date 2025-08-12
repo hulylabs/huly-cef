@@ -1185,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "huly-cef-manager"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "axum",
@@ -1196,6 +1196,8 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-tungstenite",
+ "tower",
+ "tower-http",
 ]
 
 [[package]]

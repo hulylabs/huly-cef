@@ -1,12 +1,13 @@
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
+    vec,
 };
 
 use axum::{
     Json, Router,
     extract::{Path, State},
-    http::StatusCode,
+    http::{Method, StatusCode},
     routing::{delete, get},
 };
 use clap::Parser;
@@ -20,6 +21,8 @@ use log4rs::{
 use serde::Serialize;
 use serde_json::json;
 use tokio::sync::Notify;
+use tower::ServiceBuilder;
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::{instances::InstanceManager, profiles::ProfileManager};
 
@@ -119,11 +122,18 @@ async fn main() {
         profiles: ProfileManager::new(args.cache_dir),
     }));
 
+    let cors = CorsLayer::new().allow_origin(Any).allow_methods([
+        Method::GET,
+        Method::POST,
+        Method::DELETE,
+    ]);
+
     let app = Router::new()
         .route("/profiles", get(list_profiles))
         .route("/profiles/{id}/cef", get(create_cef_instance))
         .route("/profiles/{id}/cef", delete(destroy_cef_instance))
-        .with_state(state.clone());
+        .with_state(state.clone())
+        .layer(ServiceBuilder::new().layer(cors));
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.manager_port))
         .await
