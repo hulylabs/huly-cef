@@ -14,6 +14,7 @@ mod server;
 struct Arguments {
     port: u16,
     cache_path: String,
+    use_server_size: bool,
 }
 
 impl Default for Arguments {
@@ -22,6 +23,7 @@ impl Default for Arguments {
         Arguments {
             port: 8080,
             cache_path: cache_path.to_str().unwrap_or_default().to_string(),
+            use_server_size: false,
         }
     }
 }
@@ -41,6 +43,15 @@ fn parse_argument(args: &Vec<String>, flag: &str) -> Result<String> {
     }
 
     Err(anyhow::anyhow!("Argument '{}' not found", flag))
+}
+
+fn parse_argument_without_value(args: &Vec<String>, flag: &str) -> bool {
+    for arg in args {
+        if arg == flag {
+            return true;
+        }
+    }
+    false
 }
 
 fn parse_arguments() -> Arguments {
@@ -66,6 +77,7 @@ fn parse_arguments() -> Arguments {
         ),
     }
 
+    result.use_server_size = parse_argument_without_value(&args, "--use-server-size");
     result
 }
 
@@ -110,6 +122,7 @@ fn main() -> Result<()> {
     rt.spawn(server::serve(
         format!("0.0.0.0:{}", args.port),
         args.cache_path,
+        args.use_server_size,
     ));
 
     _ = cef.initialize();

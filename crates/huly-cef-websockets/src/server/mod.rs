@@ -38,11 +38,11 @@ impl Clone for SharedServerState {
 }
 
 impl SharedServerState {
-    fn new(cache_dir: String) -> Self {
+    fn new(cache_dir: String, use_server_size: bool) -> Self {
         Self(Arc::new(Mutex::new(ServerState {
             cache_dir,
             tabs: HashMap::new(),
-            use_server_size: true,
+            use_server_size,
             size: (WIDTH, HEIGHT),
         })))
     }
@@ -67,12 +67,12 @@ impl SharedServerState {
     }
 }
 
-pub async fn serve(addr: String, cache_dir: String) {
+pub async fn serve(addr: String, cache_dir: String, use_server_size: bool) {
     let server = TcpListener::bind(addr)
         .await
         .expect("failed to start a TCP listener");
 
-    let state = SharedServerState::new(cache_dir);
+    let state = SharedServerState::new(cache_dir, use_server_size);
     loop {
         let (stream, _) = server
             .accept()

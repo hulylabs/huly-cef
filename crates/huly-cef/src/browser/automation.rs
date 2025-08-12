@@ -120,7 +120,7 @@ impl Automation {
         let screenshot = self.devtools.screenshot().await?;
         let screenshot = BASE64_STANDARD.decode(screenshot)?;
         let screenshot = image::load_from_memory(&screenshot)?;
-        let screenshot = screenshot.resize(width, height, FilterType::Lanczos3);
+        let screenshot = screenshot.resize_exact(width, height, FilterType::Lanczos3);
 
         let mut cursor = Cursor::new(Vec::new());
         screenshot.write_to(&mut cursor, ImageFormat::Png)?;

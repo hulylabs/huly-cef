@@ -10,7 +10,7 @@ use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
     Registration,
 };
-use log::{info, trace};
+use log::trace;
 use serde::Deserialize;
 use tokio::sync::{oneshot, Notify};
 

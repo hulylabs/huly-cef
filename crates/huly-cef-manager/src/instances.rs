@@ -117,6 +117,7 @@ impl InstanceManager {
         let instance = Command::new(&self.cef_exe)
             .args(["--port", port.to_string().as_str()])
             .args(["--cache-path", &cache_dir])
+            .args(["--use-server-size"])
             .args(["--no-sandbox"])
             .stdout(Stdio::from(log_file))
             .stderr(Stdio::from(error_file))
