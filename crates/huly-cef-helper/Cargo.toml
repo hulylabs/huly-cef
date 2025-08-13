@@ -8,13 +8,18 @@ build = "build.rs"
 anyhow = { workspace = true }
 cef-ui-util = { git = "https://github.com/hulylabs/cef-ui.git" }
 
+
 [dependencies]
 anyhow = { workspace = true }
-log ={ workspace = true }
-log4rs = { workspace = true }
+
+
+cef-ui = { path = "/Users/user/repos/cef-ui/crates/cef-ui", features=["no-cef-link"] }
+cef-ui-helper = { path = "/Users/user/repos/cef-ui/crates/cef-ui-helper" }
+cef-ui-sys = { path = "/Users/user/repos/cef-ui/crates/cef-ui-sys" }
+
 
 libloading = "0.8"
-# cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git" }
-cef-ui-helper = { path = "/Users/user/repos/cef-ui/crates/cef-ui-helper" }
-cef-ui-sys ={ path = "/Users/user/repos/cef-ui/crates/cef-ui-sys" }
-cef-ui = { path = "/Users/user/repos/cef-ui/crates/cef-ui", features=["no-cef-link"] }
+
+tracing = "0.1"
+tracing-log = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

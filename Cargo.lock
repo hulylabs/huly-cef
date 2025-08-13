@@ -403,7 +403,7 @@ dependencies = [
 [[package]]
 name = "cef-ui"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#5da4da3b9196599ddc3f9927a704fff21dd7daf7"
+source = "git+https://github.com/hulylabs/cef-ui.git#d4c143ffac568249ee3e3665c10ed1dcafe8baa6"
 dependencies = [
  "anyhow",
  "bitflags 2.9.1",
@@ -431,7 +431,11 @@ dependencies = [
 [[package]]
 name = "cef-ui-sys"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#01044fe2d94fb2bdba2507d4d1cf7ad53b493598"
+
+[[package]]
+name = "cef-ui-sys"
+version = "0.1.0"
+source = "git+https://github.com/hulylabs/cef-ui.git#d4c143ffac568249ee3e3665c10ed1dcafe8baa6"
 
 [[package]]
 name = "cef-ui-util"
@@ -454,7 +458,7 @@ dependencies = [
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
-source = "git+https://github.com/hulylabs/cef-ui.git#5da4da3b9196599ddc3f9927a704fff21dd7daf7"
+source = "git+https://github.com/hulylabs/cef-ui.git#d4c143ffac568249ee3e3665c10ed1dcafe8baa6"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -1217,8 +1221,9 @@ dependencies = [
  "cef-ui-sys 0.1.0",
  "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
  "libloading",
- "log",
- "log4rs",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]
