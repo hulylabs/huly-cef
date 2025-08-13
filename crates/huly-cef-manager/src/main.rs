@@ -125,6 +125,7 @@ async fn main() {
         Method::GET,
         Method::POST,
         Method::DELETE,
+        Method::OPTIONS,
     ]);
 
     let app = Router::new()

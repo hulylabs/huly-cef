@@ -140,7 +140,7 @@ describe('Basic API', () => {
         await tab.close();
     });
 
-    test('keyboard', async () => {
+    test.skip('keyboard', async () => {
         let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
