@@ -1,10 +1,10 @@
 use cef_ui::{
-    Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
-    LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
+    Browser, Client, ClientCallbacks, Context, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler, LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler
 };
 
 use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 
+mod context_menu_handler;
 mod display_callbacks;
 mod life_span_callbacks;
 mod load_callbacks;
@@ -18,6 +18,7 @@ pub struct HulyClientCallbacks {
     display_handler: DisplayHandler,
     life_span_handler: LifeSpanHandler,
     request_handler: RequestHandler,
+    context_menu_handler: ContextMenuHandler,
 }
 
 impl HulyClientCallbacks {
@@ -37,6 +38,8 @@ impl HulyClientCallbacks {
             request_callbacks::HulyRequestHandlerCallbacks::new(state.clone()),
         );
 
+        let context_menu_handler = ContextMenuHandler::new(context_menu_handler::ContextMenuCallbacks);
+
         Self {
             state: state,
             render_handler,
@@ -44,13 +47,14 @@ impl HulyClientCallbacks {
             display_handler,
             life_span_handler,
             request_handler,
+            context_menu_handler,
         }
     }
 }
 
 impl ClientCallbacks for HulyClientCallbacks {
     fn get_context_menu_handler(&mut self) -> Option<ContextMenuHandler> {
-        None
+        Some(self.context_menu_handler.clone())
     }
 
     fn get_keyboard_handler(&mut self) -> Option<KeyboardHandler> {
