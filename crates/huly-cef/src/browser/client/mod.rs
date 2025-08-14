@@ -1,5 +1,6 @@
 use cef_ui::{
-    Browser, Client, ClientCallbacks, Context, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler, LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler
+    Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
+    LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
 
 use crate::browser::{automation::JSMessage, state::SharedBrowserState};
@@ -38,7 +39,8 @@ impl HulyClientCallbacks {
             request_callbacks::HulyRequestHandlerCallbacks::new(state.clone()),
         );
 
-        let context_menu_handler = ContextMenuHandler::new(context_menu_handler::ContextMenuCallbacks);
+        let context_menu_handler =
+            ContextMenuHandler::new(context_menu_handler::ContextMenuCallbacks);
 
         Self {
             state: state,
