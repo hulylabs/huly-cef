@@ -1,144 +1,74 @@
-use std::{env::current_exe, ffi::{c_int, c_void}, fs::canonicalize, path::PathBuf, process::exit, ptr::null_mut};
+use std::{process::exit, ptr::null_mut};
 
 use anyhow::Result;
-use anyhow::anyhow;
-use cef_ui::{AppCallbacks, MainArgs, RenderProcessHandler, RenderProcessHandlerCallbacks};
+use cef_ui::{App, AppCallbacks, MainArgs, RenderProcessHandler};
 use cef_ui_helper::ScopedSandbox;
-use cef_ui_sys::{cef_app_t, cef_main_args_t};
-use libloading::{Library, Symbol};
-use tracing::{error, info, level_filters::LevelFilter, subscriber::set_global_default, Level};
-use tracing_log::{ LogTracer};
-use tracing_subscriber::FmtSubscriber;
+use log::{error, info, SetLoggerError};
+use log4rs::{append::console::ConsoleAppender, config::{Appender, Root}, encode::pattern::PatternEncoder, Config};
 
-fn main() {
-    run(true);
+use crate::render_process::RenderProcessCallbacks;
+
+mod cef_lib;
+mod js;
+mod render_process;
+
+fn setup_logging() -> Result<log4rs::Handle, SetLoggerError> {
+    let stdout_pattern = "\x1b[90m{d(%H:%M:%S%.3f)} \x1b[0m{h({l})} \x1b[90m{f}:{L} \x1b[0m{m}{n}";
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(stdout_pattern)))
+        .build();
+   
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(
+            Root::builder()
+                .appender("stdout")
+                .build(log::LevelFilter::Info),
+        )
+        .unwrap();
+
+    log4rs::init_config(config)
 }
 
-/// The relative path to the CEF framework library within the app bundle on macOS.
-const CEF_PATH: &str = "../../../Chromium Embedded Framework.framework/Chromium Embedded Framework";
-
-/// Returns the CEF error code or 1 if an error occurred.
-pub fn run(sandbox: bool) {
-    let ret = try_run(sandbox).unwrap_or_else(|e| {
-        error!("An error occurred: {}", e);
-
-        1
-    });
+fn main() -> Result<()> {
+    setup_logging()?;
+    let ret = match run() {
+        Ok(code) => code,
+        Err(e) => {
+            error!("An error occurred: {}", e);
+            1
+        }
+    };
 
     info!("The return code is: {}", ret);
-
     exit(ret);
 }
 
-/// Try and run the helper, returning the CEF error code if successful.
-fn try_run(sandbox: bool) -> Result<i32> {
-    // This routes log macros through tracing.
-    LogTracer::init()?;
-
-    // Setup the tracing subscriber globally.
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(LevelFilter::from_level(Level::DEBUG))
-        .finish();
-
-    set_global_default(subscriber)?;
-
-    // Setup the sandbox if enabled.
-    let _sandbox = match sandbox {
-        true => Some(ScopedSandbox::new()?),
-        false => None
-    };
-
-    // Manually load CEF and execute the subprocess.
-    let ret = unsafe {
-        // Load our main args.
+fn run() -> Result<i32> {
+ let _sandbox = ScopedSandbox::new()?;
+    unsafe {
         let main_args = MainArgs::new()?;
-
-        info!("Main args: {:?}", main_args);
-
-        // Manually load the CEF framework.
-        let cef_path = get_cef_path(CEF_PATH)?;
-        let lib = Library::new(cef_path)?;
-
-
-        let cef_execute_process: Symbol<
-            unsafe extern "C" fn(args: *const cef_main_args_t, *mut cef_app_t, *mut c_void) -> c_int
-        > = lib.get(b"cef_execute_process")?;
-
-        info!("Executing CEF subprocess ..");
-
-        let app = cef_ui::App::new(HelperAppCallbacks);
-
-        // Execute the CEF subprocess.
-        let ret = cef_execute_process(main_args.as_raw(), app.into_raw(), null_mut()) as i32;
-
-        info!("CEF exited with code: {}", ret);
-
-        // Close the CEF framework.
-        lib.close()?;
-
-        info!("Closed CEF library.");
-
-        ret
-    };
-
-    Ok(ret)
+        let app = App::new(HelperAppCallbacks::new());
+        let lib = &cef_lib::CEFLIB;
+        Ok((lib.cef_execute_process)(main_args.as_raw(), app.into_raw(), null_mut()))
+    }
 }
 
-/// Get the cef library path.
-fn get_cef_path(relative_path: &str) -> Result<PathBuf> {
-    let cef_path = current_exe()?
-        .parent()
-        .map(PathBuf::from)
-        .ok_or_else(|| anyhow!("Could not get parent directory"))?;
-    let cef_path = cef_path.join(relative_path);
-    let cef_path = canonicalize(cef_path)?;
-
-    Ok(cef_path)
+struct HelperAppCallbacks {
+    render_process_handler: RenderProcessHandler,
 }
 
-struct HelperAppCallbacks;
+impl HelperAppCallbacks {
+    fn new() -> Self {
+        Self {
+            render_process_handler: RenderProcessHandler::new(RenderProcessCallbacks),
+        }
+    }
+}
 
 impl AppCallbacks for HelperAppCallbacks {
-    fn on_before_command_line_processing(
-        &mut self,
-        _: Option<&str>,
-        _: Option<cef_ui::CommandLine>
-    ) {
-        
-    }
-
-    fn get_browser_process_handler(&mut self) -> Option<cef_ui::BrowserProcessHandler> {
-        None
-    }
-
-    fn get_render_process_handler(&mut self) -> Option<cef_ui::RenderProcessHandler> {
-        Some(RenderProcessHandler::new(RenderProcessCallbacks))
+    fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
+        Some(self.render_process_handler.clone())
     }
 }
 
-struct RenderProcessCallbacks;
-
-impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
-    fn on_web_kit_initialized(&mut self) {
-        info!("[on_web_kit_initialized]");
-    }
-
-    fn on_browser_created(&mut self, browser: cef_ui::Browser, extra_info: Option<cef_ui::DictionaryValue>) {
-    }
-
-    fn on_browser_destroyed(&mut self, browser: cef_ui::Browser) {
-    }
-
-    fn on_context_created(&mut self, browser: cef_ui::Browser, frame: cef_ui::Frame, context: cef_ui::V8Context) {
-    }
-
-    fn on_process_message_received(
-        &mut self,
-        browser: cef_ui::Browser,
-        frame: cef_ui::Frame,
-        source_process: cef_ui::ProcessId,
-        message: &mut cef_ui::ProcessMessage
-    ) -> bool {
-        true
-    }
-}
