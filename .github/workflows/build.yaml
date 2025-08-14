@@ -1,4 +1,4 @@
-name: Build & Push
+name: Build & Test
 
 on:
   push:
@@ -17,7 +17,6 @@ jobs:
   build:
     name: Build and Test Huly CEF
     runs-on: ${{ matrix.os }}
-    if: false
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -59,34 +58,7 @@ jobs:
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: cef-cache-_${{ matrix.os }}
-        path: ./cefcache
-
-  build-manager-image:
-    name: Build and Push Huly CEF Manager Docker Image
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
-      - run: echo VERSION=$(grep '^version =' crates/huly-cef-manager/Cargo.toml | cut -d '"' -f 2) >> $GITHUB_ENV
-
-      - name: Build and Push
-        uses: docker/build-push-action@v6
-        with:
-          file: Dockerfile.manager
-          push: true
-          tags: "${{ vars.DOCKER_USER }}/huly-cef:${{ env.VERSION }},${{ vars.DOCKER_USER }}/huly-cef:latest"
-          platforms: linux/amd64
+        name: cef-cache-${{ matrix.os }}
+        path: |
+          ./cefcache
+          !./cefcache/Singleton*

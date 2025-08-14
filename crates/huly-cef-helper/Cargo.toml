@@ -9,4 +9,11 @@ anyhow = { workspace = true }
 cef-ui-util = { git = "https://github.com/hulylabs/cef-ui.git" }
 
 [dependencies]
+anyhow = { workspace = true }
+log = { workspace = true }
+log4rs = { workspace = true }
+libloading = "0.8"
+
+cef-ui = { git = "https://github.com/hulylabs/cef-ui.git", features = ["no-cef-link"] }
+cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git" }
 cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git" }

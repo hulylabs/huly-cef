@@ -4,7 +4,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 
 use crate::server::SharedServerState;
-use log::{error, info};
+use log::{error, info, trace};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
@@ -44,7 +44,7 @@ pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<Tcp
             }
         };
 
-        info!("received request: {:?}", request);
+        trace!("received request: {:?}", request);
 
         let result = match request.method.as_str() {
             "openTab" => match parse_params(request.params) {
