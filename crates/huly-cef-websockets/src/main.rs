@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use log::SetLoggerError;
+use log::{info, SetLoggerError};
 use log4rs::{
     append::{console::ConsoleAppender, file::FileAppender},
     config::{Appender, Root},
@@ -110,15 +110,16 @@ fn setup_logging(cache_dir: &str) -> Result<log4rs::Handle, SetLoggerError> {
 fn main() {
     let args = parse_arguments();
 
-    setup_logging(&args.cache_path).expect("failed to set up logging");
-
     let cef =
         huly_cef::new(args.port, args.cache_path.clone()).expect("failed to create CEF instance");
     if let Some(code) = cef.is_cef_subprocess() {
         std::process::exit(code);
     }
 
-    let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+    setup_logging(&args.cache_path).expect("failed to set up logging");
+    info!("Starting CEF Websockets server on 0.0.0.0:{}", args.port);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
     rt.spawn(server::serve(
         format!("0.0.0.0:{}", args.port),
         args.cache_path,

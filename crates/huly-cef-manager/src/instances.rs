@@ -29,7 +29,7 @@ impl InstanceManager {
         }
     }
 
-    pub fn create(&mut self, id: &str) -> Result<u16, String> {
+    pub fn create(&mut self, id: &str, host: &str) -> Result<u16, String> {
         if self.instances.contains_key(id) {
             return Ok(self.ports.get(id).cloned().expect("port can't be None"));
         }
@@ -40,7 +40,7 @@ impl InstanceManager {
         let mut healthy = false;
         let retries = 10;
         for i in 0..retries {
-            if healthcheck(port) {
+            if healthcheck(host, port) {
                 info!("CEF instance {} is healthy", id);
                 healthy = true;
                 break;
@@ -135,9 +135,17 @@ impl InstanceManager {
     }
 }
 
-fn healthcheck(port: u16) -> bool {
+fn healthcheck(host: &str, port: u16) -> bool {
     let url = format!("ws://localhost:{}", port);
-    connect(url).is_ok()
+    info!("Healthchecking CEF instance at {}", url);
+    let result = connect(url.clone()).is_ok();
+    info!("Healthcheck result for {}: {}", url, result);
+
+    let url = format!("ws://{}:{}", host, port);
+    info!("Healthchecking CEF instance at {}", url);
+    let result = connect(url.clone()).is_ok();
+    info!("Healthcheck result for {}: {}", url, result);
+    result
 }
 
 fn remove_cache_locks(cache_dir: &str) {

@@ -212,7 +212,8 @@ async fn create_cef_instance(
         }
     }
 
-    let port = state.lock().unwrap().instances.create(&id);
+    let host = state.lock().unwrap().args.host.clone();
+    let port = state.lock().unwrap().instances.create(&id, &host);
     match port {
         Ok(port) => {
             info!(
