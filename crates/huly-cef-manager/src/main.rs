@@ -13,7 +13,7 @@ use clap::Parser;
 use log::{SetLoggerError, info};
 use log4rs::{
     Config,
-    append::console::ConsoleAppender,
+    append::{console::ConsoleAppender, file::FileAppender},
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
 };
@@ -55,17 +55,25 @@ fn parse_port_range(s: &str) -> Result<(u16, u16), String> {
     Ok((start, end))
 }
 
-fn setup_logging() -> Result<log4rs::Handle, SetLoggerError> {
-    let stdout_pattern = "\x1b[90m{d(%H:%M:%S)} \x1b[0m{h({l})} \x1b[90m{f}:{L} \x1b[0m{m}{n}";
+fn setup_logging(cache_dir: &str) -> Result<log4rs::Handle, SetLoggerError> {
+    let stdout_pattern = "\x1b[90m{d(%H:%M:%S%.3f)} \x1b[0m{h({l})} \x1b[90m{f}:{L} \x1b[0m{m}{n}";
+    let file_pattern = "{d(%H:%M:%S%.3f)} {h({l})} {f}:{L} {m}{n}";
     let stdout = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(stdout_pattern)))
         .build();
+    let file = FileAppender::builder()
+        .append(false)
+        .encoder(Box::new(PatternEncoder::new(file_pattern)))
+        .build(format!("{}/huly-cef-manager.log", cache_dir))
+        .unwrap();
 
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .appender(Appender::builder().build("file", Box::new(file)))
         .build(
             Root::builder()
                 .appender("stdout")
+                .appender("file")
                 .build(log::LevelFilter::Info),
         )
         .unwrap();
@@ -106,10 +114,10 @@ struct ServerState {
 
 #[tokio::main]
 async fn main() {
-    setup_logging().expect("Failed to set up logging");
-
     let args = Arguments::parse();
     info!("Starting huly-cef-manager with args: {:?}", args);
+
+    setup_logging(&args.cache_dir).expect("Failed to set up logging");
 
     if !PathBuf::from(&args.cache_dir).exists() {
         std::fs::create_dir_all(&args.cache_dir).expect("failed to create cache directory");
@@ -137,7 +145,7 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.manager_port))
         .await
-        .unwrap();
+        .expect(&format!("failed to bind to 0.0.0.0:{}", args.manager_port));
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
@@ -152,7 +160,7 @@ async fn main() {
             signal.notified().await;
         })
         .await
-        .unwrap();
+        .expect("failed to start axum server");
 }
 
 async fn list_profiles(

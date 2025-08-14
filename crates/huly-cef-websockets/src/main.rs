@@ -90,7 +90,7 @@ fn setup_logging(cache_dir: &str) -> Result<log4rs::Handle, SetLoggerError> {
     let file = FileAppender::builder()
         .append(false)
         .encoder(Box::new(PatternEncoder::new(file_pattern)))
-        .build(format!("{}/huly_cef.log", cache_dir))
+        .build(format!("{}/huly-cef.log", cache_dir))
         .unwrap();
 
     let config = Config::builder()
@@ -107,18 +107,18 @@ fn setup_logging(cache_dir: &str) -> Result<log4rs::Handle, SetLoggerError> {
     log4rs::init_config(config)
 }
 
-fn main() -> Result<()> {
+fn main() {
     let args = parse_arguments();
 
-    setup_logging(&args.cache_path)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize logging: {}", e))?;
+    setup_logging(&args.cache_path).expect("failed to set up logging");
 
-    let cef = huly_cef::new(args.port, args.cache_path.clone())?;
+    let cef =
+        huly_cef::new(args.port, args.cache_path.clone()).expect("failed to create CEF instance");
     if let Some(code) = cef.is_cef_subprocess() {
         std::process::exit(code);
     }
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
     rt.spawn(server::serve(
         format!("0.0.0.0:{}", args.port),
         args.cache_path,
@@ -129,6 +129,4 @@ fn main() -> Result<()> {
 
     cef.run_message_loop();
     cef.shutdown();
-
-    Ok(())
 }

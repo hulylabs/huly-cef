@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs::{File, create_dir_all},
+    fs::create_dir_all,
     net::TcpListener,
     path::Path,
     process::{Child, Command, Stdio},
@@ -109,18 +109,13 @@ impl InstanceManager {
             port, cache_dir
         );
 
-        let log_file = File::create(format!("{}/huly-cef-websockets.log", cache_dir))
-            .map_err(|e| format!("Failed to create log file: {}", e))?;
-        let error_file = File::create(format!("{}/huly-cef-websockets.error", cache_dir))
-            .map_err(|e| format!("Failed to create log file: {}", e))?;
-
         let instance = Command::new(&self.cef_exe)
             .args(["--port", port.to_string().as_str()])
             .args(["--cache-path", &cache_dir])
             .args(["--use-server-size"])
             .args(["--no-sandbox"])
-            .stdout(Stdio::from(log_file))
-            .stderr(Stdio::from(error_file))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()
             .map_err(|e| format!("Failed to start CEF instance: {}", e))?;
 
