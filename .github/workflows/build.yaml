@@ -55,6 +55,7 @@ jobs:
 
     - name: Upload CEF Cache
       if: always()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: cef-cache-_${{ matrix.os }}
