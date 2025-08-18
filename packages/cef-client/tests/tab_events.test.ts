@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 
-describe.skip('Tab Events', () => {
+describe('Tab Events', () => {
     let browser: Browser;
     let port: number;
 

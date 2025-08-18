@@ -66,7 +66,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.skip('tab navigation', async () => {
+    test('tab navigation', async () => {
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html", wait_until_loaded: true });
         expect(await tab.title()).toBe("Links");
 
@@ -99,7 +99,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs()).toEqual([]);
     });
 
-    test.skip('mouse', async () => {
+    test('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
