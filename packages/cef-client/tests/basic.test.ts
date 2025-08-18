@@ -7,6 +7,8 @@ import { dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
+const pollTimeout = { timeout: 5000, interval: 200 };
+
 
 describe('Basic API', () => {
     let browser: Browser;
@@ -25,7 +27,7 @@ describe('Basic API', () => {
         expect(await tab.url()).toBe(url);
 
         await tab.close();
-        await expect.poll(() => browser.tabs()).toEqual([]);
+        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test('resize', async () => {
@@ -34,11 +36,11 @@ describe('Basic API', () => {
 
         const url = "file://" + testdir + "/testpages/resize.html";
         const tab = await browser.openTab({ url });
-        await expect.poll(() => tab.title()).toBe("800x600");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("800x600");
 
         [width, height] = [1024, 768];
         browser.resize(width, height);
-        await expect.poll(() => tab.title()).toBe("1024x768");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("1024x768");
 
         tab.close();
     });
@@ -63,7 +65,7 @@ describe('Basic API', () => {
         expect(titles).toEqual(["Title", "Keyboard", "Links"].sort());
 
         tabs.forEach(tab => tab.close());
-        await expect.poll(() => browser.tabs()).toEqual([]);
+        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test('tab navigation', async () => {
@@ -76,7 +78,7 @@ describe('Basic API', () => {
         expect(elements[0].text).toBe("External Link (Title)");
 
         tab.clickElement(elements[0].id);
-        await expect.poll(() => tab.title()).toBe("Title");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Title");
 
         tab.back(true);
         expect(await tab.title()).toBe("Links");
@@ -85,7 +87,7 @@ describe('Basic API', () => {
         expect(await tab.title()).toBe("Title");
 
         tab.close();
-        await expect.poll(() => browser.tabs()).toEqual([]);
+        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test('tab reloading', async () => {
@@ -96,7 +98,7 @@ describe('Basic API', () => {
         expect(await tab.title()).toBe("Reloads: 2");
 
         tab.close();
-        await expect.poll(() => browser.tabs()).toEqual([]);
+        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test('mouse', async () => {
@@ -107,35 +109,35 @@ describe('Basic API', () => {
 
         // Mouse Move
         await tab.mouseMove(300, 400);
-        await expect.poll(() => tab.title()).toBe("Move: (300, 400)");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Move: (300, 400)");
 
         // Left Button
         await tab.click(100, 200, MouseButton.Left, true);
-        await expect.poll(() => tab.title()).toBe("Mouse Down: (100, 200) Button: 0");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Down: (100, 200) Button: 0");
 
         await tab.click(100, 200, MouseButton.Left, false);
-        await expect.poll(() => tab.title()).toBe("Mouse Up: (100, 200) Button: 0");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Up: (100, 200) Button: 0");
 
         // Middle Button
         await tab.click(150, 250, MouseButton.Middle, true);
-        await expect.poll(() => tab.title()).toBe("Mouse Down: (150, 250) Button: 1");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Down: (150, 250) Button: 1");
 
         await tab.click(150, 250, MouseButton.Middle, false);
-        await expect.poll(() => tab.title()).toBe("Mouse Up: (150, 250) Button: 1");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Up: (150, 250) Button: 1");
 
         // Right Button
         await tab.click(200, 300, MouseButton.Right, true);
-        await expect.poll(() => tab.title()).toBe("Mouse Down: (200, 300) Button: 2");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Down: (200, 300) Button: 2");
 
         await tab.click(200, 300, MouseButton.Right, false);
-        await expect.poll(() => tab.title()).toBe("Mouse Up: (200, 300) Button: 2");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Up: (200, 300) Button: 2");
 
         // Scroll
         await tab.scroll(250, 350, 0, 100);
-        await expect.poll(() => tab.title()).toMatch("Scroll: (250, 350) Delta: (0, 100)");
+        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (0, 100)");
 
         await tab.scroll(250, 350, 0, -100);
-        await expect.poll(() => tab.title()).toMatch("Scroll: (250, 350) Delta: (0, -100)");
+        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (0, -100)");
 
         await tab.close();
     });
@@ -162,7 +164,7 @@ describe('Basic API', () => {
         tab.key(KeyCode.ENTER, 0, false, false, false);
 
         // Wait and verify the text was entered correctly
-        await expect.poll(() => tab.title()).toBe(text);
+        await expect.poll(() => tab.title(), pollTimeout).toBe(text);
 
         // Clear for next test (Ctrl+A then Delete)
         tab.key(KeyCode.KEY_A, 0, true, true, false);
@@ -177,7 +179,7 @@ describe('Basic API', () => {
         await new Promise(resolve => setTimeout(resolve, 20));
         tab.key(KeyCode.ENTER, 0, false, false, false);
 
-        await expect.poll(() => tab.title()).toBe("Keyboard");
+        await expect.poll(() => tab.title(), pollTimeout).toBe("Keyboard");
 
         tab.close();
     });

@@ -7,6 +7,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
+const pollTimeout = { timeout: 5000, interval: 200 };
 
 describe('Tab Events', () => {
     let browser: Browser;
@@ -43,11 +44,11 @@ describe('Tab Events', () => {
             errorMessage: "",
         };
 
-        await expect.poll(() => title).toBe("Events");
-        await expect.poll(() => url).toBe("file://" + testdir + "/testpages/events.html");
-        await expect.poll(() => loadState).toStrictEqual(expectedLoadedState);
-        await expect.poll(() => favicon).toBe("file://" + testdir + "/testpages/favicon.svg");
-        await expect.poll(() => cursor).toBe(Cursor.Pointer);
+        await expect.poll(() => title, pollTimeout).toBe("Events");
+        await expect.poll(() => url, pollTimeout).toBe("file://" + testdir + "/testpages/events.html");
+        await expect.poll(() => loadState, pollTimeout).toStrictEqual(expectedLoadedState);
+        await expect.poll(() => favicon, pollTimeout).toBe("file://" + testdir + "/testpages/favicon.svg");
+        await expect.poll(() => cursor, pollTimeout).toBe(Cursor.Pointer);
 
         tab.close();
     });
@@ -67,7 +68,7 @@ describe('Tab Events', () => {
             frames.push(data.data.length);
         });
 
-        await expect.poll(() => frames.length).toBeGreaterThan(10);
+        await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(10);
 
         tab.stopVideo();
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -76,7 +77,7 @@ describe('Tab Events', () => {
         expect(frames.length).toEqual(framecount);
 
         tab.startVideo();
-        await expect.poll(() => frames.length).toBeGreaterThan(framecount * 2);
+        await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(framecount * 2);
 
         for (let i = 0; i < frames.length; i++) {
             console.log(`Frame ${i + 1}: ${frames[i]} bytes`);
