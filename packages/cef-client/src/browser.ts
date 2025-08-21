@@ -14,6 +14,10 @@ export class Browser {
         this.messageHandler = new MessageHandler(this.websocket);
     }
 
+    closeConnection() {
+        this.websocket.close();
+    }
+
     async openTab(options?: Partial<OpenTabOptions>): Promise<Tab> {
         const params = {
             url: options?.url || getConfig().defaultUrl,
@@ -57,9 +61,5 @@ export class Browser {
             width: Math.floor(width),
             height: Math.floor(height)
         });
-    }
-
-    async closeTab(tabId: number): Promise<void> {
-        await this.messageHandler.send('closeTab', { tab: tabId });
     }
 }

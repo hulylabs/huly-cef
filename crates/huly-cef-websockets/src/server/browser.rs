@@ -4,7 +4,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 
 use crate::server::SharedServerState;
-use log::{error, info, trace};
+use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
@@ -43,8 +43,6 @@ pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<Tcp
                 continue;
             }
         };
-
-        trace!("received request: {:?}", request);
 
         let result = match request.method.as_str() {
             "openTab" => match parse_params(request.params) {
@@ -248,18 +246,20 @@ async fn open_tab(
     state: &SharedServerState,
     params: OpenTabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    info!("opening a new tab with url: {}", params.url);
-
     let (width, height) = { state.lock().size };
+    info!(
+        "[open_tab] size: ({}, {}), url: {}",
+        width, height, params.url
+    );
     let mut tab = Browser::new(width, height, &params.url);
     let id = tab.get_id();
     state.set_tab(id, tab.clone());
 
     if params.wait_until_loaded {
         match tab.automation.wait_until_loaded().await {
-            Ok(_) => info!("tab with id {} is loaded", id),
+            Ok(_) => info!("[open_tab] tab {} is loaded", id),
             Err(e) => {
-                error!("failed to wait until tab with id {} is loaded: {}", id, e);
+                error!("[open_tab] tab {} hasn't loaded yet: {}", id, e);
                 return Err(json!({
                     "message": format!("failed to wait for page load: {}", e),
                     "data": { "id": id, "url": params.url, "width": width, "height": height }
@@ -268,7 +268,7 @@ async fn open_tab(
         }
     }
 
-    info!("tab with id {} opened", id);
+    info!("[open_tab] tab {} opened", id);
 
     Ok(json!({
         "id": id,
@@ -318,6 +318,8 @@ fn resize(
     state: &SharedServerState,
     params: ResizeParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
+    info!("[resize] ({}, {})", params.width, params.height);
+
     let mut state = state.lock();
     if state.use_server_size {
         error!("cannot resize, server size is used");
@@ -451,6 +453,7 @@ fn stop_video(
     params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
+    info!("[tab: {}] stop video", tab.get_title());
     tab.stop_video();
 
     Ok(json!({ "success": true }))
@@ -461,6 +464,7 @@ fn start_video(
     params: TabParam,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
+    info!("[tab: {}] start video", tab.get_title());
     tab.start_video();
 
     Ok(json!({ "success": true }))

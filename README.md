@@ -23,14 +23,16 @@ Huly CEF provides a set of Rust crates and tools for creating cross-platform des
 | `huly-cef-manager`    | A RESTful server that manages Huly CEF instances                           |
 
 
-## Launch Instructions For Huly CEF Websockets
-Follow these steps to build and run Huly CEF:
+## Huly CEF Websockets
 
+## TODO: describe arguments
+
+To build and run Huly CEF Websockets, use:
 1. **Build Huly CEF Websockets**  
-   To build Huly CEF, use the following command:
    ```bash
    cargo run --bin huly-cef-build --release -- --profile release
    ```
+
 2. **Run Huly CEF Websockets**  
    **Linux**:
    ```bash
@@ -47,7 +49,7 @@ Follow these steps to build and run Huly CEF:
    ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
    ```
 
-## Build Instructions For TypeScript CEF Client (For Development)
+## CEF Client (Development Only)
 
 1. **Build The Package**  
    To build the package, use the following command:
@@ -75,9 +77,31 @@ Follow these steps to build and run Huly CEF:
 
 ## Huly CEF Manager
 
-The manager provides a RESTful API for managing multiple CEF instances.
+## TODO: describe arguments
 
-### Running with Docker
+### Running Huly CEF Manager Locally
+1. **Build Huly CEF Websockets**  
+   ```bash
+   cargo run --bin huly-cef-build --release -- --profile release
+   ```
+
+2. **Run Huly CEF Manager**  
+   **Linux**:
+   ```bash
+   cargo run --bin huly-cef-manager -- --cef-exe=target/release/huly-cef-websockets
+   ```
+
+   **Windows:**
+   ```bash
+   cargo run --bin huly-cef-manager -- --cef-exe=target/release/huly-cef-websockets.exe
+   ```
+
+   **macOS:**
+   ```bash
+   cargo run --bin huly-cef-manager -- --cef-exe=target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets
+   ```
+
+### Running Huly CEF Manager in a Docker container
 
 ```bash
 # Build the Docker image
@@ -99,7 +123,8 @@ docker run \
 ```javascript
 // Create a CEF instance and get its address
 const response = await fetch("http://localhost:3000/profiles/<profile-id>/cef");
-const address = await response.json();
+const json = await response.json();
+const address = json.data.address;
 
 // Connect and control the browser
 const browser = await connect(address);

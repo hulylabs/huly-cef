@@ -7,7 +7,7 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::{Method, StatusCode},
-    routing::{delete, get},
+    routing::{delete, get, post, put},
 };
 use clap::Parser;
 use log::{SetLoggerError, info};
@@ -30,16 +30,38 @@ mod profiles;
 
 #[derive(Parser, Debug, Clone)]
 struct Arguments {
-    #[clap(long, env = "CACHE_DIR", help = "Root directory for CEF cache storage")]
+    #[clap(
+        long,
+        env = "CACHE_DIR",
+        default_value = "cache",
+        help = "Root directory for CEF cache storage"
+    )]
     cache_dir: String,
     #[clap(long, env = "CEF_EXE", help = "Path to the CEF executable")]
     cef_exe: String,
-    #[clap(long, env = "PORT_RANGE", value_parser = parse_port_range, help = "Port range for CEF instances in format START-END")]
+    #[clap(long, env = "PORT_RANGE", default_value = "10000-10100", value_parser = parse_port_range, help = "Port range for CEF instances in format START-END")]
     port_range: (u16, u16),
-    #[clap(long, env = "HOST", help = "Huly CEF servers and Manager host")]
+    #[clap(
+        long,
+        env = "HOST",
+        default_value = "localhost",
+        help = "Huly CEF servers and Manager host"
+    )]
     host: String,
-    #[clap(long, env = "MANAGER_PORT", help = "Huly CEF Manager port")]
+    #[clap(
+        long,
+        env = "MANAGER_PORT",
+        default_value = "3000",
+        help = "Huly CEF Manager port"
+    )]
     manager_port: u16,
+    #[clap(
+        long,
+        env = "USE_SERVER_SIZE",
+        default_value = "false",
+        help = "Whether to use server size for CEF instances"
+    )]
+    use_server_size: bool,
 }
 
 fn parse_port_range(s: &str) -> Result<(u16, u16), String> {
@@ -125,16 +147,19 @@ async fn main() {
 
     let state = Arc::new(Mutex::new(ServerState {
         args: args.clone(),
-        instances: InstanceManager::new(args.cef_exe, args.cache_dir.clone(), args.port_range),
+        instances: InstanceManager::new(
+            args.cef_exe,
+            args.cache_dir.clone(),
+            args.port_range,
+            args.use_server_size,
+        ),
         profiles: ProfileManager::new(args.cache_dir),
     }));
 
-    let cors = CorsLayer::new().allow_origin(Any).allow_methods([
-        Method::GET,
-        Method::POST,
-        Method::DELETE,
-        Method::OPTIONS,
-    ]);
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_headers(Any)
+        .allow_methods(Any);
 
     let app = Router::new()
         .route("/profiles", get(list_profiles))

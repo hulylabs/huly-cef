@@ -13,16 +13,18 @@ use tokio_tungstenite::tungstenite::connect;
 pub struct InstanceManager {
     cef_exe: String,
     cache_dir: String,
+    use_server_size: bool,
     available_ports: HashSet<u16>,
     ports: HashMap<String, u16>,
     instances: HashMap<String, Child>,
 }
 
 impl InstanceManager {
-    pub fn new(cef_exe: String, cache_dir: String, port_range: (u16, u16)) -> Self {
+    pub fn new(cef_exe: String, cache_dir: String, port_range: (u16, u16), use_server_size: bool) -> Self {
         Self {
             cef_exe,
             cache_dir,
+            use_server_size,
             available_ports: (port_range.0..=port_range.1).collect(),
             ports: HashMap::new(),
             instances: HashMap::new(),
@@ -109,11 +111,20 @@ impl InstanceManager {
             port, cache_dir
         );
 
+        let mut args = vec![
+            String::from("--port"),
+            port.to_string(),
+            String::from("--cache-path"),
+            cache_dir,
+            String::from("--no-sandbox"),
+        ];
+
+        if self.use_server_size {
+            args.push(String::from("--use-server-size"));
+        }
+        
         let instance = Command::new(&self.cef_exe)
-            .args(["--port", port.to_string().as_str()])
-            .args(["--cache-path", &cache_dir])
-            .args(["--use-server-size"])
-            .args(["--no-sandbox"])
+            .args(args)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()

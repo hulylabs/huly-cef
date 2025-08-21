@@ -32,7 +32,11 @@ export class TabEventStream {
         this.websocket.onmessage = (event) => this.onmessage(event);
     }
 
-    public on<K extends keyof TabEvent>(eventType: K, callback: (data: TabEvent[K]) => void) {
+    closeConnection() {
+        this.websocket.close();
+    }
+
+    on<K extends keyof TabEvent>(eventType: K, callback: (data: TabEvent[K]) => void) {
         if (!this.subscribers.has(eventType)) {
             this.subscribers.set(eventType, callback);
         }
