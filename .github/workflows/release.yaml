@@ -9,6 +9,9 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ${{ matrix.os }}
@@ -61,5 +64,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create ${{ steps.version.outputs.version }} \
-            --title "Huly CEF ${{ steps.version.outputs.version }}"
+            --title "Huly CEF ${{ steps.version.outputs.version }}" \
             ./artifacts/*.tar.gz
