@@ -63,7 +63,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ERSION=${{ steps.version.outputs.version }}
+          VERSION=${{ steps.version.outputs.version }}
 
           if gh release view "$VERSION" > /dev/null 2>&1; then
             gh release upload "$VERSION" ./artifacts/*.tar.gz
