@@ -47,21 +47,16 @@ jobs:
       - name: Prepare artifacts
         run: |
           mkdir -p artifacts
-          
-          # Linux artifact
-          if [ -f "target/release/huly-cef-websockets" ]; then
+
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            tar -czf artifacts/huly-cef-macos.tar.gz -C target/release huly-cef-websockets.app
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             tar -czf artifacts/huly-cef-websockets-linux.tar.gz -C target/release huly-cef-websockets cef
-          fi
-          
-          # Windows artifact  
-          if [ -f "target/release/huly-cef-websockets.exe" ]; then
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp target/release/huly-cef-websockets.exe artifacts/huly-cef-websockets.exe
           fi
-          
-          # macOS artifact
-          if [ -d "target/release/huly-cef-websockets.app" ]; then
-            tar -czf artifacts/huly-cef-macos.tar.gz -C target/release huly-cef-websockets.app
-          fi
+
+          ls artifacts
       
       - name: Create Release
         run: |
