@@ -127,7 +127,6 @@ fn main() {
     ));
 
     _ = cef.initialize();
-
     cef.run_message_loop();
     cef.shutdown();
 }

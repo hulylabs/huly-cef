@@ -1,7 +1,7 @@
 import { Browser } from "./browser.js";
 export { KeyCode } from "./keyboard.js";
 export { Browser } from "./browser.js";
-export { MouseButton, LoadState, Cursor } from "./types.js";
+export { MouseButton, LoadState, LoadStatus, Cursor } from "./types.js";
 export { TabEventStream } from "./event_stream.js";
 export { Tab } from "./tab.js";
 

@@ -415,6 +415,8 @@ fn wheel(
     state: &SharedServerState,
     params: WheelParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
+    info!("[wheel] params: {:?}", params);
+
     let tab = get_tab(state, params.tab)?;
     tab.mouse.wheel(params.x, params.y, params.dx, params.dy);
 
