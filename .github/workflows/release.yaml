@@ -18,6 +18,7 @@ jobs:
       
       - name: Extract version from branch name
         id: version
+        shell: bash
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           VERSION=${BRANCH_NAME#release/}
@@ -25,7 +26,6 @@ jobs:
           echo "Version: ${VERSION}"
       
       - name: Check if release exists
-        id: check_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,4 +65,3 @@ jobs:
           gh release create ${{ steps.version.outputs.version }} \
             --title "Huly CEF ${{ steps.version.outputs.version }}"
             ./artifacts/*.tar.gz
-
