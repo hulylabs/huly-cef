@@ -54,7 +54,8 @@ jobs:
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             cd target/release && zip -r ../../artifacts/huly-cef-linux.zip huly-cef-websockets cef
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cd target/release && zip -r ../../artifacts/huly-cef-windows.zip huly-cef-websockets.exe
+            cd target/release
+            powershell -Command "Compress-Archive -Path 'huly-cef-websockets.exe' -DestinationPath '../../artifacts/huly-cef-windows.zip'"
           fi
       
       - name: Create Release
