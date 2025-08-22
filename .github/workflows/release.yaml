@@ -50,14 +50,12 @@ jobs:
           mkdir -p artifacts
 
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            tar -czf artifacts/huly-cef-macos.tar.gz -C target/release huly-cef-websockets.app
+            cd target/release && zip -r ../../artifacts/huly-cef-macos.zip huly-cef-websockets.app
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            tar -czf artifacts/huly-cef-websockets-linux.tar.gz -C target/release huly-cef-websockets cef
+            cd target/release && zip -r ../../artifacts/huly-cef-linux.zip huly-cef-websockets cef
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp target/release/huly-cef-websockets.exe artifacts/huly-cef-websockets.exe
+            cd target/release && zip -r ../../artifacts/huly-cef-windows.zip huly-cef-websockets.exe
           fi
-
-          ls artifacts
       
       - name: Create Release
         env:
@@ -66,9 +64,9 @@ jobs:
           VERSION=${{ steps.version.outputs.version }}
 
           if gh release view "$VERSION" > /dev/null 2>&1; then
-            gh release upload "$VERSION" ./artifacts/*.tar.gz
+            gh release upload "$VERSION" ./artifacts/*.zip
           else
             gh release create "$VERSION" \
               --title "Huly CEF $VERSION" \
-              ./artifacts/*.tar.gz
+              ./artifacts/*.zip
           fi
