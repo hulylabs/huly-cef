@@ -5,6 +5,10 @@ on:
     branches:
       - 'release/v*.*.*'
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   release:
     runs-on: ${{ matrix.os }}
@@ -18,7 +22,6 @@ jobs:
       
       - name: Extract version from branch name
         id: version
-        shell: bash
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           VERSION=${BRANCH_NAME#release/}
