@@ -29,8 +29,6 @@ jobs:
           echo "Version: ${VERSION}"
       
       - name: Check if release exists
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.version }}   
           if gh release view "$VERSION" > /dev/null 2>&1; then
@@ -59,6 +57,8 @@ jobs:
           ls artifacts
       
       - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release create ${{ steps.version.outputs.version }} \
             --title "Huly CEF ${{ steps.version.outputs.version }}"
