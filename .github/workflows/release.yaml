@@ -27,8 +27,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          response=$(gh release view "$VERSION")
-          echo "$response"
+          
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Release ${VERSION} already exists, skipping creation."
+            exit 1
+          fi
+
           echo "Release ${VERSION} does not exist, proceeding..."
       
       # - name: Setup Rust
