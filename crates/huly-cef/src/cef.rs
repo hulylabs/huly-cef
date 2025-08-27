@@ -20,6 +20,7 @@ pub fn new(port: u16, cache_path: String) -> Result<CefContext> {
         .log_severity(LogSeverity::Verbose)
         .log_file(&log_file)?
         .cache_path(&cache_dir)?
+        .no_sandbox(true)
         .windowless_rendering_enabled(true);
 
     let app = App::new(crate::application::HulyAppCallbacks::new(port, cache_path));

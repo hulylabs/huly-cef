@@ -20,7 +20,12 @@ pub struct InstanceManager {
 }
 
 impl InstanceManager {
-    pub fn new(cef_exe: String, cache_dir: String, port_range: (u16, u16), use_server_size: bool) -> Self {
+    pub fn new(
+        cef_exe: String,
+        cache_dir: String,
+        port_range: (u16, u16),
+        use_server_size: bool,
+    ) -> Self {
         Self {
             cef_exe,
             cache_dir,
@@ -122,7 +127,7 @@ impl InstanceManager {
         if self.use_server_size {
             args.push(String::from("--use-server-size"));
         }
-        
+
         let instance = Command::new(&self.cef_exe)
             .args(args)
             .stdout(Stdio::null())
@@ -147,15 +152,8 @@ impl InstanceManager {
 }
 
 fn healthcheck(host: &str, port: u16) -> bool {
-    let url = format!("ws://localhost:{}", port);
-    info!("Healthchecking CEF instance at {}", url);
-    let result = connect(url.clone()).is_ok();
-    info!("Healthcheck result for {}: {}", url, result);
-
     let url = format!("ws://{}:{}", host, port);
-    info!("Healthchecking CEF instance at {}", url);
     let result = connect(url.clone()).is_ok();
-    info!("Healthcheck result for {}: {}", url, result);
     result
 }
 
