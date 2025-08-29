@@ -62,7 +62,7 @@ pub struct HulyRenderHandlerCallbacks {
 impl HulyRenderHandlerCallbacks {
     pub fn new(state: SharedBrowserState) -> Self {
         let (w, h, dpr) = state.read(|s| (s.width, s.height, s.dpr));
-        let framebuffer = Arc::new(Mutex::new(Framebuffer::new(w , h, dpr)));
+        let framebuffer = Arc::new(Mutex::new(Framebuffer::new(w, h, dpr)));
 
         Self {
             state,
@@ -112,9 +112,10 @@ impl HulyRenderHandlerCallbacks {
 impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn get_view_rect(&mut self, _: Browser) -> Rect {
         let (w, h, dpr) = self.state.read(|s| (s.width, s.height, s.dpr));
+        let new_fb_length = Framebuffer::length_in_bytes(w, h, dpr);
 
         let mut framebuffer = self.framebuffer.lock().unwrap();
-        if framebuffer.len() as u32 != ((w * h * 4) as f64 * dpr * dpr) as u32 {
+        if framebuffer.len() != new_fb_length {
             *framebuffer = Framebuffer::new(w, h, dpr);
         }
 

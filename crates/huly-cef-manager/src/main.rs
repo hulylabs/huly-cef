@@ -6,8 +6,8 @@ use std::{
 use axum::{
     Json, Router,
     extract::{Path, State},
-    http::{Method, StatusCode},
-    routing::{delete, get, post, put},
+    http::StatusCode,
+    routing::{delete, get},
 };
 use clap::Parser;
 use log::{SetLoggerError, info};
