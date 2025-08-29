@@ -55,6 +55,7 @@ pub struct ClickableElement {
 pub struct Framebuffer {
     pub width: u32,
     pub height: u32,
+    pub dpr: f64,
     pub data: Vec<u8>,
 }
 

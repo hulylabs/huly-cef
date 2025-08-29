@@ -22,6 +22,7 @@ export class Browser {
         const params = {
             url: options?.url || getConfig().defaultUrl,
             wait_until_loaded: options?.wait_until_loaded ?? false,
+            dpr: (typeof window !== 'undefined' ? window.devicePixelRatio : 1.0) || 1.0
         };
 
         const result = await this.messageHandler.send('openTab', params);

@@ -141,10 +141,16 @@ struct TabParam {
     tab: i32,
 }
 
+fn default_dpr() -> f64 {
+    1.0
+}
+
 #[derive(Debug, Deserialize)]
 struct OpenTabParams {
     url: String,
     wait_until_loaded: bool,
+    #[serde(default = "default_dpr")]
+    dpr: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -251,7 +257,7 @@ async fn open_tab(
         "[open_tab] size: ({}, {}), url: {}",
         width, height, params.url
     );
-    let mut tab = Browser::new(width, height, &params.url);
+    let mut tab = Browser::new(width, height, params.dpr, &params.url);
     let id = tab.get_id();
     state.set_tab(id, tab.clone());
 

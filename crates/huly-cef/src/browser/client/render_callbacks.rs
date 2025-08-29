@@ -2,13 +2,17 @@ use std::sync::{Arc, Mutex};
 
 use crate::{state::SharedBrowserState, Framebuffer, TabMessage};
 use cef_ui::{Browser, PaintElementType, Rect, RenderHandlerCallbacks, ScreenInfo};
+use log::info;
 
 impl Framebuffer {
-    fn new(width: u32, height: u32) -> Self {
-        let size = width * height * 4;
+    fn new(width: u32, height: u32, dpr: f64) -> Self {
+        let dpr_width = width as f64 * dpr;
+        let dpr_height = height as f64 * dpr;
+        let size = dpr_width * dpr_height * 4.0;
         Self {
-            width,
-            height,
+            width: dpr_width as u32,
+            height: dpr_height as u32,
+            dpr,
             data: vec![0; size as usize],
         }
     }
@@ -57,8 +61,8 @@ pub struct HulyRenderHandlerCallbacks {
 
 impl HulyRenderHandlerCallbacks {
     pub fn new(state: SharedBrowserState) -> Self {
-        let (width, height) = state.read(|state| (state.width, state.height));
-        let framebuffer = Arc::new(Mutex::new(Framebuffer::new(width, height)));
+        let (w, h, dpr) = state.read(|s| (s.width, s.height, s.dpr));
+        let framebuffer = Arc::new(Mutex::new(Framebuffer::new(w , h, dpr)));
 
         Self {
             state,
@@ -107,10 +111,11 @@ impl HulyRenderHandlerCallbacks {
 
 impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     fn get_view_rect(&mut self, _: Browser) -> Rect {
-        let (w, h) = self.state.read(|state| (state.width, state.height));
+        let (w, h, dpr) = self.state.read(|s| (s.width, s.height, s.dpr));
+
         let mut framebuffer = self.framebuffer.lock().unwrap();
-        if framebuffer.len() as u32 != w * h * 4 {
-            *framebuffer = Framebuffer::new(w, h);
+        if framebuffer.len() as u32 != ((w * h * 4) as f64 * dpr * dpr) as u32 {
+            *framebuffer = Framebuffer::new(w, h, dpr);
         }
 
         Rect {
@@ -122,12 +127,12 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     }
 
     fn get_screen_info(&mut self, _: Browser) -> Option<ScreenInfo> {
-        let (w, h) = self
+        let (w, h, dpr) = self
             .state
-            .read(|state| (state.width as i32, state.height as i32));
+            .read(|s| (s.width as i32, s.height as i32, s.dpr));
 
         Some(ScreenInfo {
-            device_scale_factor: 1.0,
+            device_scale_factor: dpr as f32,
             depth: 32,
             depth_per_component: 8,
             is_monochrome: false,

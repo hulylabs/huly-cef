@@ -13,7 +13,7 @@ pub async fn event_loop(mut tab: Browser, mut websocket: WebSocketStream<TcpStre
     let id = tab.subscribe(tx.clone());
     generate_events(&tab, tx);
 
-    let mut buffer = vec![0u8; (4 + 4 + tab.state.read(|s| s.width * s.height * 4)) as usize];
+    let mut buffer = vec![0u8; 4 + 4 + tab.state.read(|s| s.width as f64 * s.dpr * s.height as f64 * s.dpr * 4.0) as usize];
 
     while let Some(message) = rx.recv().await {
         let message = match message {

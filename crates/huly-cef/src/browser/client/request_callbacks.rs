@@ -90,9 +90,10 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
     fn on_render_process_terminated(
         &mut self,
         _browser: Browser,
-        _status: TerminationStatus,
-        _error_code: i32,
+        status: TerminationStatus,
+        error_code: i32,
         _error_string: Option<String>,
     ) {
+        println!("Render process terminated: {:?} - {}", status, error_code);
     }
 }

@@ -23,7 +23,6 @@ impl HulyDisplayHandlerCallbacks {
 
 impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
     fn on_address_change(&mut self, _: Browser, _: Frame, url: &str) {
-        info!("[on_address_change] {}", url);
         self.state.update(|state| {
             state.url = url.to_string();
         });
