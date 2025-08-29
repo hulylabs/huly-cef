@@ -55,7 +55,14 @@ pub struct ClickableElement {
 pub struct Framebuffer {
     pub width: u32,
     pub height: u32,
+    pub dpr: f64,
     pub data: Vec<u8>,
+}
+
+impl Framebuffer {
+    pub fn length_in_bytes(width: u32, height: u32, dpr: f64) -> usize {
+        (width as f64 * dpr * height as f64 * dpr * 4.0) as usize
+    }
 }
 
 #[derive(Hash, PartialEq, Eq)]

@@ -1,4 +1,5 @@
 import { Browser } from "./browser.js";
+export { Config, setConfig, getConfig } from "./config.js";
 export { KeyCode } from "./keyboard.js";
 export { Browser } from "./browser.js";
 export { MouseButton, LoadState, LoadStatus, Cursor } from "./types.js";

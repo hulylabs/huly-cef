@@ -28,6 +28,7 @@ pub struct BrowserState {
     pub cursor: String,
     pub width: u32,
     pub height: u32,
+    pub dpr: f64,
     pub active: bool,
     pub left_mouse_button_down: bool,
 

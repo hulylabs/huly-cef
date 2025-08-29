@@ -45,7 +45,7 @@ impl Clone for Browser {
 }
 
 impl Browser {
-    pub fn new(width: u32, height: u32, url: &str) -> Self {
+    pub fn new(width: u32, height: u32, dpr: f64, url: &str) -> Self {
         let (tx, rx) = crossbeam_channel::bounded(1);
         let result = cef_ui::post_task(
             ThreadId::UI,
@@ -53,6 +53,7 @@ impl Browser {
                 tx,
                 width,
                 height,
+                dpr,
                 url: url.to_string(),
             }),
         );
@@ -167,6 +168,7 @@ struct CreateBrowserTaskCallback {
     tx: Sender<Browser>,
     width: u32,
     height: u32,
+    dpr: f64,
     url: String,
 }
 
@@ -182,6 +184,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             cursor: "Pointer".to_string(),
             width: self.width,
             height: self.height,
+            dpr: self.dpr,
             active: true,
             left_mouse_button_down: false,
 
