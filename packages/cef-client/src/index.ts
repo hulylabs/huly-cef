@@ -12,7 +12,7 @@ export async function connect(serverAddress: string): Promise<Browser> {
     const websocket = new WebSocket(serverUrl.toString());
     await new Promise<void>((resolve, reject) => {
         websocket.onopen = () => resolve();
-        websocket.onerror = (error: Event) => reject(error);
+        websocket.onerror = () => reject(`Failed to connect to Huly CEF at ${serverAddress}`);
     });
 
     return new Browser(serverUrl, websocket);
