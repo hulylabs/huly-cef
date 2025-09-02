@@ -21,22 +21,22 @@ impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
 
     fn on_browser_destroyed(&mut self, _: Browser) {}
 
-    fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {
+    fn on_context_created(&mut self, _browser: Browser, frame: Frame, _context: V8Context) {
         if !frame.is_main().unwrap() {
             return;
         }
 
-        let func = V8Value::create_function(
-            "sendMessage",
-            V8Handler::new(SendMessageHandler::new(browser)),
-        )
-        .expect("failed to create func sendMessage");
+        // let func = V8Value::create_function(
+        //     "sendMessage",
+        //     V8Handler::new(SendMessageHandler::new(browser)),
+        // )
+        // .expect("failed to create func sendMessage");
 
-        context
-            .get_global()
-            .expect("failed to get global context object")
-            .set_value_by_key("sendMessage", func)
-            .expect("failed to set sendMessage function");
+        // context
+        //     .get_global()
+        //     .expect("failed to get global context object")
+        //     .set_value_by_key("sendMessage", func)
+        //     .expect("failed to set sendMessage function");
     }
 
     fn on_process_message_received(

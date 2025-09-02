@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 
 use crate::{state::SharedBrowserState, Framebuffer, TabMessage};
 use cef_ui::{Browser, PaintElementType, Rect, RenderHandlerCallbacks, ScreenInfo};
-use log::info;
 
 impl Framebuffer {
     fn new(width: u32, height: u32, dpr: f64) -> Self {

@@ -71,7 +71,6 @@ impl Browser {
         });
 
         _ = self.inner.get_host().unwrap().was_hidden(false);
-        _ = self.inner.get_host().unwrap().set_focus(true);
 
         _ = self
             .inner
