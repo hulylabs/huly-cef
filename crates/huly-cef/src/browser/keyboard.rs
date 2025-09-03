@@ -1,4 +1,4 @@
-use cef_ui::{Browser, EventFlags, KeyEvent, KeyEventType};
+use cef_ui::{Browser, BrowserHost, EventFlags, KeyEvent, KeyEventType};
 
 use crate::state::SharedBrowserState;
 
@@ -30,33 +30,8 @@ impl Keyboard {
         ctrl: bool,
         shift: bool,
     ) {
-        let mut event_type = KeyEventType::KeyUp;
-        if down {
-            event_type = KeyEventType::KeyDown;
-        };
-
-        let mut modifiers = EventFlags::empty();
-        if ctrl {
-            modifiers = modifiers.union(EventFlags::ControlDown);
-        }
-        if shift {
-            modifiers = modifiers.union(EventFlags::ShiftDown);
-        }
-        let event = KeyEvent {
-            event_type,
-            modifiers,
-            windows_key_code: windowscode.into(),
-            native_key_code: code,
-            is_system_key: false,
-            character,
-            unmodified_character: character,
-            focus_on_editable_field: false,
-        };
-
-        if cfg!(target_os = "macos") && event.event_type == KeyEventType::KeyUp {
-            return;
-        }
-        _ = self.inner.get_host().unwrap().send_key_event(event.clone());
+        let host = self.inner.get_host().unwrap();
+        process_key_event(&host, character, windowscode, code, down, ctrl, shift);
     }
 
     pub fn char(&self, character: u16) {
@@ -73,4 +48,54 @@ impl Keyboard {
 
         _ = self.inner.get_host().unwrap().send_key_event(event);
     }
+}
+
+#[cfg(target_os = "linux")]
+fn process_key_event(
+    host: &BrowserHost,
+    character: u16,
+    windowscode: i32,
+    code: i32,
+    down: bool,
+    ctrl: bool,
+    shift: bool,
+) {
+    let mut event_type = KeyEventType::KeyUp;
+    if down {
+        event_type = KeyEventType::KeyDown;
+    };
+
+    let mut modifiers = EventFlags::empty();
+    if ctrl {
+        modifiers = modifiers | EventFlags::ControlDown;
+    }
+    if shift {
+        modifiers = modifiers | EventFlags::ShiftDown;
+    }
+
+    let mut event = KeyEvent {
+        event_type,
+        modifiers,
+        windows_key_code: windowscode.into(),
+        native_key_code: code,
+        is_system_key: false,
+        character,
+        unmodified_character: to_lower_case(character),
+        focus_on_editable_field: false,
+    };
+
+    _ = host.send_key_event(event.clone());
+
+    if event_type == KeyEventType::KeyDown {
+        event.event_type = KeyEventType::Char;
+        _ = host.send_key_event(event);
+    }
+}
+
+fn to_lower_case(unicode: u16) -> u16 {
+    char::from_u32(unicode as u32)
+        .expect("invalid unicode character")
+        .to_lowercase()
+        .next()
+        .expect("invalid unicode character") as u16
 }
