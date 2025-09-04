@@ -50,7 +50,7 @@ impl Keyboard {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn process_key_event(
     host: &BrowserHost,
     character: u16,
