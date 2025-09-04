@@ -67,10 +67,9 @@ jobs:
           VERSION=${{ steps.version.outputs.version }}
 
           if gh release view "$VERSION" > /dev/null 2>&1; then
-            gh release upload "$VERSION" ./artifacts/*.zip
+            gh release upload "$VERSION" artifacts/*
           else
             gh release create "$VERSION" \
               --title "Huly CEF $VERSION" \
-              ./artifacts/*.zip \
-              ./artifacts/*.sha256
+              artifacts/*
           fi
