@@ -161,6 +161,49 @@ impl Browser {
     pub fn unsubscribe(&self, id: i32) {
         self.state.unsubscribe(id);
     }
+
+    pub fn undo(&self) {
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.undo();
+        }
+    }
+
+    pub fn redo(&self) {
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.redo();
+        }
+    }
+
+    pub fn select_all(&self) {
+        info!("selecting all text");
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.select_all();
+        }
+    }
+
+    pub fn copy(&self) {
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.copy();
+        }
+    }
+
+    pub fn paste(&self) {
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.paste();
+        }
+    }
+
+    pub fn cut(&self) {
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.cut();
+        }
+    }
+
+    pub fn delete(&self) {
+        if let Some(frame) = self.inner.get_main_frame().unwrap() {
+            let _ = frame.delete();
+        }
+    }
 }
 
 struct CreateBrowserTaskCallback {

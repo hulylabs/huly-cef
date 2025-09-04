@@ -156,6 +156,34 @@ export class Tab {
         return result.dom;
     }
 
+    async undo(): Promise<void> {
+        await this.messageHandler.send('undo', { tab: this.id });
+    }
+
+    async redo(): Promise<void> {
+        await this.messageHandler.send('redo', { tab: this.id });
+    }
+
+    async selectAll(): Promise<void> {
+        await this.messageHandler.send('selectAll', { tab: this.id });
+    }
+
+    async copy(): Promise<void> {
+        await this.messageHandler.send('copy', { tab: this.id });
+    }
+
+    async paste(): Promise<void> {
+        await this.messageHandler.send('paste', { tab: this.id });
+    }
+
+    async cut(): Promise<void> {
+        await this.messageHandler.send('cut', { tab: this.id });
+    }
+
+    async delete(): Promise<void> {
+        await this.messageHandler.send('delete', { tab: this.id });
+    }
+
     events(): TabEventStream {
         let address = this.serverUrl.origin + "/tab/" + this.id;
         return new TabEventStream(address);

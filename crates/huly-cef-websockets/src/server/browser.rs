@@ -126,6 +126,13 @@ fn handle_sync_method(
         "stopVideo" => parse_params(params).and_then(|params| stop_video(&state, params)),
         "startVideo" => parse_params(params).and_then(|params| start_video(&state, params)),
         "setFocus" => parse_params(params).and_then(|params| set_focus(&state, params)),
+        "undo" => parse_params(params).and_then(|params| undo(&state, params)),
+        "redo" => parse_params(params).and_then(|params| redo(&state, params)),
+        "selectAll" => parse_params(params).and_then(|params| select_all(&state, params)),
+        "copy" => parse_params(params).and_then(|params| copy(&state, params)),
+        "paste" => parse_params(params).and_then(|params| paste(&state, params)),
+        "cut" => parse_params(params).and_then(|params| cut(&state, params)),
+        "delete" => parse_params(params).and_then(|params| delete(&state, params)),
         _ => Err(json!({
             "message": "Method not found",
             "data": { "method": method }
@@ -137,7 +144,7 @@ fn handle_sync_method(
 struct EmptyParams {}
 
 #[derive(Debug, Deserialize)]
-struct TabParam {
+struct TabParams {
     tab: i32,
 }
 
@@ -146,7 +153,7 @@ fn default_dpr() -> f64 {
 }
 
 #[derive(Debug, Deserialize)]
-struct OpenTabParams {
+struct OpenTabParamss {
     url: String,
     wait_until_loaded: bool,
     #[serde(default = "default_dpr")]
@@ -250,7 +257,7 @@ fn parse_params<T: DeserializeOwned>(params: serde_json::Value) -> Result<T, ser
 
 async fn open_tab(
     state: &SharedServerState,
-    params: OpenTabParams,
+    params: OpenTabParamss,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let (width, height) = { state.lock().size };
     info!(
@@ -286,7 +293,7 @@ async fn open_tab(
 
 fn close_tab(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = state.remove_tab(params.tab);
     if let Some(tab) = tab {
@@ -359,7 +366,7 @@ async fn screenshot(
 
 fn title(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     Ok(json!({ "title": tab.get_title() }))
@@ -367,7 +374,7 @@ fn title(
 
 fn url(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     Ok(json!({ "url": tab.get_url() }))
@@ -458,7 +465,7 @@ fn char(
 
 fn stop_video(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     info!("[tab: {}] stop video", tab.get_title());
@@ -469,7 +476,7 @@ fn stop_video(
 
 fn start_video(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     info!("[tab: {}] start video", tab.get_title());
@@ -559,7 +566,7 @@ fn set_focus(
 
 async fn get_dom(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     let dom = tab.automation.get_dom().await;
@@ -569,7 +576,7 @@ async fn get_dom(
 
 async fn get_clickable_elements(
     state: &SharedServerState,
-    params: TabParam,
+    params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     let elements = tab.automation.get_clickable_elements().await;
@@ -584,6 +591,76 @@ async fn click_element(
     let tab = get_tab(state, params.tab)?;
     // TODO: check that element exists
     tab.automation.click_element(params.element_id).await;
+
+    Ok(json!({ "success": true }))
+}
+
+fn delete(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.delete();
+
+    Ok(json!({ "success": true }))
+}
+
+fn undo(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.undo();
+
+    Ok(json!({ "success": true }))
+}
+
+fn redo(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.redo();
+
+    Ok(json!({ "success": true }))
+}
+
+fn select_all(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.select_all();
+
+    Ok(json!({ "success": true }))
+}
+
+fn copy(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.copy();
+
+    Ok(json!({ "success": true }))
+}
+
+fn paste(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.paste();
+
+    Ok(json!({ "success": true }))
+}
+
+fn cut(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.cut();
 
     Ok(json!({ "success": true }))
 }

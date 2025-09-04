@@ -5,7 +5,7 @@ use crate::javascript::{
 };
 use cef_ui::{
     register_extension, Browser, DictionaryValue, Frame, ProcessId, ProcessMessage,
-    RenderProcessHandlerCallbacks, V8Context, V8Handler, V8HandlerCallbacks, V8Value,
+    RenderProcessHandlerCallbacks, V8Context, V8HandlerCallbacks, V8Value,
 };
 
 pub struct RenderProcessCallbacks;
@@ -50,11 +50,13 @@ impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
     }
 }
 
+#[allow(dead_code)]
 pub struct SendMessageHandler {
     browser: Browser,
 }
 
 impl SendMessageHandler {
+    #[allow(dead_code)]
     pub fn new(browser: Browser) -> Self {
         Self { browser }
     }
