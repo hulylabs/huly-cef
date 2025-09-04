@@ -71,5 +71,6 @@ jobs:
           else
             gh release create "$VERSION" \
               --title "Huly CEF $VERSION" \
-              ./artifacts/*.zip
+              ./artifacts/*.zip \
+              ./artifacts/*.sha256
           fi
