@@ -50,10 +50,12 @@ jobs:
           mkdir -p artifacts
 
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            zip -r artifacts/huly-cef-macos.zip target/release/huly-cef-websockets.app
+            cd target/release && zip -r ../../artifacts/huly-cef-macos.zip huly-cef-websockets.app
+            cd ../..
             sha256sum artifacts/huly-cef-macos.zip | cut -d' ' -f1 > artifacts/huly-cef-macos.zip.sha256
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            zip -r artifacts/huly-cef-linux.zip target/release/huly-cef-websockets cef
+            cd target/release && zip -r ../../artifacts/huly-cef-linux.zip huly-cef-websockets cef
+            cd ../..
             sha256sum artifacts/huly-cef-linux.zip | cut -d' ' -f1 > artifacts/huly-cef-linux.zip.sha256
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             powershell -Command "Compress-Archive -Path 'target/release/huly-cef-websockets.exe', 'cef/*' -DestinationPath 'artifacts/huly-cef-windows.zip'"
