@@ -115,7 +115,7 @@ jobs:
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E "(Apple Development|Developer ID|Apple Distribution)" | head -1)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          codesign --deep --force --options runtime --sign "$CERT_ID" target/release/huly-cef-websockets.app
+          codesign -vvv --deep --force --options runtime --sign "$CERT_ID" target/release/huly-cef-websockets.app
       
       - name: Notarize Huly CEF App
         env:
