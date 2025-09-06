@@ -106,7 +106,8 @@ jobs:
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
-        with: 
+        with:
+          keychain: build
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       
