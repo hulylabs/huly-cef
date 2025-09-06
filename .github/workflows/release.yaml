@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     
     steps:
       - name: Checkout code
@@ -61,6 +61,68 @@ jobs:
             powershell -Command "Compress-Archive -Path 'target/release/huly-cef-websockets.exe', 'cef/*' -DestinationPath 'artifacts/huly-cef-windows.zip'"
             powershell -Command "(Get-FileHash -Algorithm SHA256 artifacts/huly-cef-windows.zip).Hash.ToLower() | Out-File -Encoding ASCII artifacts/huly-cef-windows.zip.sha256"
           fi
+      
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release upload "$VERSION" artifacts/*
+          else
+            gh release create "$VERSION" \
+              --title "Huly CEF $VERSION" \
+              artifacts/*
+          fi
+
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Extract version from branch name
+        id: version
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          VERSION=${BRANCH_NAME#release/}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+      
+      - name: Check if release exists
+        run: |
+          VERSION=${{ steps.version.outputs.version }}   
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Release ${VERSION} already exists, skipping creation."
+            exit 1
+          fi
+
+          echo "Release ${VERSION} does not exist, proceeding..."
+      
+      - name: Build Huly CEF
+        run: |
+          cargo run --bin huly-cef-build --release -- --profile release
+
+      - name: Import Apple Code Signing Certificates
+        uses: apple-actions/import-codesign-certs@v3
+        with: 
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      
+      - name: Sign Huly CEF App
+        run: |
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E "(Apple Development|Developer ID|Apple Distribution)" | head -1)
+          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+          codesign --deep --force --options runtime --sign "$CERT_ID" target/release/huly-cef-websockets.app
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p artifacts
+
+          cd target/release && zip -r ../../artifacts/huly-cef-macos.zip huly-cef-websockets.app
+          cd ../..
+          sha256sum artifacts/huly-cef-macos.zip | cut -d' ' -f1 > artifacts/huly-cef-macos.zip.sha256
       
       - name: Create Release
         env:
