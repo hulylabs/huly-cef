@@ -115,6 +115,25 @@ jobs:
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E "(Apple Development|Developer ID|Apple Distribution)" | head -1)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           codesign --deep --force --options runtime --sign "$CERT_ID" target/release/huly-cef-websockets.app
+      
+      - name: Notarize Huly CEF App
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+        run: |
+          cd target/release
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > AuthKey_$APPLE_API_KEY.p8
+          ditto -c -k --keepParent huly-cef-websockets.app huly-cef-websockets.zip
+
+          xcrun notarytool submit huly-cef-websockets.zip \
+            --key AuthKey_$APPLE_API_KEY.p8 \
+            --key-id $APPLE_API_KEY \
+            --issuer $APPLE_API_ISSUER \
+            --wait
+
+          xcrun stapler staple huly-cef-websockets.app
+          xcrun stapler validate huly-cef-websockets.app
 
       - name: Prepare artifacts
         run: |
