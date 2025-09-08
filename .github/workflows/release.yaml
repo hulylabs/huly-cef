@@ -49,11 +49,7 @@ jobs:
         run: |
           mkdir -p artifacts
 
-          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            cd target/release && zip -r ../../artifacts/huly-cef-macos.zip huly-cef-websockets.app
-            cd ../..
-            sha256sum artifacts/huly-cef-macos.zip | cut -d' ' -f1 > artifacts/huly-cef-macos.zip.sha256
-          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             cd target/release && zip -r ../../artifacts/huly-cef-linux.zip huly-cef-websockets cef
             cd ../..
             sha256sum artifacts/huly-cef-linux.zip | cut -d' ' -f1 > artifacts/huly-cef-linux.zip.sha256
@@ -106,16 +102,80 @@ jobs:
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
-        with: 
+        with:
+          keychain: build
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Create entitlements files
+        run: |
+          cat > main.entitlements << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+             <key>com.apple.security.device.audio-input</key>
+             <true/>
+             <key>com.apple.security.device.bluetooth</key>
+             <true/>
+             <key>com.apple.security.device.camera</key>
+             <true/>
+             <key>com.apple.security.device.print</key>
+             <true/>
+             <key>com.apple.security.device.usb</key>
+             <true/>
+          </dict>
+          </plist>
+          EOF
+
+          cat > helper.entitlements << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+             <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+             <true/>
+             <key>com.apple.security.cs.disable-library-validation</key>
+             <true/>
+             <key>com.apple.security.cs.allow-jit</key>
+             <true/>
+          </dict>
+          </plist>
+          EOF
       
       - name: Sign Huly CEF App
         run: |
+          find target/release/huly-cef-websockets.app -name '._*' -exec rm -rf {} \;
+
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E "(Apple Development|Developer ID|Apple Distribution)" | head -1)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          codesign --deep --force --options runtime --sign "$CERT_ID" target/release/huly-cef-websockets.app
-      
+
+          codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
+          codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
+          codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
+          codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+          codesign --verify --deep --strict --verbose=2 \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+
+          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
+          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
+          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
+          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
+          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper.app"
+          codesign --force --options runtime --entitlements "main.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+            "target/release/huly-cef-websockets.app"
+
+          codesign --verify --deep --strict --verbose=2 "target/release/huly-cef-websockets.app"
+
       - name: Notarize Huly CEF App
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
