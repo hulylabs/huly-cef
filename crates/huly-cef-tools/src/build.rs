@@ -53,11 +53,13 @@ fn main() -> Result<()> {
             app_name: String::from("huly-cef-websockets"),
             main_exe_name: String::from("huly-cef-websockets"),
             helper_exe_name: String::from("huly-cef-helper"),
-            resources_dir: workspace_dir.join("cef-resources/macos"),
+            resources_dir: workspace_dir.join("resources/macos"),
             org_name: String::from("huly"),
         }
         .run()?;
     }
+
+    copy_resources(&args.profile)?;
 
     Ok(())
 }
@@ -82,4 +84,29 @@ fn download_and_extract_cef(dir: &PathBuf) -> Result<()> {
 
 fn download_cef(url: &str) -> Result<Vec<u8>> {
     Ok(reqwest::blocking::get(url)?.bytes()?.to_vec())
+}
+
+fn copy_resources(profile: &str) -> Result<()> {
+    let profile = if profile == "release" {
+        "release"
+    } else {
+        "debug"
+    };
+
+    let workspace_dir = get_cef_workspace_dir()?;
+    let resources_dir = workspace_dir.join("resources/pages");
+
+    #[cfg(target_os = "linux")]
+    let target_dir = workspace_dir.join(format!("target/{}/cef/huly-cef-resources", profile));
+    #[cfg(target_os = "macos")]
+    let target_dir = workspace_dir.join(format!(
+        "target/{}/huly-cef-websockets.app/Contents/Resources",
+        profile
+    ));
+    #[cfg(target_os = "windows")]
+    let target_dir = workspace_dir.join(format!("target/{}/huly-cef-resources", profile));
+
+    dircpy::copy_dir(resources_dir, target_dir)?;
+
+    Ok(())
 }

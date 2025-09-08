@@ -4,10 +4,9 @@ export interface Config {
     logging: boolean,
 }
 
-// Default configuration
 const DEFAULT_CONFIG: Config = {
     requestTimeout: 50000,
-    defaultUrl: 'about:blank',
+    defaultUrl: '',
     logging: true,
 };
 

@@ -27,7 +27,6 @@ export class Browser {
 
         const result = await this.messageHandler.send('openTab', params);
 
-        // Extract the tab ID from the result
         if (result && typeof result.id === 'number') {
             return new Tab(result.id, this.serverUrl, this.messageHandler);
         }

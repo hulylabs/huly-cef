@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use futures::{SinkExt, StreamExt};
 use huly_cef::{browser::Browser, MouseButton};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -148,12 +150,24 @@ struct TabParams {
     tab: i32,
 }
 
+#[cfg(target_os = "linux")]
+const NEW_TAB_URL: &str = "./cef/huly-cef-resources/new-tab.html";
+#[cfg(target_os = "windows")]
+const NEW_TAB_URL: &str = "./cef/huly-cef-resources/new-tab.html";
+#[cfg(target_os = "macos")]
+const NEW_TAB_URL: &str = "../Resources/new-tab.html";
+
+fn default_url() -> String {
+    NEW_TAB_URL.into()
+}
+
 fn default_dpr() -> f64 {
     1.0
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenTabParamss {
+    #[serde(default = "default_url")]
     url: String,
     wait_until_loaded: bool,
     #[serde(default = "default_dpr")]

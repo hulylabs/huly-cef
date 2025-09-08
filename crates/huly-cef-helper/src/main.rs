@@ -4,7 +4,12 @@ use anyhow::Result;
 use cef_ui::{App, AppCallbacks, MainArgs, RenderProcessHandler};
 use cef_ui_helper::ScopedSandbox;
 use log::{error, info, SetLoggerError};
-use log4rs::{append::console::ConsoleAppender, config::{Appender, Root}, encode::pattern::PatternEncoder, Config};
+use log4rs::{
+    append::console::ConsoleAppender,
+    config::{Appender, Root},
+    encode::pattern::PatternEncoder,
+    Config,
+};
 
 use crate::render_process::RenderProcessCallbacks;
 
@@ -17,7 +22,7 @@ fn setup_logging() -> Result<log4rs::Handle, SetLoggerError> {
     let stdout = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(stdout_pattern)))
         .build();
-   
+
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .build(
@@ -45,12 +50,16 @@ fn main() -> Result<()> {
 }
 
 fn run() -> Result<i32> {
- let _sandbox = ScopedSandbox::new()?;
+    let _sandbox = ScopedSandbox::new()?;
     unsafe {
         let main_args = MainArgs::new()?;
         let app = App::new(HelperAppCallbacks::new());
         let lib = &cef_lib::CEFLIB;
-        Ok((lib.cef_execute_process)(main_args.as_raw(), app.into_raw(), null_mut()))
+        Ok((lib.cef_execute_process)(
+            main_args.as_raw(),
+            app.into_raw(),
+            null_mut(),
+        ))
     }
 }
 
@@ -71,4 +80,3 @@ impl AppCallbacks for HelperAppCallbacks {
         Some(self.render_process_handler.clone())
     }
 }
-
