@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
-import { Browser, connect, KeyCode, MouseButton } from '../src/index';
+import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
 import { dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -48,7 +48,8 @@ describe('Basic API', () => {
     test('go to a url', async () => {
         const tab = await browser.openTab({ url: "", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
-        expect(await tab.title()).toBe("New tab");
+        expect(await tab.title()).toBe("New Tab");
+        expect(await tab.url()).toBe("huly://newtab");
 
         await tab.navigate("https://www.google.com/", true);
         expect(await tab.title()).toBe("Google");
@@ -144,12 +145,17 @@ describe('Basic API', () => {
     });
 
     test('keyboard', async () => {
+        let press = async (tab: Tab, code: KeyCode) => {
+            tab.key(code, 0, true, false, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            tab.key(code, 0, false, false, false);
+        }
+
         let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
 
         const text = "Hello, World! 🌍 Café, naïve, résumé Здравствуй мир こんにちは世界 مرحبا بالعالم Γεια σας κόσμε α²+β²=γ² ∑∞∫∆ €$¥£₹₽ ©®™℠ 🚀🎉🎯⚡🔥💎";
-        // Enter text
         for (let char of Array.from(text)) {
             if (char.length === 2) {
                 tab.char(char.charCodeAt(0));
@@ -159,23 +165,21 @@ describe('Basic API', () => {
             }
         }
 
-        tab.key(KeyCode.ENTER, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.ENTER, 0, false, false, false);
-
+        press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe(text);
 
         tab.selectAll();
         tab.cut();
+        press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe("Keyboard");
 
         tab.paste();
+        press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe(text);
 
-        tab.key(KeyCode.BACKSPACE, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.BACKSPACE, 0, false, false, false);
-        await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -1));
+        press(tab, KeyCode.BACKSPACE);
+        press(tab, KeyCode.ENTER);
+        await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -2));
         tab.close();
     });
 

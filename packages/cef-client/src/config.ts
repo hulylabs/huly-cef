@@ -6,8 +6,8 @@ export interface Config {
 
 const DEFAULT_CONFIG: Config = {
     requestTimeout: 50000,
-    defaultUrl: '',
-    logging: true,
+    defaultUrl: 'huly://newtab',
+    logging: false,
 };
 
 let globalConfig: Config = { ...DEFAULT_CONFIG };
