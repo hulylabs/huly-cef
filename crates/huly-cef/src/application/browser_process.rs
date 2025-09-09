@@ -1,11 +1,9 @@
-use std::{fs, path::PathBuf};
-
 use cef_ui::{
     register_scheme_handler_factory, Browser, BrowserProcessHandlerCallbacks, Callback,
     CommandLine, Frame, Request, ResourceHandler, ResourceHandlerCallbacks, Response,
     SchemeHandlerFactory, SchemeHandlerFactoryCallbacks,
 };
-use log::info;
+use std::fs;
 
 struct HulyResourceHandlerCallbacks {
     file_content: Option<Vec<u8>>,
