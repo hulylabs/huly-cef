@@ -19,6 +19,13 @@ impl HulyResourceHandlerCallbacks {
     }
 }
 
+#[cfg(target_os = "linux")]
+const RESOURCES_DIR: &str = "cef/huly-cef-resources";
+#[cfg(target_os = "windows")]
+const RESOURCES_DIR: &str = "huly-cef-resources";
+#[cfg(target_os = "macos")]
+const RESOURCES_DIR: &str = "../Resources";
+
 impl ResourceHandlerCallbacks for HulyResourceHandlerCallbacks {
     fn open(&mut self, request: Request, handle_request: &mut bool, _callback: Callback) -> bool {
         let url = request.get_url().expect("failed to get request URL");
@@ -27,7 +34,8 @@ impl ResourceHandlerCallbacks for HulyResourceHandlerCallbacks {
                 .expect("failed to get current exe path")
                 .parent()
                 .expect("failed to get parent directory of a current exe")
-                .join("cef/huly-cef-resources/new-tab.html");
+                .join(RESOURCES_DIR)
+                .join("new-tab.html");
 
             let content = fs::read(file_path).expect("failed to read new-tab.html");
 
