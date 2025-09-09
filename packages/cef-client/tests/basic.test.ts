@@ -46,8 +46,9 @@ describe('Basic API', () => {
     });
 
     test('go to a url', async () => {
-        const tab = await browser.openTab({ url: "https://www.google.com", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: "", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
+        expect(await tab.title()).toBe("New tab");
 
         await tab.navigate("https://www.google.com/", true);
         expect(await tab.title()).toBe("Google");
@@ -142,7 +143,7 @@ describe('Basic API', () => {
         await tab.close();
     });
 
-    test.skip('keyboard', async () => {
+    test('keyboard', async () => {
         let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
@@ -158,29 +159,23 @@ describe('Basic API', () => {
             }
         }
 
-        // Press Enter to submit
         tab.key(KeyCode.ENTER, 0, true, false, false);
         await new Promise(resolve => setTimeout(resolve, 20));
         tab.key(KeyCode.ENTER, 0, false, false, false);
 
-        // Wait and verify the text was entered correctly
         await expect.poll(() => tab.title(), pollTimeout).toBe(text);
 
-        // Clear for next test (Ctrl+A then Delete)
-        tab.key(KeyCode.KEY_A, 0, true, true, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.KEY_A, 0, false, true, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.DELETE, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.DELETE, 0, false, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.ENTER, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.ENTER, 0, false, false, false);
-
+        tab.selectAll();
+        tab.cut();
         await expect.poll(() => tab.title(), pollTimeout).toBe("Keyboard");
 
+        tab.paste();
+        await expect.poll(() => tab.title(), pollTimeout).toBe(text);
+
+        tab.key(KeyCode.BACKSPACE, 0, true, false, false);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        tab.key(KeyCode.BACKSPACE, 0, false, false, false);
+        await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -1));
         tab.close();
     });
 
