@@ -127,8 +127,10 @@ impl BrowserProcessHandlerCallbacks for BrowserProcessCallbacks {
     }
 
     fn on_context_initialized(&mut self) {
-        let factory = SchemeHandlerFactory::new(HulySchemeHandlerFactoryCallbacks {});
-        info!("Registering scheme handler factory for 'huly' scheme");
-        register_scheme_handler_factory("huly", "", factory);
+        register_scheme_handler_factory(
+            "huly",
+            "",
+            SchemeHandlerFactory::new(HulySchemeHandlerFactoryCallbacks {}),
+        );
     }
 }

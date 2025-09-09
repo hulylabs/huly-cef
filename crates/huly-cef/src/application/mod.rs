@@ -2,7 +2,6 @@ use cef_ui::{
     AppCallbacks, BrowserProcessHandler, CommandLine, RenderProcessHandler, SchemeOptions,
     SchemeRegistrar,
 };
-use log::info;
 
 mod browser_process;
 mod render_process;
@@ -38,12 +37,7 @@ impl AppCallbacks for HulyAppCallbacks {
     }
 
     fn on_register_custom_schemes(&mut self, registrar: SchemeRegistrar) {
-        info!("registering schemes");
-        let options = SchemeOptions::Local;
-        registrar
-            .add_custom_scheme("huly", options.into())
-            .expect("Failed to register custom scheme");
-        info!("registering schemes");
+        registrar.add_custom_scheme("huly", SchemeOptions::Local.into());
     }
 
     fn get_browser_process_handler(&mut self) -> Option<BrowserProcessHandler> {
