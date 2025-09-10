@@ -36,8 +36,7 @@ jobs:
           VERSION=${{ steps.version.outputs.version }}   
           if gh release view "$VERSION" > /dev/null 2>&1; then
             echo "Release ${VERSION} already exists, skipping creation."
-            exit 1
-          fi
+            exit
 
           echo "Release ${VERSION} does not exist, proceeding..."
       
@@ -54,7 +53,8 @@ jobs:
             cd ../..
             sha256sum artifacts/huly-cef-linux.zip | cut -d' ' -f1 > artifacts/huly-cef-linux.zip.sha256
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            powershell -Command "Compress-Archive -Path 'target/release/huly-cef-websockets.exe', 'cef/*', 'resources/pages' -DestinationPath 'artifacts/huly-cef-windows.zip'"
+            cp -r resources/pages huly-cef-resources
+            powershell -Command "Compress-Archive -Path 'target/release/huly-cef-websockets.exe', 'cef/*', 'huly-cef-resources' -DestinationPath 'artifacts/huly-cef-windows.zip'"
             powershell -Command "(Get-FileHash -Algorithm SHA256 artifacts/huly-cef-windows.zip).Hash.ToLower() | Out-File -Encoding ASCII artifacts/huly-cef-windows.zip.sha256"
           fi
       
