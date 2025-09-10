@@ -3,6 +3,7 @@ use cef_ui::{
     CommandLine, Frame, Request, ResourceHandler, ResourceHandlerCallbacks, Response,
     SchemeHandlerFactory, SchemeHandlerFactoryCallbacks,
 };
+use log::info;
 use std::fs;
 
 struct HulyResourceHandlerCallbacks {
@@ -35,7 +36,9 @@ impl ResourceHandlerCallbacks for HulyResourceHandlerCallbacks {
                 .parent()
                 .expect("failed to get parent directory of a current exe")
                 .join(RESOURCES_DIR)
-                .join("new-tab.html");
+                .join("newtab.html");
+
+            info!("Loading newtab from {:?}", file_path); // Log the file path
 
             let content = fs::read(file_path).expect("failed to read new-tab.html");
 
