@@ -36,10 +36,11 @@ jobs:
           VERSION=${{ steps.version.outputs.version }}   
           if gh release view "$VERSION" > /dev/null 2>&1; then
             echo "Release ${VERSION} already exists, skipping creation."
-            exit
+            exit 1
+          fi
 
           echo "Release ${VERSION} does not exist, proceeding..."
-      
+
       - name: Build Huly CEF
         run: |
           cargo run --bin huly-cef-build --release -- --profile release
