@@ -1,9 +1,8 @@
+use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
-
-use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 
 mod context_menu_handler;
 mod display_callbacks;

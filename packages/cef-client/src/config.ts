@@ -4,11 +4,10 @@ export interface Config {
     logging: boolean,
 }
 
-// Default configuration
 const DEFAULT_CONFIG: Config = {
     requestTimeout: 50000,
-    defaultUrl: 'about:blank',
-    logging: true,
+    defaultUrl: 'huly://newtab',
+    logging: false,
 };
 
 let globalConfig: Config = { ...DEFAULT_CONFIG };

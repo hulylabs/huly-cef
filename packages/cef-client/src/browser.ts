@@ -19,15 +19,15 @@ export class Browser {
     }
 
     async openTab(options?: Partial<OpenTabOptions>): Promise<Tab> {
+
         const params = {
-            url: options?.url || getConfig().defaultUrl,
+            url: (options && options.url !== "") ? options.url : getConfig().defaultUrl,
             wait_until_loaded: options?.wait_until_loaded ?? false,
             dpr: (typeof window !== 'undefined' ? window.devicePixelRatio : 1.0) || 1.0
         };
 
         const result = await this.messageHandler.send('openTab', params);
 
-        // Extract the tab ID from the result
         if (result && typeof result.id === 'number') {
             return new Tab(result.id, this.serverUrl, this.messageHandler);
         }

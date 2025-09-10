@@ -2,7 +2,7 @@ use cef_ui::{
     Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, LogSeverity,
     Size,
 };
-use log::error;
+use log::{error, info};
 use url::Url;
 
 use crate::{browser::state::SharedBrowserState, messages::TabMessage};

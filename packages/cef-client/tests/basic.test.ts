@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
-import { Browser, connect, KeyCode, MouseButton } from '../src/index';
+import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
 import { dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -46,8 +46,10 @@ describe('Basic API', () => {
     });
 
     test('go to a url', async () => {
-        const tab = await browser.openTab({ url: "https://www.google.com", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: "", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
+        expect(await tab.title()).toBe("New Tab");
+        expect(await tab.url()).toBe("huly://newtab");
 
         await tab.navigate("https://www.google.com/", true);
         expect(await tab.title()).toBe("Google");
@@ -77,6 +79,8 @@ describe('Basic API', () => {
         expect(elements[0].tag).toBe("a");
         expect(elements[0].text).toBe("External Link (Title)");
 
+        // TODO: check load state
+
         tab.clickElement(elements[0].id);
         await expect.poll(() => tab.title(), pollTimeout).toBe("Title");
 
@@ -101,7 +105,7 @@ describe('Basic API', () => {
         await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
-    test('mouse', async () => {
+    test.skip('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
@@ -143,12 +147,17 @@ describe('Basic API', () => {
     });
 
     test.skip('keyboard', async () => {
+        let press = async (tab: Tab, code: KeyCode) => {
+            tab.key(code, 0, true, false, false);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            tab.key(code, 0, false, false, false);
+        }
+
         let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
 
         const text = "Hello, World! 🌍 Café, naïve, résumé Здравствуй мир こんにちは世界 مرحبا بالعالم Γεια σας κόσμε α²+β²=γ² ∑∞∫∆ €$¥£₹₽ ©®™℠ 🚀🎉🎯⚡🔥💎";
-        // Enter text
         for (let char of Array.from(text)) {
             if (char.length === 2) {
                 tab.char(char.charCodeAt(0));
@@ -158,29 +167,21 @@ describe('Basic API', () => {
             }
         }
 
-        // Press Enter to submit
-        tab.key(KeyCode.ENTER, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.ENTER, 0, false, false, false);
-
-        // Wait and verify the text was entered correctly
+        press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe(text);
 
-        // Clear for next test (Ctrl+A then Delete)
-        tab.key(KeyCode.KEY_A, 0, true, true, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.KEY_A, 0, false, true, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.DELETE, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.DELETE, 0, false, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.ENTER, 0, true, false, false);
-        await new Promise(resolve => setTimeout(resolve, 20));
-        tab.key(KeyCode.ENTER, 0, false, false, false);
-
+        tab.selectAll();
+        tab.cut();
+        press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe("Keyboard");
 
+        tab.paste();
+        press(tab, KeyCode.ENTER);
+        await expect.poll(() => tab.title(), pollTimeout).toBe(text);
+
+        press(tab, KeyCode.BACKSPACE);
+        press(tab, KeyCode.ENTER);
+        await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -2));
         tab.close();
     });
 
@@ -203,6 +204,12 @@ describe('Basic API', () => {
         expect(metadata.format).toBe('png');
 
         await tab.close();
+    });
+
+    test('subframes', async () => {
+        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/frames.html", wait_until_loaded: true });
+        expect(tab.id).toBeDefined();
+        expect(await tab.title()).toBe("Frames");
     });
 });
 

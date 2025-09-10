@@ -25,6 +25,7 @@ pub struct BrowserState {
     pub url: String,
     pub favicon: Option<String>,
     pub load_state: LoadState,
+    pub navigation_started: bool,
     pub cursor: String,
     pub width: u32,
     pub height: u32,

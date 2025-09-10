@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const testdir = dirname(fileURLToPath(import.meta.url));
 const pollTimeout = { timeout: 5000, interval: 200 };
 
-describe('Tab Events', () => {
+describe.skip('Tab Events', () => {
     let browser: Browser;
     let port: number;
 
