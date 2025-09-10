@@ -28,21 +28,14 @@
         Loading Frame 2...
     </div>
 
-    <div id="frame3" class="loading">
-        Loading Frame 3...
-    </div>
-
     <script>
-        // setTimeout(() => {
-        //     document.getElementById('frame1').innerHTML = `<iframe src="https://www.example.com" width="100%" height="300"></iframe>`;
-        // }, 20000);
+        setTimeout(() => {
+            document.getElementById('frame1').innerHTML = `<iframe src="https://www.example.com" width="100%" height="300"></iframe>`;
+        }, 5000);
 
-        // setTimeout(() => {
-        //     document.getElementById('frame2').innerHTML = `<iframe src="https://httpbin.org/html" width="100%" height="300"></iframe>`;
-        // }, 50000);
-
-        // Frame 3 starts loading immediately but takes longer to respond
-        document.getElementById('frame3').innerHTML = `<iframe src="https://httpbin.org/delay/40" width="100%" height="300"></iframe>`;
+        setTimeout(() => {
+            document.getElementById('frame2').innerHTML = `<iframe src="https://httpbin.org/html" width="100%" height="300"></iframe>`;
+        }, 10000);
     </script>
 
 </body>

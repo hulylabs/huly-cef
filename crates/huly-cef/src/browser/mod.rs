@@ -103,22 +103,22 @@ impl Browser {
 
     pub fn go_to(&mut self, url: &str) {
         info!("navigating to URL: {}", url);
-        self.automation.start_navigation();
+        self.start_navigation();
         let _ = self.inner.get_main_frame().unwrap().unwrap().load_url(url);
     }
 
     pub fn go_back(&mut self) {
-        self.automation.start_navigation();
+        self.start_navigation();
         let _ = self.inner.go_back();
     }
 
     pub fn go_forward(&mut self) {
-        self.automation.start_navigation();
+        self.start_navigation();
         let _ = self.inner.go_forward();
     }
 
     pub fn reload(&mut self) {
-        self.automation.start_navigation();
+        self.start_navigation();
         let _ = self.inner.reload();
     }
 
@@ -204,6 +204,11 @@ impl Browser {
             let _ = frame.delete();
         }
     }
+
+    fn start_navigation(&mut self) {
+        self.state.update(|s| s.navigation_started = true);
+        self.automation.start_navigation();
+    }
 }
 
 struct CreateBrowserTaskCallback {
@@ -223,6 +228,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             url: self.url.clone(),
             favicon: None,
             load_state: LoadState::default(),
+            navigation_started: false,
             cursor: "Pointer".to_string(),
             width: self.width,
             height: self.height,

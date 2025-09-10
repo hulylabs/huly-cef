@@ -30,7 +30,9 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         (*load_state).can_go_back = can_go_back;
         (*load_state).can_go_forward = can_go_forward;
 
-        info!("[on_loading_state_change] flags changed is_loading={is_loading}, can_go_back={can_go_back}, can_go_forward={can_go_forward}: {load_state:?}");
+        if is_loading && self.state.read(|s| s.navigation_started) {
+            (*load_state).status = LoadStatus::Loading;
+        }
 
         self.state.update(|s| s.load_state = load_state.clone());
         self.state.notify(TabMessage::LoadState(load_state.clone()));
@@ -43,16 +45,14 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
             (*load_state).error_code = 0;
             (*load_state).error_message.clear();
 
-            info!("[on_load_start] Main frame started loading: {load_state:?}");
-
             self.state.update(|s| s.load_state = load_state.clone());
+            self.state.update(|s| s.navigation_started = false);
             self.state.notify(TabMessage::LoadState(load_state.clone()));
         }
     }
 
     fn on_load_end(&mut self, _browser: Browser, frame: Frame, http_status_code: i32) {
         if frame.is_main().unwrap() {
-            info!("[on_load_end] Main frame finished loading with status code {http_status_code}");
             if http_status_code != 0 && (http_status_code < 200 || http_status_code > 299) {
                 return;
             }
@@ -60,7 +60,6 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
             let mut load_state = self.load_state.lock().unwrap();
             (*load_state).status = LoadStatus::Loaded;
 
-            info!("[on_load_end] Main frame finished loading: {load_state:?}");
             self.state.update(|s| s.load_state = load_state.clone());
             self.state.notify(TabMessage::LoadState(load_state.clone()));
         }
