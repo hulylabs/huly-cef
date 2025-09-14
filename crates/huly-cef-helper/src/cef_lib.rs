@@ -7,17 +7,17 @@ use cef_ui_sys::{cef_app_t, cef_string_userfree_utf16_t, cef_string_utf16_t, cha
 use cef_ui_sys::cef_main_args_t;
 use cef_ui_sys::cef_process_message_t;
 use cef_ui_sys::cef_string_t;
-use cef_ui_sys::cef_v8handler_t;
-use cef_ui_sys::cef_v8value_t;
+use cef_ui_sys::cef_v8_handler_t;
+use cef_ui_sys::cef_v8_value_t;
 use libloading::{Library, Symbol};
 
 type CefExecuteProcessFn = unsafe extern "C" fn(args: *const cef_main_args_t,app: *mut cef_app_t,extra_info: *mut c_void) -> c_int;
 type CefStringUtf8ToUtf16Fn = unsafe extern "C" fn(src: *const c_char,src_len: usize,output: *mut cef_string_t) -> c_int;
 type CefStringUtf16SetFn = unsafe extern "C" fn(src: *const char16_t, src_len: usize, output: *mut cef_string_utf16_t, copy: c_int) -> c_int;
 type CefStringUsefreeUtf16FreeFn = unsafe extern "C" fn(str_: cef_string_userfree_utf16_t);
-type CefRegisterExtensionFn = unsafe extern "C" fn(name: *const cef_string_t,js_code: *const cef_string_t,handler: *mut cef_v8handler_t) -> c_int;
+type CefRegisterExtensionFn = unsafe extern "C" fn(name: *const cef_string_t,js_code: *const cef_string_t,handler: *mut cef_v8_handler_t) -> c_int;
 type CefProcessMessageCreateFn = unsafe extern "C" fn (name: *const cef_string_t) -> *mut cef_process_message_t;
-type CefV8ValueCreateFunctionFn = unsafe extern "C" fn(name: *const cef_string_t, handler: *mut cef_v8handler_t) -> *mut cef_v8value_t;
+type CefV8ValueCreateFunctionFn = unsafe extern "C" fn(name: *const cef_string_t, handler: *mut cef_v8_handler_t) -> *mut cef_v8_value_t;
 
 pub struct CefLibrary {
     _lib: &'static Library,
