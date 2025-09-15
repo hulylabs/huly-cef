@@ -6,7 +6,7 @@ import { getPageUrl, launchCef } from './common';
 
 describe('server', () => {
     const port = 8080;
-    test.skip('shutdown CEF', async () => {
+    test('shutdown CEF', async () => {
         const cef = await launchCef(port, "cache/server", 5000);
 
         const browser = await connect("ws://localhost:" + port + "/browser");

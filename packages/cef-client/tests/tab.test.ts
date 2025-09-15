@@ -5,7 +5,7 @@ import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
 import { pollTimeout, getPageUrl, launchCef, CefProcess } from './common';
 
-describe.skip('tabs', () => {
+describe('tabs', () => {
     let browser: Browser;
     let cef_process: CefProcess;
     let port: number;
