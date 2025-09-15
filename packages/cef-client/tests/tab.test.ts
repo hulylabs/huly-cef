@@ -3,7 +3,6 @@ import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
-import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { pollTimeout, getPageUrl, launchCef, CefProcess } from './common';
 
 describe.skip('tabs', () => {
