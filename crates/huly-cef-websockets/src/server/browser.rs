@@ -112,6 +112,7 @@ fn handle_sync_method(
     params: serde_json::Value,
 ) -> Result<serde_json::Value, serde_json::Value> {
     match method {
+        "close" => close(state),
         "closeTab" => parse_params(params).and_then(|params| close_tab(&state, params)),
         "getTabs" => parse_params(params).and_then(|_: EmptyParams| tabs(&state)),
         "getSize" => parse_params(params).and_then(|_: EmptyParams| size(&state)),
@@ -253,6 +254,16 @@ fn parse_params<T: DeserializeOwned>(params: serde_json::Value) -> Result<T, ser
             "message": format!("failed to deserialize params {}: {}", params, e)
         })
     })
+}
+
+fn close(state: &SharedServerState) -> Result<serde_json::Value, serde_json::Value> {
+    match state.lock().shutdown_tx.send(()) {
+        Ok(_) => Ok(json!({ "success": true })),
+        Err(_) => {
+            error!("failed to send shutdown signal");
+            return Err(json!({ "message": "failed to send shutdown signal" }));
+        }
+    }
 }
 
 async fn open_tab(

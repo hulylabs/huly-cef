@@ -15,3 +15,6 @@ html
 
 # Ignore CEF cache
 cache
+
+# Ignore files
+.DS_Store

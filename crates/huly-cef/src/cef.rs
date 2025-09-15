@@ -1,5 +1,6 @@
 use anyhow::Result;
-use cef_ui::{App, Context, LogSeverity, MainArgs, Settings};
+use cef_ui::{App, CefTask, Context, LogSeverity, MainArgs, Settings};
+use cef_ui_sys::cef_quit_message_loop;
 use std::{fs::create_dir_all, path::PathBuf};
 
 pub type CefContext = cef_ui::Context;
@@ -27,4 +28,28 @@ pub fn new(port: u16, cache_path: String) -> Result<CefContext> {
     let context = Context::new(main_args, settings, Some(app));
 
     Ok(context)
+}
+
+pub fn close() {
+    cef_ui::post_task(
+        cef_ui::ThreadId::UI,
+        CefTask::new(GenericTaskCallbacks::new(|| {
+            unsafe { cef_quit_message_loop() };
+        })),
+    );
+}
+
+struct GenericTaskCallbacks<F>(Option<F>);
+impl<F: FnOnce() + Send + Sync + 'static> cef_ui::CefTaskCallbacks for GenericTaskCallbacks<F> {
+    fn execute(&mut self) {
+        if let Some(f) = self.0.take() {
+            f();
+        }
+    }
+}
+
+impl<F: FnOnce() + Send + Sync + 'static> GenericTaskCallbacks<F> {
+    fn new(f: F) -> Self {
+        GenericTaskCallbacks(Some(f))
+    }
 }

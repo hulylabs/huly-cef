@@ -1234,6 +1234,7 @@ dependencies = [
  "anyhow",
  "base64",
  "cef-ui 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=main)",
+ "cef-ui-sys 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=main)",
  "crossbeam-channel",
  "image",
  "log",

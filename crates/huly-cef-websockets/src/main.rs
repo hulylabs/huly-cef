@@ -119,12 +119,22 @@ fn main() {
     setup_logging(&args.cache_path).expect("failed to set up logging");
     info!("Starting CEF Websockets server on 0.0.0.0:{}", args.port);
 
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.spawn(server::serve(
         format!("0.0.0.0:{}", args.port),
         args.cache_path,
         args.use_server_size,
+        shutdown_tx,
     ));
+
+    rt.spawn(async move {
+        shutdown_rx
+            .await
+            .expect("failed to receive shutdown signal");
+        info!("Shutting down CEF...");
+        huly_cef::close();
+    });
 
     _ = cef.initialize();
     cef.run_message_loop();

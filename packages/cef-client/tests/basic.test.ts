@@ -1,22 +1,30 @@
-import { beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
 import { dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 const pollTimeout = { timeout: 5000, interval: 200 };
 
-
 describe('Basic API', () => {
     let browser: Browser;
+    let cef_process: ChildProcessWithoutNullStreams;
     let port: number;
 
     beforeAll(async () => {
+        cef_process = spawn("../../target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         port = 8080;
         browser = await connect("ws://localhost:" + port + "/browser");
+    });
+
+    afterAll(() => {
+        cef_process.kill();
     });
 
     test('open a new tab', async () => {
