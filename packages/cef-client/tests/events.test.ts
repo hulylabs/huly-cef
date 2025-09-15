@@ -5,17 +5,26 @@ import { Browser, connect } from '../src/index';
 import { Cursor, LoadState, LoadStatus } from '../src/types';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 const pollTimeout = { timeout: 5000, interval: 200 };
 
 describe.skip('Tab Events', () => {
+    let cef_process: ChildProcessWithoutNullStreams;
     let browser: Browser;
     let port: number;
 
     beforeAll(async () => {
+        cef_process = spawn("../../target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         port = 8080;
         browser = await connect("ws://localhost:" + port + "/browser");
+    });
+
+    afterAll(() => {
+        cef_process.kill();
     });
 
     test('basic', async () => {

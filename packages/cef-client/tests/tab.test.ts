@@ -3,12 +3,9 @@ import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
-import { dirname } from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { pathToFileURL } from 'url';
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
-
-const testdir = dirname(fileURLToPath(import.meta.url));
-const pollTimeout = { timeout: 5000, interval: 200 };
+import { pollTimeout, testdir } from './common.test';
 
 describe('Basic API', () => {
     let browser: Browser;
