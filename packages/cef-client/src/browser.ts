@@ -18,8 +18,11 @@ export class Browser {
         this.websocket.close();
     }
 
-    async openTab(options?: Partial<OpenTabOptions>): Promise<Tab> {
+    close(): Promise<void> {
+        return this.messageHandler.send('close', {});
+    }
 
+    async openTab(options?: Partial<OpenTabOptions>): Promise<Tab> {
         const params = {
             url: (options && options.url !== "") ? options.url : getConfig().defaultUrl,
             wait_until_loaded: options?.wait_until_loaded ?? false,

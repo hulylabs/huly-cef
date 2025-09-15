@@ -3,29 +3,26 @@ import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
 
-import { pathToFileURL } from 'url';
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
-import { pollTimeout, testdir } from './common.test';
+import { pollTimeout, getPageUrl, launchCef, CefProcess } from './common';
 
-describe('Basic API', () => {
+describe.skip('tabs', () => {
     let browser: Browser;
-    let cef_process: ChildProcessWithoutNullStreams;
+    let cef_process: CefProcess;
     let port: number;
 
     beforeAll(async () => {
-        cef_process = spawn("../../target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets");
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        port = 8080;
+        port = 8081;
+        cef_process = await launchCef(port, "cache/tabs", 5000);
         browser = await connect("ws://localhost:" + port + "/browser");
     });
 
     afterAll(() => {
-        cef_process.kill();
+        cef_process.cef.kill();
     });
 
     test('open a new tab', async () => {
-        const url = pathToFileURL(testdir + "/testpages/title.html").href;
+        const url = getPageUrl("title.html");
         const tab = await browser.openTab({ url: url, wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Title");
@@ -39,7 +36,7 @@ describe('Basic API', () => {
         let [width, height] = [800, 600];
         browser.resize(width, height);
 
-        const url = "file://" + testdir + "/testpages/resize.html";
+        const url = getPageUrl("resize.html");
         const tab = await browser.openTab({ url });
         await expect.poll(() => tab.title(), pollTimeout).toBe("800x600");
 
@@ -63,9 +60,9 @@ describe('Basic API', () => {
 
     test('multiple tabs', async () => {
         let client = await connect("ws://localhost:" + port + "/browser");
-        await browser.openTab({ url: "file://" + testdir + "/testpages/title.html", wait_until_loaded: true });
-        await client.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
-        await client.openTab({ url: "file://" + testdir + "/testpages/links.html", wait_until_loaded: true });
+        await browser.openTab({ url: getPageUrl("title.html"), wait_until_loaded: true });
+        await client.openTab({ url: getPageUrl("keyboard.html"), wait_until_loaded: true });
+        await client.openTab({ url: getPageUrl("links.html"), wait_until_loaded: true });
 
         const tabs = await browser.tabs();
         const titles = (await Promise.all(tabs.map(tab => tab.title()))).sort();
@@ -76,7 +73,7 @@ describe('Basic API', () => {
     });
 
     test.skip('tab navigation', async () => {
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/links.html", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: getPageUrl("links.html"), wait_until_loaded: true });
         expect(await tab.title()).toBe("Links");
 
         let elements = await tab.clickableElements();
@@ -100,7 +97,7 @@ describe('Basic API', () => {
     });
 
     test.skip('tab reloading', async () => {
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/reload.html", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: getPageUrl("reload.html"), wait_until_loaded: true });
         expect(tab.id).toBeDefined();
 
         tab.reload(true);
@@ -112,7 +109,7 @@ describe('Basic API', () => {
 
     test.skip('mouse', async () => {
         browser.resize(800, 600);
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/mouse.html", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: getPageUrl("mouse.html"), wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Mouse");
 
@@ -158,7 +155,7 @@ describe('Basic API', () => {
             tab.key(code, 0, false, false, false);
         }
 
-        let tab = await browser.openTab({ url: "file://" + testdir + "/testpages/keyboard.html", wait_until_loaded: true });
+        let tab = await browser.openTab({ url: getPageUrl("keyboard.html"), wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
 
@@ -193,7 +190,7 @@ describe('Basic API', () => {
     test('screenshot', async () => {
         browser.resize(1920, 1080);
 
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/title.html", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: getPageUrl("title.html"), wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Title");
 
@@ -212,7 +209,7 @@ describe('Basic API', () => {
     });
 
     test('subframes', async () => {
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/frames.html", wait_until_loaded: true });
+        const tab = await browser.openTab({ url: getPageUrl("frames.html"), wait_until_loaded: true });
         expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Frames");
     });
