@@ -50,5 +50,5 @@ jobs:
       with:
         name: cef-cache-${{ matrix.os }}
         path: |
-          ./cefcache
-          !./cefcache/Singleton*
+          ./cache
+          !./cache/Singleton*
