@@ -1,6 +1,6 @@
 import { ChildProcess, spawn } from "child_process";
-import { dirname } from "path";
-import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+import { fileURLToPath, pathToFileURL } from "url";
 
 export const pollTimeout = { timeout: 5000, interval: 200 };
 
@@ -16,7 +16,8 @@ const cefExe = (() => {
 
 const testdir = dirname(fileURLToPath(import.meta.url));
 export const getPageUrl = (page: string) => {
-    return `file://${testdir}/testpages/${page}`;
+    const fullPath = resolve(testdir, "testpages", page);
+    return pathToFileURL(fullPath).href;
 };
 
 export interface CefProcess {
