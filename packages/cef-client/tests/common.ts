@@ -27,6 +27,25 @@ export interface CefProcess {
 
 export async function launchCef(port: number, cache: string, timeout: number): Promise<CefProcess> {
     const cef = spawn(cefExe, ["--port", port.toString(), "--cache-path", cache]);
+    cef.on('error', (err) => {
+        console.error("Failed to start CEF process:", err);
+    });
+
+    cef.on('exit', (code, signal) => {
+        console.log(`CEF process exited with code ${code} and signal ${signal}`);
+    });
+
+    cef.on('close', (code) => {
+        console.log(`CEF process closed with code ${code}`);
+    });
+
+    cef.on('disconnect', () => {
+        console.log("CEF process disconnected");
+    });
+
+    cef.on('message', (message) => {
+        console.log("CEF process message:", message);
+    });
     const finished = new Promise<number | null>((resolve) => cef.on('exit', (code) => resolve(code)));
     await new Promise(resolve => setTimeout(resolve, timeout));
     return { cef, finished };
