@@ -133,6 +133,10 @@ impl BrowserProcessHandlerCallbacks for BrowserProcessCallbacks {
     fn on_before_child_process_launch(&mut self, command_line: CommandLine) {
         _ = command_line.append_switch_with_value("port", Some(&self.port.to_string()));
         _ = command_line.append_switch_with_value("cache-path", Some(&self.cache_path));
+
+        if cfg!(target_os = "macos") {
+            _ = command_line.append_switch("--use-mock-keychain");
+        }
     }
 
     fn on_context_initialized(&mut self) {

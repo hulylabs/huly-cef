@@ -23,7 +23,10 @@ jobs:
     steps:
     - name: Install xvfb
       if: matrix.os == 'ubuntu-latest'
-      run: sudo apt install -y xvfb
+      run: |
+        sudo apt install -y xvfb
+        Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp &
+        echo "DISPLAY=:99" >> $GITHUB_ENV
 
     - uses: actions/setup-node@v4
       with:
@@ -36,16 +39,6 @@ jobs:
     - name: Build
       run: |
         cargo run --bin huly-cef-build --release -- --profile release
-
-    - name: Launch
-      run: |
-        if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-          ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets --no-sandbox --cache-path ./cefcache &
-        elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-          xvfb-run -a ./target/release/huly-cef-websockets --no-sandbox --cache-path ./cefcache &
-        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          powershell -Command "Start-Process -FilePath './target/release/huly-cef-websockets.exe' -ArgumentList '--no-sandbox --cache-path ./cefcache' -WindowStyle Hidden"
-        fi
 
     - name: Test
       working-directory: packages/cef-client
@@ -60,5 +53,5 @@ jobs:
       with:
         name: cef-cache-${{ matrix.os }}
         path: |
-          ./cefcache
-          !./cefcache/Singleton*
+          ./packages/cef-client/cache
+          !./packages/cef-client/cache/Singleton*

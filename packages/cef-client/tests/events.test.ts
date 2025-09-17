@@ -1,25 +1,28 @@
-import { afterAll, beforeAll, describe, expect, inject, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { Browser, connect } from '../src/index';
-
 import { Cursor, LoadState, LoadStatus } from '../src/types';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 
-const testdir = dirname(fileURLToPath(import.meta.url));
-const pollTimeout = { timeout: 5000, interval: 200 };
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
+import { CefProcess, getPageUrl, launchCef, pollTimeout } from './common';
 
-describe.skip('Tab Events', () => {
+describe.skip('tab events', () => {
+    let cef_process: CefProcess;
     let browser: Browser;
     let port: number;
 
     beforeAll(async () => {
-        port = 8080;
+        port = 8082;
+        cef_process = await launchCef(port, "cache/events", 5000);
         browser = await connect("ws://localhost:" + port + "/browser");
     });
 
+    afterAll(() => {
+        cef_process.cef.kill();
+    });
+
     test('basic', async () => {
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html", wait_until_loaded: false });
+        const tab = await browser.openTab({ url: getPageUrl("events.html"), wait_until_loaded: false });
         expect(tab.id).toBeDefined();
 
         let title = "";
@@ -45,9 +48,9 @@ describe.skip('Tab Events', () => {
         };
 
         await expect.poll(() => title, pollTimeout).toBe("Events");
-        await expect.poll(() => url, pollTimeout).toBe("file://" + testdir + "/testpages/events.html");
+        await expect.poll(() => url, pollTimeout).toBe(getPageUrl("events.html"));
         await expect.poll(() => loadState, pollTimeout).toStrictEqual(expectedLoadedState);
-        await expect.poll(() => favicon, pollTimeout).toBe("file://" + testdir + "/testpages/favicon.svg");
+        await expect.poll(() => favicon, pollTimeout).toBe(getPageUrl("favicon.svg"));
         await expect.poll(() => cursor, pollTimeout).toBe(Cursor.Pointer);
 
         tab.close();
@@ -55,7 +58,7 @@ describe.skip('Tab Events', () => {
 
     test('video', async () => {
 
-        const tab = await browser.openTab({ url: "file://" + testdir + "/testpages/events.html" });
+        const tab = await browser.openTab({ url: getPageUrl("events.html") });
         expect(tab.id).toBeDefined();
 
         let width = 640;

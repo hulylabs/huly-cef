@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use futures::{SinkExt, StreamExt};
 use huly_cef::{browser::Browser, MouseButton};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -5,7 +7,7 @@ use serde_json::json;
 
 use crate::server::SharedServerState;
 use log::{error, info};
-use tokio::net::TcpStream;
+use tokio::{fs, net::TcpStream};
 use tokio_tungstenite::WebSocketStream;
 
 #[derive(Debug, Deserialize)]
@@ -45,6 +47,8 @@ pub async fn handle(state: SharedServerState, mut websocket: WebSocketStream<Tcp
         };
 
         let result = match request.method.as_str() {
+            "close" => close(&state).await,
+            "restore" => restore(&state).await,
             "openTab" => match parse_params(request.params) {
                 Ok(params) => open_tab(&state, params).await,
                 Err(err) => Err(err),
@@ -133,10 +137,13 @@ fn handle_sync_method(
         "paste" => parse_params(params).and_then(|params| paste(&state, params)),
         "cut" => parse_params(params).and_then(|params| cut(&state, params)),
         "delete" => parse_params(params).and_then(|params| delete(&state, params)),
-        _ => Err(json!({
-            "message": "Method not found",
-            "data": { "method": method }
-        })),
+        _ => {
+            error!("method not found: {}", method);
+            Err(json!({
+                "message": "Method not found",
+                "data": { "method": method }
+            }))
+        }
     }
 }
 
@@ -253,6 +260,56 @@ fn parse_params<T: DeserializeOwned>(params: serde_json::Value) -> Result<T, ser
             "message": format!("failed to deserialize params {}: {}", params, e)
         })
     })
+}
+
+async fn save_session(state: &SharedServerState) -> Result<(), String> {
+    let (file_path, urls) = {
+        let state = state.lock();
+        let file_path = PathBuf::from(state.cache_dir.clone()).join("session.json");
+        let urls = state.tabs.values().map(|t| t.get_url()).collect::<Vec<_>>();
+        (file_path, urls)
+    };
+
+    let data =
+        serde_json::to_string(&urls).map_err(|e| format!("failed to serialize session: {}", e))?;
+
+    fs::write(file_path, data)
+        .await
+        .map_err(|e| format!("failed to write session file: {}", e))
+}
+
+async fn restore_session(state: &SharedServerState) -> Result<Vec<String>, String> {
+    let file_path = PathBuf::from(state.lock().cache_dir.clone()).join("session.json");
+
+    let data = fs::read_to_string(file_path)
+        .await
+        .map_err(|e| format!("failed to read session file: {}", e))?;
+
+    serde_json::from_str(&data).map_err(|e| format!("failed to parse session file: {}", e))
+}
+
+async fn close(state: &SharedServerState) -> Result<serde_json::Value, serde_json::Value> {
+    if let Err(result) = save_session(state).await {
+        error!("failed to save session: {}", result);
+    }
+
+    match state.lock().shutdown_tx.send(()) {
+        Ok(_) => Ok(json!({ "success": true })),
+        Err(_) => {
+            error!("failed to send shutdown signal");
+            return Err(json!({ "message": "failed to send shutdown signal" }));
+        }
+    }
+}
+
+async fn restore(state: &SharedServerState) -> Result<serde_json::Value, serde_json::Value> {
+    match restore_session(state).await {
+        Ok(urls) => Ok(json!({ "urls": urls })),
+        Err(e) => {
+            error!("failed to restore session: {}", e);
+            Err(json!({ "message": format!("failed to restore session: {}", e) }))
+        }
+    }
 }
 
 async fn open_tab(
