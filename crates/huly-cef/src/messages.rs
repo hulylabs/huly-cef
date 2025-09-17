@@ -88,7 +88,7 @@ pub enum TabMessage {
     Url(String),
     Favicon(String),
     Closed,
-    UrlHovered { url: String, hovered: bool },
+    UrlHovered(String),
     NewTab(String),
     LoadState(LoadState),
 }

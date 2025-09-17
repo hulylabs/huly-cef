@@ -58,17 +58,11 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
         if let Some(value) = value {
             let url = Url::parse(&value);
             if let Ok(url) = url {
-                self.state.notify(TabMessage::UrlHovered {
-                    url: url.to_string(),
-                    hovered: true,
-                });
+                self.state.notify(TabMessage::UrlHovered(url.to_string()));
                 self.hovered_url = Some(url);
             }
         } else {
-            self.state.notify(TabMessage::UrlHovered {
-                url: "".to_string(),
-                hovered: false,
-            });
+            self.state.notify(TabMessage::UrlHovered("".to_string()));
             self.hovered_url = None;
         }
     }

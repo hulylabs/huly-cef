@@ -12,6 +12,7 @@ type TabEvent = {
     LoadState: LoadState;
     Favicon: string;
     Cursor: Cursor;
+    UrlHovered: string;
     NewTab: string;
     Frame: Frame;
 }
@@ -44,6 +45,7 @@ export class TabEventStream {
 
     private onmessage(event: MessageEvent) {
         if (typeof event.data === "string") {
+            console.log("Received message:", event.data);
             let message: Message<keyof TabEvent> = JSON.parse(event.data);
             this.emit(message.type, message.data);
         }
