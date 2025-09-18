@@ -32,6 +32,7 @@ impl AppCallbacks for HulyAppCallbacks {
         command_line: Option<CommandLine>,
     ) {
         if let Some(command_line) = command_line {
+            _ = command_line.append_switch("disable-gpu-compositing");
             _ = command_line.append_switch("enable-media-stream");
         }
     }
