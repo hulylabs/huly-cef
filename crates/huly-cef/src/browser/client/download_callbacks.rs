@@ -52,6 +52,7 @@ impl DownloadHandlerCallbacks for MyDownloadHandlerCallbacks {
             .get_total_bytes()
             .expect("failed to get total bytes") as u64;
 
+        info!("Download updated: {}/{}", received, total);
         self.state
             .notify(TabMessage::DownloadProgress { received, total });
     }
