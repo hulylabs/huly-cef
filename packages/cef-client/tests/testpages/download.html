@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Download Test</title>
+</head>
+
+<body>
+    <script>
+        const a = document.createElement('a');
+        a.href = 'data:text/plain,Test file content';
+        a.download = 'test.txt';
+        a.click();
+    </script>
+</body>
+
+</html>

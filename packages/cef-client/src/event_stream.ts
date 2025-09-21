@@ -15,6 +15,8 @@ type TabEvent = {
     UrlHovered: string;
     NewTab: string;
     Frame: Frame;
+    Download: string;
+    DownloadProgress: { received: number; total: number };
 }
 
 interface Message<T extends keyof TabEvent> {

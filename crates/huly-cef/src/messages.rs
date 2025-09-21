@@ -76,6 +76,8 @@ pub enum TabMessageType {
     UrlHovered,
     NewTab,
     LoadState,
+    Download,
+    DownloadProgress,
 }
 
 /// Represents different types of events that can be sent from CEF browser
@@ -91,6 +93,8 @@ pub enum TabMessage {
     UrlHovered(String),
     NewTab(String),
     LoadState(LoadState),
+    Download(String),
+    DownloadProgress { received: u64, total: u64 },
 }
 
 impl TabMessage {
@@ -105,6 +109,8 @@ impl TabMessage {
             TabMessage::UrlHovered { .. } => TabMessageType::UrlHovered,
             TabMessage::NewTab(_) => TabMessageType::NewTab,
             TabMessage::LoadState(_) => TabMessageType::LoadState,
+            TabMessage::Download(_) => TabMessageType::Download,
+            TabMessage::DownloadProgress { .. } => TabMessageType::DownloadProgress,
         }
     }
 }

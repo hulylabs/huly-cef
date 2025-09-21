@@ -6,7 +6,7 @@ import { Cursor, LoadState, LoadStatus } from '../src/types';
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { CefProcess, getPageUrl, launchCef, pollTimeout } from './common';
 
-describe.skip('tab events', () => {
+describe('tab events', () => {
     let cef_process: CefProcess;
     let browser: Browser;
     let port: number;
@@ -57,7 +57,6 @@ describe.skip('tab events', () => {
     });
 
     test('video', async () => {
-
         const tab = await browser.openTab({ url: getPageUrl("events.html") });
         expect(tab.id).toBeDefined();
 
@@ -91,6 +90,10 @@ describe.skip('tab events', () => {
 
         tab.close();
     });
+
+    test('download', async () => {
+        const tab = await browser.openTab({ url: getPageUrl("events.html") });
+    })
 
     test('new tab', async () => {
     });
