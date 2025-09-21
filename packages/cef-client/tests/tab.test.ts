@@ -111,8 +111,8 @@ describe('tabs', () => {
             await expect.poll(() => tab.title(), pollTimeout).toBe(`Mouse Up: (100, 200) Button: ${i}`);
         });
 
-        await tab.scroll(250, 350, -30, 50);
-        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (-30, 50)");
+        await tab.scroll(250, 350, 30, 50);
+        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (-30, -50)");
     });
 
     test.skip('keyboard', async () => {
