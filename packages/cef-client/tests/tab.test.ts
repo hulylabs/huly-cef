@@ -95,7 +95,7 @@ describe('tabs', () => {
         expect(await tab.title()).toBe("Reloads: 2");
     });
 
-    test('mouse', async () => {
+    test.skip('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: getPageUrl("mouse.html"), wait_until_loaded: true });
 

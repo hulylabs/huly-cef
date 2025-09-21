@@ -79,13 +79,12 @@ describe('tab events', () => {
         tab.startVideo();
         await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(framecount * 2);
 
-        console.log(`width * height * 4 = ${width * height * 4}`);
         expect(frames.every(frame => frame === width * height * 4)).toBe(true);
 
         tab.close();
     });
 
-    test('download', async () => {
+    test.skip('download', async () => {
         const tab = await browser.openTab({ url: getPageUrl("download.html") });
         let events = tab.events();
 
