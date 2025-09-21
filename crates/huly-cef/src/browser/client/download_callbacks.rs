@@ -22,8 +22,11 @@ impl DownloadHandlerCallbacks for MyDownloadHandlerCallbacks {
         suggested_name: &str,
         callback: BeforeDownloadCallback,
     ) -> bool {
+        info!("Trying to get download directory 1");
         let download_dir = dirs::download_dir().expect("failed to get download directory");
+        info!("Trying to get download directory 2");
         let download_path = download_dir.join(suggested_name);
+        info!("Trying to get download directory 3");
         let download_path = download_path
             .to_str()
             .expect("failed to convert path to str");
