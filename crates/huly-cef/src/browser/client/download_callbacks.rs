@@ -1,6 +1,7 @@
 use cef_ui::{
     BeforeDownloadCallback, Browser, DownloadHandlerCallbacks, DownloadItem, DownloadItemCallback,
 };
+use log::info;
 
 use crate::{state::SharedBrowserState, TabMessage};
 
@@ -26,6 +27,8 @@ impl DownloadHandlerCallbacks for MyDownloadHandlerCallbacks {
         let download_path = download_path
             .to_str()
             .expect("failed to convert path to str");
+
+        info!("Downloading to {}", download_path);
 
         self.state
             .notify(TabMessage::Download(download_path.to_string()));
