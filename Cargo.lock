@@ -1301,9 +1301,9 @@ name = "huly-cef-helper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cef-ui 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=main)",
  "cef-ui-helper",
- "cef-ui-sys 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui-sys 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?branch=main)",
  "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
  "libloading",
  "log",

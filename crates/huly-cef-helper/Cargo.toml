@@ -16,6 +16,6 @@ libloading = "0.8"
 
 cef-ui = { git = "https://github.com/hulylabs/cef-ui.git", features = [
     "no-cef-link",
-] }
-cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git" }
-cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git" }
+], branch = "main" }
+cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git", branch = "main" }
+cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git", branch = "main" }
