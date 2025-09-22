@@ -64,9 +64,7 @@ describe('tab events', () => {
 
         let stream = tab.events();
         let frames: number[] = [];
-        stream.on("Frame", (data) => {
-            frames.push(data.data.length);
-        });
+        stream.on("Frame", (data) => frames.push(data.data.length));
 
         await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(10);
 
@@ -96,8 +94,8 @@ describe('tab events', () => {
         let received = 0;
         let total = 0;
 
-        events.on("Download", (path) => filePath = path);
         events.on("DownloadProgress", (progress) => {
+            filePath = progress.path;
             received = progress.received;
             total = progress.total;
         });
