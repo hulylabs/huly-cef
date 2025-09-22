@@ -104,6 +104,7 @@ jobs:
       
       - name: Build Huly CEF
         run: |
+          rustup target add x86_64-apple-darwin
           cargo run --bin huly-cef-build --release ${{ matrix.flags }} -- --profile release ${{ matrix.flags }}
 
       - name: Import Apple Code Signing Certificates
