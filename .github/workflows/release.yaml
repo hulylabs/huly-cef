@@ -77,8 +77,10 @@ jobs:
   release-macos:
     strategy:
       matrix:
-        os: [macos-latest, macos-13]
-    runs-on: ${{ matrix.os }}
+        flags:
+          - ""
+          - "--target x86_64-apple-darwin"
+    runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -104,7 +106,7 @@ jobs:
       
       - name: Build Huly CEF
         run: |
-          cargo run --bin huly-cef-build --release -- --profile release
+          cargo run --bin huly-cef-build --release -- --profile release ${{ matrix.flags }}
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
