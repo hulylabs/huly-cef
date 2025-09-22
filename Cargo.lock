@@ -461,6 +461,26 @@ dependencies = [
 [[package]]
 name = "cef-ui-util"
 version = "0.1.0"
+source = "git+https://github.com/hulylabs/cef-ui.git?rev=0c53dbd#0c53dbd9ce2f8f3e6694792777c6c1f6326169b0"
+dependencies = [
+ "anyhow",
+ "bindgen",
+ "bzip2 0.4.4",
+ "flate2",
+ "percent-encoding",
+ "reqwest",
+ "tar",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "url",
+ "walkdir",
+ "zip",
+]
+
+[[package]]
+name = "cef-ui-util"
+version = "0.1.0"
 source = "git+https://github.com/hulylabs/cef-ui.git#087549fba166e8ce7248cce8f49d82c1a7bafafd"
 dependencies = [
  "anyhow",
@@ -1284,7 +1304,7 @@ name = "huly-cef-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git)",
+ "cef-ui-util 0.1.0 (git+https://github.com/hulylabs/cef-ui.git?rev=0c53dbd)",
  "clap",
  "dircpy",
  "reqwest",
