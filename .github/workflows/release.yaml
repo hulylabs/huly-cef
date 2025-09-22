@@ -77,7 +77,10 @@ jobs:
   release-macos:
     strategy:
       matrix:
-        flags: ["", "--target x86_64-apple-darwin"]
+        - path: target/release/huly-cef-websockets.app
+          flags: ""
+        - path: target/86_64-apple-darwin/release/huly-cef-websockets.app
+          flags: "--target x86_64-apple-darwin"
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -106,6 +109,12 @@ jobs:
         run: |
           rustup target add x86_64-apple-darwin
           cargo run --bin huly-cef-build --release ${{ matrix.flags }} -- --profile release ${{ matrix.flags }}
+          cp -r ${{ matrix.path }} huly-cef-websockets.app
+
+      - name: Check CEF
+        if: always()
+        run: |
+          ls artifacts
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
