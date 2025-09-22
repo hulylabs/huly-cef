@@ -115,7 +115,7 @@ jobs:
       - name: Check CEF
         if: always()
         run: |
-          ls artifacts
+          ls cef
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
