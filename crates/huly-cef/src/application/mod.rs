@@ -34,6 +34,7 @@ impl AppCallbacks for HulyAppCallbacks {
         if let Some(command_line) = command_line {
             _ = command_line.append_switch("disable-gpu-compositing");
             _ = command_line.append_switch("enable-media-stream");
+            _ = command_line.append_switch("use-mock-keychain");
         }
     }
 
