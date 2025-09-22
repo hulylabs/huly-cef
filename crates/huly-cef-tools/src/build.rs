@@ -50,15 +50,29 @@ fn main() -> Result<()> {
     }
     .run()?;
 
+    if let Some(target) = target.clone() {
+        let from = get_exe_path(&args.profile, &target, "huly-cef-websockets")?;
+        let to = workspace_dir.join(format!("target/{}/huly-cef-websockets", args.profile));
+        println!("Copying executable from {:?} to {:?}", from, to);
+        fs::copy(from, to)?;
+    }
+
     // If on macOS, we need to do some extra work.
     if cfg!(target_os = "macos") {
         // Build the helper executable.
         BuildCommand {
             binary: String::from("huly-cef-helper"),
             profile: args.profile.to_string(),
-            target,
+            target: target.clone(),
         }
         .run()?;
+
+        if let Some(target) = target.clone() {
+            let from = get_exe_path(&args.profile, &target, "huly-cef-helper")?;
+            let to = workspace_dir.join(format!("target/{}/huly-cef-helper", args.profile));
+            println!("Copying executable from {:?} to {:?}", from, to);
+            fs::copy(from, to)?;
+        }
 
         // Build the app bundle.
         AppBundleSettings {
@@ -125,4 +139,14 @@ fn copy_resources(profile: &str) -> Result<()> {
     dircpy::copy_dir(resources_dir, target_dir)?;
 
     Ok(())
+}
+
+fn get_exe_path(profile: &str, target: &str, name: &str) -> Result<PathBuf> {
+    let workspace_dir = get_cef_workspace_dir()?;
+    let profile = if profile == "release" {
+        "release"
+    } else {
+        "debug"
+    };
+    Ok(workspace_dir.join(format!("target/{}/{}/{}", target, profile, name)))
 }
