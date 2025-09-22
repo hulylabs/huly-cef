@@ -7,9 +7,12 @@ use clap::Parser;
 #[cfg(target_os = "linux")]
 const CEF_URL: &str =
     "https://github.com/hulylabs/cef-ui/releases/latest/download/cef-linux-x86_64.zip";
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 const CEF_URL: &str =
     "https://github.com/hulylabs/cef-ui/releases/latest/download/cef-macos-arm64.zip";
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+const CEF_URL: &str =
+    "https://github.com/hulylabs/cef-ui/releases/latest/download/cef-macos-x86_64.zip";
 #[cfg(target_os = "windows")]
 const CEF_URL: &str =
     "https://github.com/hulylabs/cef-ui/releases/latest/download/cef-windows-x86_64.zip";
@@ -18,6 +21,9 @@ const CEF_URL: &str =
 struct BuildArgs {
     #[arg(long, default_value_t = String::from("dev"))]
     pub profile: String,
+
+    #[arg(long, default_value_t = String::from(""))]
+    pub target: String,
 }
 
 fn main() -> Result<()> {
@@ -30,10 +36,17 @@ fn main() -> Result<()> {
     let args = BuildArgs::parse();
     let workspace_dir = get_cef_workspace_dir()?;
 
+    let target = if args.target.is_empty() {
+        None
+    } else {
+        Some(args.target.clone())
+    };
+
     // Build the main executable.
     BuildCommand {
         binary: String::from("huly-cef-websockets"),
         profile: args.profile.to_string(),
+        target: target.clone(),
     }
     .run()?;
 
@@ -43,6 +56,7 @@ fn main() -> Result<()> {
         BuildCommand {
             binary: String::from("huly-cef-helper"),
             profile: args.profile.to_string(),
+            target,
         }
         .run()?;
 
@@ -66,6 +80,8 @@ fn main() -> Result<()> {
 
 fn download_and_extract_cef(dir: &PathBuf) -> Result<()> {
     fs::create_dir_all(dir)?;
+
+    println!("Downloading CEF from {}", CEF_URL);
 
     let result = download_cef(CEF_URL).and_then(|data| {
         zip::ZipArchive::new(std::io::Cursor::new(data))?.extract(&dir)?;
