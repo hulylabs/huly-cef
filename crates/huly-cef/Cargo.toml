@@ -20,5 +20,5 @@ base64 = "0.22"
 image = "0.25"
 dirs = "5.0"
 
-cef-ui = { git = "https://github.com/hulylabs/cef-ui.git", branch = "main" }
-cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git", branch = "main" }
+cef-ui = { git = "https://github.com/hulylabs/cef-ui.git", rev = "0c53dbd" }
+cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git", rev = "0c53dbd" }
