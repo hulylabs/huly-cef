@@ -199,7 +199,6 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
         run: |
-          cd target/release
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > AuthKey_$APPLE_API_KEY.p8
           ditto -c -k --keepParent huly-cef-websockets.app huly-cef-websockets.zip
 
@@ -216,8 +215,7 @@ jobs:
         run: |
           mkdir -p artifacts
 
-          cd target/release && zip -r ../../artifacts/huly-cef-macos.zip huly-cef-websockets.app
-          cd ../..
+          zip -r artifacts/huly-cef-macos.zip huly-cef-websockets.app
           sha256sum artifacts/huly-cef-macos.zip | cut -d' ' -f1 > artifacts/huly-cef-macos.zip.sha256
       
       # - name: Create Release
