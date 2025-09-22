@@ -77,10 +77,11 @@ jobs:
   release-macos:
     strategy:
       matrix:
-        - path: target/release/huly-cef-websockets.app
-          flags: ""
-        - path: target/86_64-apple-darwin/release/huly-cef-websockets.app
-          flags: "--target x86_64-apple-darwin"
+        include:
+          - path: target/release/huly-cef-websockets.app
+            flags: ""
+          - path: target/86_64-apple-darwin/release/huly-cef-websockets.app
+            flags: "--target x86_64-apple-darwin"
     runs-on: macos-latest
     steps:
       - name: Checkout code
