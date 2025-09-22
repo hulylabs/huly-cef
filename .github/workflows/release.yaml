@@ -77,7 +77,7 @@ jobs:
   release-macos:
     strategy:
       matrix:
-        os: [macos-latest, macos-14]
+        os: [macos-latest, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
