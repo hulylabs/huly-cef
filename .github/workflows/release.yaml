@@ -56,7 +56,7 @@ jobs:
             sha256sum artifacts/huly-cef-linux.zip | cut -d' ' -f1 > artifacts/huly-cef-linux.zip.sha256
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp -r resources/pages huly-cef-resources
-            powershell -Command "Compress-Archive -Path 'target/release/huly-cef-websockets.exe', 'cef/*', 'huly-cef-resources' -DestinationPath 'artifacts/huly-cef-windows.zip'"
+            powershell -Command "Compress-Archive -Path 'huly-cef-websockets.exe', 'cef/*', 'huly-cef-resources' -DestinationPath 'artifacts/huly-cef-windows.zip'"
             powershell -Command "(Get-FileHash -Algorithm SHA256 artifacts/huly-cef-windows.zip).Hash.ToLower() | Out-File -Encoding ASCII artifacts/huly-cef-windows.zip.sha256"
           fi
       
@@ -80,7 +80,7 @@ jobs:
         include:
           - path: target/release/huly-cef-websockets.app
             flags: ""
-          - path: target/86_64-apple-darwin/release/huly-cef-websockets.app
+          - path: target/x86_64-apple-darwin/release/huly-cef-websockets.app
             flags: "--target x86_64-apple-darwin"
     runs-on: macos-latest
     steps:
@@ -162,36 +162,36 @@ jobs:
       
       - name: Sign Huly CEF App
         run: |
-          find target/release/huly-cef-websockets.app -name '._*' -exec rm -rf {} \;
+          find huly-cef-websockets.app -name '._*' -exec rm -rf {} \;
 
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E "(Apple Development|Developer ID|Apple Distribution)" | head -1)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
 
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
+            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
+            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
+            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
           codesign --verify --deep --strict --verbose=2 \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
 
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
+            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
+            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
+            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
+            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper.app"
+            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper.app"
           codesign --force --options runtime --entitlements "main.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "target/release/huly-cef-websockets.app"
+            "huly-cef-websockets.app"
 
-          codesign --verify --deep --strict --verbose=2 "target/release/huly-cef-websockets.app"
+          codesign --verify --deep --strict --verbose=2 "huly-cef-websockets.app"
 
       - name: Notarize Huly CEF App
         env:
