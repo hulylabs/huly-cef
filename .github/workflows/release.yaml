@@ -116,6 +116,8 @@ jobs:
         if: always()
         run: |
           ls cef
+          ls target
+          ls target/x86_64-apple-darwin
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
