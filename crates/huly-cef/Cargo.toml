@@ -19,5 +19,5 @@ crossbeam-channel = "0.5"
 base64 = "0.22"
 image = "0.25"
 
-cef-ui = { git = "https://github.com/hulylabs/cef-ui.git", rev = "0c53dbd" }
-cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git", rev = "0c53dbd" }
+cef-ui = { git = "https://github.com/hulylabs/cef-ui.git" }
+cef-ui-sys = { git = "https://github.com/hulylabs/cef-ui.git" }
