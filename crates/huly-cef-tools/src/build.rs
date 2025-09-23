@@ -36,26 +36,13 @@ fn main() -> Result<()> {
     let args = BuildArgs::parse();
     let workspace_dir = get_cef_workspace_dir()?;
 
-    let target = if args.target.is_empty() {
-        None
-    } else {
-        Some(args.target.clone())
-    };
-
     // Build the main executable.
     BuildCommand {
         binary: String::from("huly-cef-websockets"),
         profile: args.profile.to_string(),
-        target: target.clone(),
+        target: args.target.to_string(),
     }
     .run()?;
-
-    if let Some(target) = target.clone() {
-        let from = get_exe_path(&args.profile, &target, "huly-cef-websockets")?;
-        let to = workspace_dir.join(format!("target/{}/huly-cef-websockets", args.profile));
-        println!("Copying executable from {:?} to {:?}", from, to);
-        fs::copy(from, to)?;
-    }
 
     // If on macOS, we need to do some extra work.
     if cfg!(target_os = "macos") {
@@ -63,20 +50,14 @@ fn main() -> Result<()> {
         BuildCommand {
             binary: String::from("huly-cef-helper"),
             profile: args.profile.to_string(),
-            target: target.clone(),
+            target: args.target.to_string(),
         }
         .run()?;
-
-        if let Some(target) = target.clone() {
-            let from = get_exe_path(&args.profile, &target, "huly-cef-helper")?;
-            let to = workspace_dir.join(format!("target/{}/huly-cef-helper", args.profile));
-            println!("Copying executable from {:?} to {:?}", from, to);
-            fs::copy(from, to)?;
-        }
 
         // Build the app bundle.
         AppBundleSettings {
             profile: args.profile.to_string(),
+            target: args.target.to_string(),
             artifacts_dir: get_cef_artifacts_dir()?,
             app_name: String::from("huly-cef-websockets"),
             main_exe_name: String::from("huly-cef-websockets"),
@@ -139,14 +120,4 @@ fn copy_resources(profile: &str) -> Result<()> {
     dircpy::copy_dir(resources_dir, target_dir)?;
 
     Ok(())
-}
-
-fn get_exe_path(profile: &str, target: &str, name: &str) -> Result<PathBuf> {
-    let workspace_dir = get_cef_workspace_dir()?;
-    let profile = if profile == "release" {
-        "release"
-    } else {
-        "debug"
-    };
-    Ok(workspace_dir.join(format!("target/{}/{}/{}", target, profile, name)))
 }
