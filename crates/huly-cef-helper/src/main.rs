@@ -1,8 +1,7 @@
-use std::{process::exit, ptr::null_mut};
+use std::process::exit;
 
 use anyhow::Result;
-use cef_ui::{App, AppCallbacks, MainArgs, RenderProcessHandler, SchemeOptions, SchemeRegistrar};
-use cef_ui_helper::ScopedSandbox;
+use cef_ui_helper::{execute_process, App, AppCallbacks, MainArgs, ScopedSandbox};
 use log::{error, info, SetLoggerError};
 use log4rs::{
     append::console::ConsoleAppender,
@@ -11,10 +10,6 @@ use log4rs::{
     Config,
 };
 
-use crate::cef_lib::SchemeRegistrarExt;
-use crate::render_process::RenderProcessCallbacks;
-
-mod cef_lib;
 mod js;
 mod render_process;
 
@@ -37,8 +32,10 @@ fn setup_logging() -> Result<log4rs::Handle, SetLoggerError> {
 }
 
 fn main() -> Result<()> {
+    let app = App::new(HelperAppCallbacks::new());
     setup_logging()?;
-    let ret = match run() {
+    // Do not remove .clone() here, it is needed for correct reference counting
+    let ret = match run(app.clone()) {
         Ok(code) => code,
         Err(e) => {
             error!("An error occurred: {}", e);
@@ -50,38 +47,29 @@ fn main() -> Result<()> {
     exit(ret);
 }
 
-fn run() -> Result<i32> {
+fn run(app: App) -> Result<i32> {
     let _sandbox = ScopedSandbox::new()?;
-    unsafe {
-        let main_args = MainArgs::new()?;
-        let app = App::new(HelperAppCallbacks::new());
-        let lib = &cef_lib::CEFLIB;
-        Ok((lib.cef_execute_process)(
-            main_args.as_raw(),
-            app.into_raw(),
-            null_mut(),
-        ))
-    }
+    let main_args = MainArgs::new()?;
+    Ok(execute_process(main_args, Some(app)))
 }
-
 struct HelperAppCallbacks {
-    render_process_handler: RenderProcessHandler,
+    // render_process_handler: RenderProcessHandler,
 }
 
 impl HelperAppCallbacks {
     fn new() -> Self {
         Self {
-            render_process_handler: RenderProcessHandler::new(RenderProcessCallbacks),
+            // render_process_handler: RenderProcessHandler::new(RenderProcessCallbacks),
         }
     }
 }
 
 impl AppCallbacks for HelperAppCallbacks {
-    fn on_register_custom_schemes(&mut self, registrar: SchemeRegistrar) {
-        let _ = registrar.add_custom_scheme_raw("huly", SchemeOptions::Local.into());
+    fn on_register_custom_schemes(&mut self, registrar: cef_ui_helper::SchemeRegistrar) {
+        let _ = registrar.add_custom_scheme("huly", cef_ui_helper::SchemeOptions::Local.into());
     }
 
-    fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
-        Some(self.render_process_handler.clone())
-    }
+    // fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
+    //     Some(self.render_process_handler.clone())
+    // }
 }
