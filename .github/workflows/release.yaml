@@ -15,7 +15,6 @@ permissions:
 jobs:
   release:
     runs-on: ${{ matrix.os }}
-    if: false
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -114,41 +113,6 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
-      - name: Create entitlements files
-        run: |
-          cat > main.entitlements << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-             <key>com.apple.security.device.audio-input</key>
-             <true/>
-             <key>com.apple.security.device.bluetooth</key>
-             <true/>
-             <key>com.apple.security.device.camera</key>
-             <true/>
-             <key>com.apple.security.device.print</key>
-             <true/>
-             <key>com.apple.security.device.usb</key>
-             <true/>
-          </dict>
-          </plist>
-          EOF
-
-          cat > helper.entitlements << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-             <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-             <true/>
-             <key>com.apple.security.cs.disable-library-validation</key>
-             <true/>
-             <key>com.apple.security.cs.allow-jit</key>
-             <true/>
-          </dict>
-          </plist>
-          EOF
       
       - name: Sign Huly CEF App
         run: |
@@ -168,17 +132,20 @@ jobs:
           codesign --verify --deep --strict --verbose=2 \
             "${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
 
-          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+          mainEntitlements=resources/macos/main.entitlements
+          helperEntitlements=resources/macos/helper.entitlements
+
+          codesign --force --options runtime --entitlements "$helperEntitlements" --sign "$CERT_ID" --timestamp --verbose \
             "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
-          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+          codesign --force --options runtime --entitlements "$helperEntitlements" --sign "$CERT_ID" --timestamp --verbose \
             "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
-          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+          codesign --force --options runtime --entitlements "$helperEntitlements" --sign "$CERT_ID" --timestamp --verbose \
             "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
-          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+          codesign --force --options runtime --entitlements "$helperEntitlements" --sign "$CERT_ID" --timestamp --verbose \
             "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
-          codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+          codesign --force --options runtime --entitlements "$helperEntitlements" --sign "$CERT_ID" --timestamp --verbose \
             "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper.app"
-          codesign --force --options runtime --entitlements "main.entitlements" --sign "$CERT_ID" --timestamp --verbose \
+          codesign --force --options runtime --entitlements "$mainEntitlements" --sign "$CERT_ID" --timestamp --verbose \
             "${{ matrix.name }}"
 
           codesign --verify --deep --strict --verbose=2 "${{ matrix.name }}"
