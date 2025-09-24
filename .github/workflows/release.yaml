@@ -168,30 +168,30 @@ jobs:
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
 
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
+            "${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
+            "${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
+            "${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
+            "${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
           codesign --verify --deep --strict --verbose=2 \
-            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
+            "${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
 
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
+            "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
+            "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
+            "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
+            "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper.app"
+            "${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper.app"
           codesign --force --options runtime --entitlements "main.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            ${{ matrix.name }}"
+            "${{ matrix.name }}"
 
-          codesign --verify --deep --strict --verbose=2 ${{ matrix.name }}"
+          codesign --verify --deep --strict --verbose=2 "${{ matrix.name }}"
 
       - name: Notarize Huly CEF App
         env:
@@ -200,7 +200,7 @@ jobs:
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
         run: |
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > AuthKey_$APPLE_API_KEY.p8
-          ditto -c -k --keepParent huly-cef-websockets.app huly-cef-websockets.zip
+          ditto -c -k --keepParent ${{ matrix.name }} huly-cef-websockets.zip
 
           xcrun notarytool submit huly-cef-websockets.zip \
             --key AuthKey_$APPLE_API_KEY.p8 \
