@@ -1,6 +1,5 @@
-use cef_ui::{Browser, EventFlags, MouseButtonType, MouseEvent};
-
 use crate::{state::SharedBrowserState, MouseButton};
+use cef_ui::{Browser, EventFlags, MouseButtonType, MouseEvent};
 
 pub struct Mouse {
     inner: Browser,
@@ -63,15 +62,12 @@ impl Mouse {
     }
 
     pub fn wheel(&self, x: i32, y: i32, dx: i32, dy: i32) {
-        let event = MouseEvent {
-            x,
-            y,
-            modifiers: EventFlags::empty(),
-        };
+        let modifiers = EventFlags::empty();
+        let event = MouseEvent { x, y, modifiers };
         self.inner
             .get_host()
             .unwrap()
-            .send_mouse_wheel_event(&event, dx, -dy)
+            .send_mouse_wheel_event(&event, dx, dy)
             .expect("failed to send mouse wheel event");
     }
 }

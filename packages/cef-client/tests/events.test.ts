@@ -2,11 +2,9 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { Browser, connect } from '../src/index';
 import { Cursor, LoadState, LoadStatus } from '../src/types';
-
-import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { CefProcess, getPageUrl, launchCef, pollTimeout } from './common';
 
-describe.skip('tab events', () => {
+describe('tab events', () => {
     let cef_process: CefProcess;
     let browser: Browser;
     let port: number;
@@ -57,7 +55,6 @@ describe.skip('tab events', () => {
     });
 
     test('video', async () => {
-
         const tab = await browser.openTab({ url: getPageUrl("events.html") });
         expect(tab.id).toBeDefined();
 
@@ -67,9 +64,7 @@ describe.skip('tab events', () => {
 
         let stream = tab.events();
         let frames: number[] = [];
-        stream.on("Frame", (data) => {
-            frames.push(data.data.length);
-        });
+        stream.on("Frame", (data) => frames.push(data.data.length));
 
         await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(10);
 
@@ -82,14 +77,35 @@ describe.skip('tab events', () => {
         tab.startVideo();
         await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(framecount * 2);
 
-        for (let i = 0; i < frames.length; i++) {
-            console.log(`Frame ${i + 1}: ${frames[i]} bytes`);
-        }
-
-        console.log(`width * height * 4 = ${width * height * 4}`);
         expect(frames.every(frame => frame === width * height * 4)).toBe(true);
 
         tab.close();
+    });
+
+    test.skip('download', async () => {
+        const tab = await browser.openTab({ url: getPageUrl("download.html") });
+        let events = tab.events();
+
+        let name = "test.txt";
+        let size = 17;
+        let content = "Test file content";
+
+        let filePath = "";
+        let received = 0;
+        let total = 0;
+
+        events.on("DownloadProgress", (progress) => {
+            filePath = progress.path;
+            received = progress.received;
+            total = progress.total;
+        });
+
+        await expect.poll(() => total, pollTimeout).toBe(size);
+        await expect.poll(() => received, pollTimeout).toBe(size);
+        await expect.poll(() => filePath.endsWith(name), pollTimeout).toBe(true);
+
+        const fs = await import('fs');
+        expect(fs.readFileSync(filePath, 'utf8')).toBe(content);
     });
 
     test('new tab', async () => {

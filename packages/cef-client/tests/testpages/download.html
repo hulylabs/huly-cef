@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Download</title>
+</head>
+
+<body>
+    <script>
+        setTimeout(() => {
+            const a = document.createElement('a');
+            a.href = 'data:text/plain,Test file content';
+            a.download = 'test.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }, 1000);
+    </script>
+</body>
+
+</html>

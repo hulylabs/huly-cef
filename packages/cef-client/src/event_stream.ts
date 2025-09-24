@@ -1,6 +1,15 @@
 import { Cursor, LoadState } from "./types.js";
 
-interface Frame {
+export interface DownloadProgress {
+    id: number;
+    path: string;
+    received: number;
+    total: number;
+    is_complete: boolean;
+    is_aborted: boolean;
+}
+
+export interface Frame {
     width: number;
     height: number;
     data: Uint8Array;
@@ -15,6 +24,7 @@ type TabEvent = {
     UrlHovered: string;
     NewTab: string;
     Frame: Frame;
+    DownloadProgress: DownloadProgress;
 }
 
 interface Message<T extends keyof TabEvent> {
@@ -45,7 +55,6 @@ export class TabEventStream {
 
     private onmessage(event: MessageEvent) {
         if (typeof event.data === "string") {
-            console.log("Received message:", event.data);
             let message: Message<keyof TabEvent> = JSON.parse(event.data);
             this.emit(message.type, message.data);
         }

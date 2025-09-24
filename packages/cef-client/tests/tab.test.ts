@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
 import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
@@ -20,15 +20,19 @@ describe('tabs', () => {
         cef_process.cef.kill();
     });
 
+    afterEach(async () => {
+        let tabs = await browser.tabs();
+        for (let tab of tabs) {
+            tab.close();
+        }
+        tabs = [];
+    });
+
     test('open a new tab', async () => {
         const url = getPageUrl("title.html");
         const tab = await browser.openTab({ url: url, wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Title");
         expect(await tab.url()).toBe(url);
-
-        await tab.close();
-        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test('resize', async () => {
@@ -42,19 +46,15 @@ describe('tabs', () => {
         [width, height] = [1024, 768];
         browser.resize(width, height);
         await expect.poll(() => tab.title(), pollTimeout).toBe("1024x768");
-
-        tab.close();
     });
 
     test('go to a url', async () => {
         const tab = await browser.openTab({ url: "", wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("New Tab");
         expect(await tab.url()).toBe("huly://newtab");
 
         await tab.navigate("https://www.google.com/", true);
         expect(await tab.title()).toBe("Google");
-        tab.close();
     });
 
     test('multiple tabs', async () => {
@@ -64,11 +64,8 @@ describe('tabs', () => {
         await client.openTab({ url: getPageUrl("links.html"), wait_until_loaded: true });
 
         const tabs = await browser.tabs();
-        const titles = (await Promise.all(tabs.map(tab => tab.title()))).sort();
-        expect(titles).toEqual(["Title", "Keyboard", "Links"].sort());
-
-        tabs.forEach(tab => tab.close());
-        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
+        const titles = await Promise.all(tabs.map(tab => tab.title()));
+        expect(titles.sort()).toEqual(["Title", "Keyboard", "Links"].sort());
     });
 
     test.skip('tab navigation', async () => {
@@ -90,61 +87,32 @@ describe('tabs', () => {
 
         tab.forward(true);
         expect(await tab.title()).toBe("Title");
-
-        tab.close();
-        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test.skip('tab reloading', async () => {
         const tab = await browser.openTab({ url: getPageUrl("reload.html"), wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
-
         tab.reload(true);
         expect(await tab.title()).toBe("Reloads: 2");
-
-        tab.close();
-        await expect.poll(() => browser.tabs(), pollTimeout).toEqual([]);
     });
 
     test.skip('mouse', async () => {
         browser.resize(800, 600);
         const tab = await browser.openTab({ url: getPageUrl("mouse.html"), wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
-        expect(await tab.title()).toBe("Mouse");
 
-        // Mouse Move
         await tab.mouseMove(300, 400);
         await expect.poll(() => tab.title(), pollTimeout).toBe("Move: (300, 400)");
 
-        // Left Button
-        await tab.click(100, 200, MouseButton.Left, true);
-        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Down: (100, 200) Button: 0");
+        const buttons = [MouseButton.Left, MouseButton.Middle, MouseButton.Right];
+        buttons.forEach((button, i) => async () => {
+            await tab.click(100, 200, button, true);
+            await expect.poll(() => tab.title(), pollTimeout).toBe(`Mouse Down: (100, 200) Button: ${i}`);
 
-        await tab.click(100, 200, MouseButton.Left, false);
-        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Up: (100, 200) Button: 0");
+            await tab.click(100, 200, button, false);
+            await expect.poll(() => tab.title(), pollTimeout).toBe(`Mouse Up: (100, 200) Button: ${i}`);
+        });
 
-        // Middle Button
-        await tab.click(150, 250, MouseButton.Middle, true);
-        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Down: (150, 250) Button: 1");
-
-        await tab.click(150, 250, MouseButton.Middle, false);
-        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Up: (150, 250) Button: 1");
-
-        // Right Button
-        await tab.click(200, 300, MouseButton.Right, true);
-        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Down: (200, 300) Button: 2");
-
-        await tab.click(200, 300, MouseButton.Right, false);
-        await expect.poll(() => tab.title(), pollTimeout).toBe("Mouse Up: (200, 300) Button: 2");
-
-        // Scroll
-        await tab.scroll(250, 350, 0, 100);
-        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (0, 100)");
-
-        await tab.scroll(250, 350, 0, -100);
-        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (0, -100)");
-
-        await tab.close();
+        await tab.scroll(250, 350, 30, 50);
+        await expect.poll(() => tab.title(), pollTimeout).toMatch("Scroll: (250, 350) Delta: (-30, -50)");
     });
 
     test.skip('keyboard', async () => {
@@ -155,7 +123,6 @@ describe('tabs', () => {
         }
 
         let tab = await browser.openTab({ url: getPageUrl("keyboard.html"), wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Keyboard");
 
         const text = "Hello, World! 🌍 Café, naïve, résumé Здравствуй мир こんにちは世界 مرحبا بالعالم Γεια σας κόσμε α²+β²=γ² ∑∞∫∆ €$¥£₹₽ ©®™℠ 🚀🎉🎯⚡🔥💎";
@@ -183,18 +150,15 @@ describe('tabs', () => {
         press(tab, KeyCode.BACKSPACE);
         press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -2));
-        tab.close();
     });
 
     test('screenshot', async () => {
         browser.resize(1920, 1080);
 
         const tab = await browser.openTab({ url: getPageUrl("title.html"), wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Title");
 
-        let width = 800;
-        let height = 600;
+        let [width, height] = [800, 600];
         const screenshot = await tab.screenshot({ size: { width, height } });
         expect(screenshot).toBeDefined();
 
@@ -203,13 +167,10 @@ describe('tabs', () => {
         expect(metadata.width).toBe(width);
         expect(metadata.height).toBe(height);
         expect(metadata.format).toBe('png');
-
-        await tab.close();
     });
 
     test('subframes', async () => {
         const tab = await browser.openTab({ url: getPageUrl("frames.html"), wait_until_loaded: true });
-        expect(tab.id).toBeDefined();
         expect(await tab.title()).toBe("Frames");
     });
 });

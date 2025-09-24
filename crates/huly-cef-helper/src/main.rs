@@ -11,8 +11,8 @@ use log4rs::{
     Config,
 };
 
-use crate::render_process::RenderProcessCallbacks;
 use crate::cef_lib::SchemeRegistrarExt;
+use crate::render_process::RenderProcessCallbacks;
 
 mod cef_lib;
 mod js;
@@ -75,8 +75,6 @@ impl HelperAppCallbacks {
         }
     }
 }
-
-
 
 impl AppCallbacks for HelperAppCallbacks {
     fn on_register_custom_schemes(&mut self, registrar: SchemeRegistrar) {

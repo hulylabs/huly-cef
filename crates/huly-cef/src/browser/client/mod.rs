@@ -1,11 +1,12 @@
 use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 use cef_ui::{
-    Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, Frame, KeyboardHandler,
+    Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, DownloadHandler, Frame,
     LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
 };
 
 mod context_menu_handler;
 mod display_callbacks;
+mod download_callbacks;
 mod life_span_callbacks;
 mod load_callbacks;
 mod render_callbacks;
@@ -16,6 +17,7 @@ pub struct HulyClientCallbacks {
     render_handler: RenderHandler,
     load_handler: LoadHandler,
     display_handler: DisplayHandler,
+    download_handler: DownloadHandler,
     life_span_handler: LifeSpanHandler,
     request_handler: RequestHandler,
     context_menu_handler: ContextMenuHandler,
@@ -37,15 +39,18 @@ impl HulyClientCallbacks {
         let request_handler = RequestHandler::new(
             request_callbacks::HulyRequestHandlerCallbacks::new(state.clone()),
         );
-
         let context_menu_handler =
             ContextMenuHandler::new(context_menu_handler::ContextMenuCallbacks);
+        let download_handler = DownloadHandler::new(
+            download_callbacks::MyDownloadHandlerCallbacks::new(state.clone()),
+        );
 
         Self {
             state: state,
             render_handler,
             load_handler,
             display_handler,
+            download_handler,
             life_span_handler,
             request_handler,
             context_menu_handler,
@@ -58,10 +63,6 @@ impl ClientCallbacks for HulyClientCallbacks {
         Some(self.context_menu_handler.clone())
     }
 
-    fn get_keyboard_handler(&mut self) -> Option<KeyboardHandler> {
-        None
-    }
-
     fn get_life_span_handler(&mut self) -> Option<LifeSpanHandler> {
         Some(self.life_span_handler.clone())
     }
@@ -70,12 +71,20 @@ impl ClientCallbacks for HulyClientCallbacks {
         Some(self.render_handler.clone())
     }
 
-    fn get_load_handler(&mut self) -> Option<cef_ui::LoadHandler> {
+    fn get_load_handler(&mut self) -> Option<LoadHandler> {
         Some(self.load_handler.clone())
     }
 
-    fn get_display_handler(&mut self) -> Option<cef_ui::DisplayHandler> {
+    fn get_display_handler(&mut self) -> Option<DisplayHandler> {
         Some(self.display_handler.clone())
+    }
+
+    fn get_download_handler(&mut self) -> Option<DownloadHandler> {
+        Some(self.download_handler.clone())
+    }
+
+    fn get_request_handler(&mut self) -> Option<RequestHandler> {
+        Some(self.request_handler.clone())
     }
 
     fn on_process_message_received(
@@ -109,10 +118,6 @@ impl ClientCallbacks for HulyClientCallbacks {
         }
 
         true
-    }
-
-    fn get_request_handler(&mut self) -> Option<RequestHandler> {
-        Some(self.request_handler.clone())
     }
 }
 
