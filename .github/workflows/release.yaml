@@ -81,9 +81,12 @@ jobs:
           - flags: ""
             path: "target/release/huly-cef-websockets.app"
             name: "huly-cef-websockets-arm64.app"
+            zip: "huly-cef-macos-arm64.zip"
+
           - flags: "--target x86_64-apple-darwin"
             path: "target/x86_64-apple-darwin/release/huly-cef-websockets.app"
             name: "huly-cef-websockets-x86_64.app"
+            zip: "huly-cef-macos-x86_64.zip"
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -159,7 +162,7 @@ jobs:
       
       - name: Sign Huly CEF App
         run: |
-          find huly-cef-websockets.app -name '._*' -exec rm -rf {} \;
+          find ${{ matrix.name }} -name '._*' -exec rm -rf {} \;
 
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep -E "(Apple Development|Developer ID|Apple Distribution)" | head -1)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
@@ -205,16 +208,16 @@ jobs:
             --issuer $APPLE_API_ISSUER \
             --wait
 
-          xcrun stapler staple huly-cef-websockets.app
-          xcrun stapler validate huly-cef-websockets.app
+          xcrun stapler staple ${{ matrix.name }}
+          xcrun stapler validate ${{ matrix.name }}
 
       - name: Prepare artifacts
         run: |
           mkdir -p artifacts
 
-          zip -r artifacts/huly-cef-macos.zip huly-cef-websockets.app
-          sha256sum artifacts/huly-cef-macos.zip | cut -d' ' -f1 > artifacts/huly-cef-macos.zip.sha256
-      
+          zip -r artifacts/${{ matrix.zip }} ${{ matrix.name }}
+          sha256sum artifacts/${{ matrix.zip }} | cut -d' ' -f1 > artifacts/${{ matrix.zip }}.sha256
+
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
