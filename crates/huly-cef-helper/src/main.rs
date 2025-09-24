@@ -1,7 +1,9 @@
 use std::process::exit;
 
 use anyhow::Result;
-use cef_ui_helper::{execute_process, App, AppCallbacks, MainArgs, ScopedSandbox};
+use cef_ui_helper::{
+    execute_process, App, AppCallbacks, MainArgs, SchemeOptions, SchemeRegistrar, ScopedSandbox,
+};
 use log::{error, info, SetLoggerError};
 use log4rs::{
     append::console::ConsoleAppender,
@@ -65,8 +67,8 @@ impl HelperAppCallbacks {
 }
 
 impl AppCallbacks for HelperAppCallbacks {
-    fn on_register_custom_schemes(&mut self, registrar: cef_ui_helper::SchemeRegistrar) {
-        let _ = registrar.add_custom_scheme("huly", cef_ui_helper::SchemeOptions::Local.into());
+    fn on_register_custom_schemes(&mut self, registrar: SchemeRegistrar) {
+        let _ = registrar.add_custom_scheme("huly", SchemeOptions::Local.into());
     }
 
     // fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
