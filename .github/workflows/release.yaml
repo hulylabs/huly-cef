@@ -79,7 +79,11 @@ jobs:
       matrix:
         include:
           - flags: ""
+            path: "target/release/huly-cef-websockets.app"
+            name: "huly-cef-websockets-arm64.app"
           - flags: "--target x86_64-apple-darwin"
+            path: "target/x86_64-apple-darwin/release/huly-cef-websockets.app"
+            name: "huly-cef-websockets-x86_64.app"
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -108,7 +112,7 @@ jobs:
         run: |
           rustup target add x86_64-apple-darwin
           cargo run --bin huly-cef-build --release ${{ matrix.flags }} -- --profile release ${{ matrix.flags }}
-          cp -r target/release/huly-cef-websockets.app huly-cef-websockets.app
+          cp -r ${{ matrix.path }} ${{ matrix.name }}
 
       - name: Import Apple Code Signing Certificates
         uses: apple-actions/import-codesign-certs@v3
@@ -161,30 +165,30 @@ jobs:
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
 
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
+            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libEGL.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
+            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libGLESv2.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
+            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/libvk_swiftshader.dylib"
           codesign --force --options runtime --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
           codesign --verify --deep --strict --verbose=2 \
-            "huly-cef-websockets.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+            ${{ matrix.name }}/Contents/Frameworks/Chromium Embedded Framework.framework"
 
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
+            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Alerts).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
+            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (GPU).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
+            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Plugin).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
+            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper (Renderer).app"
           codesign --force --options runtime --entitlements "helper.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app/Contents/Frameworks/huly-cef-websockets Helper.app"
+            ${{ matrix.name }}/Contents/Frameworks/huly-cef-websockets Helper.app"
           codesign --force --options runtime --entitlements "main.entitlements" --sign "$CERT_ID" --timestamp --verbose \
-            "huly-cef-websockets.app"
+            ${{ matrix.name }}"
 
-          codesign --verify --deep --strict --verbose=2 "huly-cef-websockets.app"
+          codesign --verify --deep --strict --verbose=2 ${{ matrix.name }}"
 
       - name: Notarize Huly CEF App
         env:
