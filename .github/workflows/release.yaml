@@ -51,9 +51,7 @@ jobs:
 
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             cd target/release && zip -r ../../artifacts/huly-cef-linux.zip huly-cef-websockets cef
-            ls cef
-            echo "Contents of cef:"
-            ls ../../cef
+            cd ../..
             sha256sum artifacts/huly-cef-linux.zip | cut -d' ' -f1 > artifacts/huly-cef-linux.zip.sha256
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp -r resources/pages huly-cef-resources
