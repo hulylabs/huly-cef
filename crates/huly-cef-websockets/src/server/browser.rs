@@ -137,6 +137,12 @@ fn handle_sync_method(
         "paste" => parse_params(params).and_then(|params| paste(&state, params)),
         "cut" => parse_params(params).and_then(|params| cut(&state, params)),
         "delete" => parse_params(params).and_then(|params| delete(&state, params)),
+        "continueFileDialog" => {
+            parse_params(params).and_then(|params| continue_file_dialog(&state, params))
+        }
+        "cancelFileDialog" => {
+            parse_params(params).and_then(|params| cancel_file_dialog(&state, params))
+        }
         _ => {
             error!("method not found: {}", method);
             Err(json!({
@@ -241,6 +247,12 @@ struct SetFocusParams {
 struct ClickElementParams {
     tab: i32,
     element_id: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContinueFileDialogParams {
+    tab: i32,
+    filepaths: Vec<String>,
 }
 
 fn get_tab(state: &SharedServerState, id: i32) -> Result<Browser, serde_json::Value> {
@@ -718,6 +730,27 @@ fn cut(
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
     tab.cut();
+
+    Ok(json!({ "success": true }))
+}
+
+fn continue_file_dialog(
+    state: &SharedServerState,
+    params: ContinueFileDialogParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.continue_file_dialog(params.filepaths);
+
+    Ok(json!({ "success": true }))
+}
+
+fn cancel_file_dialog(
+    state: &SharedServerState,
+    params: TabParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    info!("canceling file dialog");
+    let tab = get_tab(state, params.tab)?;
+    tab.cancel_file_dialog();
 
     Ok(json!({ "success": true }))
 }

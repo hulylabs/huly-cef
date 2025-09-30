@@ -184,6 +184,14 @@ export class Tab {
         await this.messageHandler.send('delete', { tab: this.id });
     }
 
+    async continueFileDialog(filepaths: string[]): Promise<void> {
+        await this.messageHandler.send('continueFileDialog', { tab: this.id, filepaths });
+    }
+
+    async cancelFileDialog(): Promise<void> {
+        await this.messageHandler.send('cancelFileDialog', { tab: this.id });
+    }
+
     events(): TabEventStream {
         let address = this.serverUrl.origin + "/tab/" + this.id;
         return new TabEventStream(address);

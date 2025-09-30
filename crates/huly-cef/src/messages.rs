@@ -77,6 +77,7 @@ pub enum TabMessageType {
     NewTab,
     LoadState,
     DownloadProgress,
+    FileDialog,
 }
 
 /// Represents different types of events that can be sent from CEF browser
@@ -100,6 +101,14 @@ pub enum TabMessage {
         is_complete: bool,
         is_aborted: bool,
     },
+    FileDialog {
+        mode: i32,
+        title: String,
+        default_file_path: String,
+        accept_types: Vec<String>,
+        accept_extensions: Vec<String>,
+        accept_descriptions: Vec<String>,
+    },
 }
 
 impl TabMessage {
@@ -115,6 +124,7 @@ impl TabMessage {
             TabMessage::NewTab(_) => TabMessageType::NewTab,
             TabMessage::LoadState(_) => TabMessageType::LoadState,
             TabMessage::DownloadProgress { .. } => TabMessageType::DownloadProgress,
+            TabMessage::FileDialog { .. } => TabMessageType::FileDialog,
         }
     }
 }

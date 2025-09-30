@@ -1,4 +1,5 @@
 use anyhow::Result;
+use cef_ui::FileDialogCallback;
 use log::{error, info};
 
 use std::{
@@ -33,6 +34,9 @@ pub struct BrowserState {
     pub active: bool,
     pub left_mouse_button_down: bool,
 
+    pub file_dialog_callback: Option<FileDialogCallback>,
+
+    // TODO: move to Automation
     pub clickable_elements: Option<Vec<ClickableElement>>,
 
     pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
