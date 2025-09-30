@@ -1,5 +1,4 @@
 use cef_ui::{Browser, DialogHandlerCallbacks, FileDialogCallback, FileDialogMode};
-use log::info;
 
 use crate::{state::SharedBrowserState, TabMessage};
 

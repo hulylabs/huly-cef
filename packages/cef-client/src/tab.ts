@@ -192,6 +192,10 @@ export class Tab {
         await this.messageHandler.send('cancelFileDialog', { tab: this.id });
     }
 
+    async cancelDownloading(downloadId: number): Promise<void> {
+        await this.messageHandler.send('cancelDownloading', { tab: this.id, download_id: downloadId });
+    }
+
     events(): TabEventStream {
         let address = this.serverUrl.origin + "/tab/" + this.id;
         return new TabEventStream(address);

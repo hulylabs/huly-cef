@@ -3,7 +3,6 @@ use cef_ui::{
     CommandLine, Frame, Request, ResourceHandler, ResourceHandlerCallbacks, Response,
     SchemeHandlerFactory, SchemeHandlerFactoryCallbacks,
 };
-use log::info;
 use std::fs;
 
 struct HulyResourceHandlerCallbacks {
@@ -37,8 +36,6 @@ impl ResourceHandlerCallbacks for HulyResourceHandlerCallbacks {
                 .expect("failed to get parent directory of a current exe")
                 .join(RESOURCES_DIR)
                 .join("newtab.html");
-
-            info!("Loading newtab from {:?}", file_path); // Log the file path
 
             let content = fs::read(file_path).expect("failed to read new-tab.html");
 
@@ -135,7 +132,7 @@ impl BrowserProcessHandlerCallbacks for BrowserProcessCallbacks {
         _ = command_line.append_switch_with_value("cache-path", Some(&self.cache_path));
 
         if cfg!(target_os = "macos") {
-            _ = command_line.append_switch("--use-mock-keychain");
+            _ = command_line.append_switch("use-mock-keychain");
         }
     }
 

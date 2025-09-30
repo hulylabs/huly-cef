@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cef_ui::FileDialogCallback;
+use cef_ui::{DownloadItemCallback, FileDialogCallback};
 use log::{error, info};
 
 use std::{
@@ -13,11 +13,7 @@ use tokio::{
     time::error::Elapsed,
 };
 
-use crate::{
-    browser::{automation::JSMessage, ClickableElement},
-    messages::TabMessage,
-    LoadState, TabMessageType,
-};
+use crate::{browser::automation::JSMessage, messages::TabMessage, LoadState, TabMessageType};
 
 type TabMessageCallback = Box<dyn Fn(TabMessage) + Send + Sync>;
 
@@ -36,8 +32,7 @@ pub struct BrowserState {
 
     pub file_dialog_callback: Option<FileDialogCallback>,
 
-    // TODO: move to Automation
-    pub clickable_elements: Option<Vec<ClickableElement>>,
+    pub downloads: HashMap<u32, DownloadItemCallback>,
 
     pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
     pub subscribers: HashMap<i32, UnboundedSender<TabMessage>>,

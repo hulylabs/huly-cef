@@ -1,10 +1,8 @@
 use anyhow::Result;
-use tokio::time::error::Elapsed;
 
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicI32, Arc, Mutex};
-use std::time::Duration;
 
 use cef_ui::{
     Browser, DevToolsMessageObserver, DevToolsMessageObserverCallbacks, DictionaryValue,
@@ -12,26 +10,7 @@ use cef_ui::{
 };
 use log::trace;
 use serde::Deserialize;
-use tokio::sync::{oneshot, Notify};
-
-#[derive(Debug, Clone)]
-pub enum LifecycleEventType {
-    Init,
-    DOMContentLoaded,
-    Load,
-    NetworkAlmostIdle,
-    NetworkIdle,
-    InteractiveTime,
-}
-
-pub enum Event {
-    PageLifecycleEvent {
-        frame_id: String,
-        name: LifecycleEventType,
-    },
-    PageFrameNavigated {},
-}
-
+use tokio::sync::oneshot;
 #[derive(Debug)]
 struct Response {
     #[allow(dead_code)]
@@ -46,48 +25,15 @@ struct Screenshot {
 
 #[derive(Default)]
 struct DevToolsState {
-    frame_events: HashMap<String, Vec<LifecycleEventType>>,
     pending_requests: HashMap<i32, oneshot::Sender<Response>>,
 }
 
 #[derive(Default)]
 struct SharedDevToolsState {
     inner: Mutex<DevToolsState>,
-    notify: Notify,
 }
 
 impl SharedDevToolsState {
-    fn on_event(&self, event: Event) {
-        self.update_state(&event);
-        self.notify.notify_waiters();
-    }
-
-    fn update_state(&self, event: &Event) {
-        let mut state = self.inner.lock().unwrap();
-        match event {
-            Event::PageLifecycleEvent { name, frame_id, .. } => {
-                if state.frame_events.contains_key(frame_id) {
-                    state.frame_events.entry(frame_id.clone()).and_modify(|e| {
-                        e.push(name.clone());
-                    });
-                } else {
-                    trace!("state doesn't have an entry for frame_id: {}", frame_id);
-                    if matches!(name, LifecycleEventType::Init) {
-                        trace!(
-                            "init event received. Creating new entry for frame_id: {}",
-                            frame_id
-                        );
-                        state
-                            .frame_events
-                            .insert(frame_id.clone(), vec![name.clone()]);
-                    }
-                }
-            }
-
-            Event::PageFrameNavigated { .. } => {}
-        }
-    }
-
     fn on_result(&self, message_id: i32, success: bool, data: Vec<u8>) {
         let response = Response { success, data };
         if let Some(tx) = self
@@ -111,26 +57,6 @@ impl SharedDevToolsState {
             return;
         }
         state.pending_requests.insert(message_id, tx);
-    }
-
-    #[allow(dead_code)]
-    async fn wait_until<P: Fn(&DevToolsState) -> bool>(
-        &self,
-        predicate: P,
-        timeout: Duration,
-    ) -> Result<(), Elapsed> {
-        tokio::time::timeout(timeout, async {
-            loop {
-                {
-                    let state = self.inner.lock().expect("Browser state lock poisoned");
-                    if predicate(&state) {
-                        return;
-                    }
-                }
-                self.notify.notified().await;
-            }
-        })
-        .await
     }
 }
 
@@ -156,20 +82,12 @@ impl DevTools {
         host.execute_dev_tools_method(0, "Page.enable", None)
             .expect("failed to enable Page domain");
 
-        let params = DictionaryValue::new();
-        _ = params.set_bool("enabled", true);
-        _ = host.execute_dev_tools_method(1, "Page.setLifecycleEventsEnabled", Some(params));
-
         Self {
             browser,
             state,
             registration,
             counter: AtomicI32::new(10),
         }
-    }
-
-    pub fn start_navigation(&self) {
-        self.state.inner.lock().unwrap().frame_events.clear();
     }
 
     pub async fn screenshot(&self) -> Result<String> {
@@ -201,26 +119,6 @@ impl DevTools {
     }
 }
 
-#[derive(Deserialize)]
-struct FrameNavigated {
-    frame: Frame,
-}
-
-#[derive(Deserialize)]
-struct Frame {
-    id: String,
-    #[serde(rename = "parentId")]
-    parent_id: Option<String>,
-    url: String,
-}
-
-#[derive(Deserialize)]
-struct LifecycleEvent {
-    name: String,
-    #[serde(rename = "frameId")]
-    frame_id: String,
-}
-
 struct DevToolsObserverCallbacks {
     state: Arc<SharedDevToolsState>,
 }
@@ -242,47 +140,5 @@ impl DevToolsMessageObserverCallbacks for DevToolsObserverCallbacks {
         self.state.on_result(message_id, success, result.to_vec());
     }
 
-    fn on_dev_tools_event(&mut self, _: Browser, event: &str, params: &[u8]) {
-        if event == "Page.lifecycleEvent" {
-            let params: LifecycleEvent = serde_json::from_slice(params)
-                .expect("failed to parse params of Page.lifecycleEvent");
-
-            trace!(
-                "Lifecycle event: {} for frame: {}",
-                params.name,
-                params.frame_id
-            );
-
-            let name = match params.name.as_str() {
-                "init" => LifecycleEventType::Init,
-                "DOMContentLoaded" => LifecycleEventType::DOMContentLoaded,
-                "load" => LifecycleEventType::Load,
-                "networkIdle" => LifecycleEventType::NetworkIdle,
-                "networkAlmostIdle" => LifecycleEventType::NetworkAlmostIdle,
-                "InteractiveTime" => LifecycleEventType::InteractiveTime,
-                _ => {
-                    return;
-                }
-            };
-            let frame_id = params.frame_id;
-
-            self.state
-                .on_event(Event::PageLifecycleEvent { name, frame_id });
-        }
-
-        if event == "Page.frameNavigated" {
-            let params = serde_json::from_slice::<FrameNavigated>(params)
-                .expect("failed to parse params of Page.frameNavigated");
-
-            if params.frame.parent_id.is_none() {
-                trace!(
-                    "Main frame navigated: id={}, url={}",
-                    params.frame.id,
-                    params.frame.url
-                );
-
-                self.state.on_event(Event::PageFrameNavigated {});
-            }
-        }
-    }
+    fn on_dev_tools_event(&mut self, _: Browser, _: &str, _: &[u8]) {}
 }

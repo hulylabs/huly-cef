@@ -9,7 +9,7 @@ use anyhow::Result;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
 use image::{imageops::FilterType, ImageFormat};
-use log::{error, info};
+use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{oneshot, Notify};
 
@@ -52,6 +52,7 @@ pub struct Automation {
     mouse: Mouse,
     state: SharedBrowserState,
     load_states: Arc<Mutex<Vec<LoadState>>>,
+    clickable_elements: Arc<Mutex<Option<Vec<ClickableElement>>>>,
     notify: Arc<Notify>,
 }
 
@@ -62,6 +63,7 @@ impl Clone for Automation {
             devtools: self.devtools.clone(),
             mouse: self.mouse.clone(),
             state: self.state.clone(),
+            clickable_elements: self.clickable_elements.clone(),
             load_states: self.load_states.clone(),
             notify: self.notify.clone(),
         }
@@ -88,20 +90,21 @@ impl Automation {
             }),
         );
 
+        let clickable_elements = Arc::default();
+
         Automation {
             browser,
             devtools,
             mouse,
             state,
             load_states,
+            clickable_elements,
             notify,
         }
     }
 
     pub fn start_navigation(&mut self) {
-        self.devtools.start_navigation();
         self.load_states.lock().unwrap().clear();
-        info!("navigation started: load states cleared");
     }
 
     pub async fn get_dom(&self) -> String {
@@ -136,7 +139,6 @@ impl Automation {
                     let load_states = self.load_states.lock().unwrap();
                     if let Some(last_state) = load_states.last() {
                         if last_state.status == LoadStatus::Loaded {
-                            info!("got load status Loaded");
                             return;
                         }
                     }
@@ -158,18 +160,16 @@ impl Automation {
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
-        info!("[getting clickable elements] start");
         let msg = self
             .execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "elements")
             .await;
 
-        info!("[getting clickable elements] got elements: {:?}", msg);
-
         match msg {
             Ok(JSMessage::ClickableElements(elements)) => {
-                self.state.update(|state| {
-                    state.clickable_elements = Some(elements.clone());
-                });
+                self.clickable_elements
+                    .lock()
+                    .unwrap()
+                    .replace(elements.clone());
                 return elements;
             }
             _ => {
@@ -180,13 +180,12 @@ impl Automation {
     }
 
     pub async fn click_element(&self, id: i32) {
-        let element = self.state.read(|state| {
-            state
-                .clickable_elements
-                .as_ref()
-                .and_then(|elements| elements.get(id as usize).cloned())
-        });
-
+        let element = self
+            .clickable_elements
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|elements| elements.get(id as usize).cloned());
         if let Some(e) = element {
             let id = e.id;
 

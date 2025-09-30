@@ -9,7 +9,7 @@ use cef_ui::{
 use log::info;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{browser::state::SharedBrowserState, ClickableElement, LoadState, TabMessage};
+use crate::{browser::state::SharedBrowserState, LoadState, TabMessage};
 
 mod automation;
 mod client;
@@ -175,7 +175,6 @@ impl Browser {
     }
 
     pub fn select_all(&self) {
-        info!("selecting all text");
         if let Some(frame) = self.inner.get_main_frame().unwrap() {
             let _ = frame.select_all();
         }
@@ -223,6 +222,13 @@ impl Browser {
         }
     }
 
+    pub fn cancel_downloading(&self, id: u32) {
+        let callback = self.state.update_and_return(|s| s.downloads.remove(&id));
+        if let Some(callback) = callback {
+            _ = callback.cancel();
+        }
+    }
+
     fn start_navigation(&mut self) {
         self.state.update(|s| s.navigation_started = true);
         self.automation.start_navigation();
@@ -255,8 +261,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             left_mouse_button_down: false,
 
             file_dialog_callback: None,
-
-            clickable_elements: None,
+            downloads: HashMap::new(),
 
             javascript_messages: HashMap::new(),
             subscribers: HashMap::new(),

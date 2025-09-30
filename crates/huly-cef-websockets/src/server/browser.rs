@@ -143,6 +143,9 @@ fn handle_sync_method(
         "cancelFileDialog" => {
             parse_params(params).and_then(|params| cancel_file_dialog(&state, params))
         }
+        "cancelDownloading" => {
+            parse_params(params).and_then(|params| cancel_downloading(&state, params))
+        }
         _ => {
             error!("method not found: {}", method);
             Err(json!({
@@ -253,6 +256,12 @@ struct ClickElementParams {
 struct ContinueFileDialogParams {
     tab: i32,
     filepaths: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CancelDownloadingParams {
+    tab: i32,
+    download_id: u32,
 }
 
 fn get_tab(state: &SharedServerState, id: i32) -> Result<Browser, serde_json::Value> {
@@ -748,9 +757,18 @@ fn cancel_file_dialog(
     state: &SharedServerState,
     params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
-    info!("canceling file dialog");
     let tab = get_tab(state, params.tab)?;
     tab.cancel_file_dialog();
+
+    Ok(json!({ "success": true }))
+}
+
+fn cancel_downloading(
+    state: &SharedServerState,
+    params: CancelDownloadingParams,
+) -> Result<serde_json::Value, serde_json::Value> {
+    let tab = get_tab(state, params.tab)?;
+    tab.cancel_downloading(params.download_id);
 
     Ok(json!({ "success": true }))
 }

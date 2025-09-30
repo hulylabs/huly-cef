@@ -15,9 +15,16 @@ impl DownloadHandlerCallbacks for MyDownloadHandlerCallbacks {
         &mut self,
         _: Browser,
         download_item: DownloadItem,
-        _: DownloadItemCallback,
+        callback: DownloadItemCallback,
     ) {
         let id = download_item.get_id().expect("failed to get download id");
+        self.state.update(|s| {
+            if s.downloads.contains_key(&id) {
+                return;
+            }
+
+            s.downloads.insert(id, callback);
+        });
         let path = download_item
             .get_full_path()
             .expect("failed to get full path");
