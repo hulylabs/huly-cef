@@ -1,10 +1,12 @@
 use crate::browser::{automation::JSMessage, state::SharedBrowserState};
 use cef_ui::{
-    Browser, Client, ClientCallbacks, ContextMenuHandler, DisplayHandler, DownloadHandler, Frame,
-    LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler, RequestHandler,
+    Browser, Client, ClientCallbacks, ContextMenuHandler, DialogHandler, DisplayHandler,
+    DownloadHandler, Frame, LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler,
+    RequestHandler,
 };
 
 mod context_menu_handler;
+mod dialog_callbacks;
 mod display_callbacks;
 mod download_callbacks;
 mod life_span_callbacks;
@@ -16,6 +18,7 @@ pub struct HulyClientCallbacks {
     state: SharedBrowserState,
     render_handler: RenderHandler,
     load_handler: LoadHandler,
+    dialog_handler: DialogHandler,
     display_handler: DisplayHandler,
     download_handler: DownloadHandler,
     life_span_handler: LifeSpanHandler,
@@ -44,11 +47,15 @@ impl HulyClientCallbacks {
         let download_handler = DownloadHandler::new(
             download_callbacks::MyDownloadHandlerCallbacks::new(state.clone()),
         );
+        let dialog_handler = DialogHandler::new(dialog_callbacks::HulyDialogHandlerCallbacks::new(
+            state.clone(),
+        ));
 
         Self {
-            state: state,
+            state,
             render_handler,
             load_handler,
+            dialog_handler,
             display_handler,
             download_handler,
             life_span_handler,
@@ -81,6 +88,10 @@ impl ClientCallbacks for HulyClientCallbacks {
 
     fn get_download_handler(&mut self) -> Option<DownloadHandler> {
         Some(self.download_handler.clone())
+    }
+
+    fn get_dialog_handler(&mut self) -> Option<DialogHandler> {
+        Some(self.dialog_handler.clone())
     }
 
     fn get_request_handler(&mut self) -> Option<RequestHandler> {

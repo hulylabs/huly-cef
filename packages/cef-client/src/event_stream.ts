@@ -9,6 +9,15 @@ export interface DownloadProgress {
     is_aborted: boolean;
 }
 
+export interface FileDialog {
+    mode: number;
+    title: string;
+    default_file_path: string;
+    accept_types: string[];
+    accept_extensions: string[];
+    accept_descriptions: string[];
+}
+
 export interface Frame {
     width: number;
     height: number;
@@ -25,6 +34,7 @@ type TabEvent = {
     NewTab: string;
     Frame: Frame;
     DownloadProgress: DownloadProgress;
+    FileDialog: FileDialog;
 }
 
 interface Message<T extends keyof TabEvent> {

@@ -205,6 +205,24 @@ impl Browser {
         }
     }
 
+    pub fn continue_file_dialog(&self, filepaths: Vec<String>) {
+        let callback = self
+            .state
+            .update_and_return(|s| s.file_dialog_callback.take());
+        if let Some(callback) = callback {
+            _ = callback.continue_dialog(filepaths);
+        }
+    }
+
+    pub fn cancel_file_dialog(&self) {
+        let callback = self
+            .state
+            .update_and_return(|s| s.file_dialog_callback.take());
+        if let Some(callback) = callback {
+            _ = callback.cancel();
+        }
+    }
+
     fn start_navigation(&mut self) {
         self.state.update(|s| s.navigation_started = true);
         self.automation.start_navigation();
@@ -235,6 +253,8 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             dpr: self.dpr,
             active: true,
             left_mouse_button_down: false,
+
+            file_dialog_callback: None,
 
             clickable_elements: None,
 
