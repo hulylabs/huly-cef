@@ -9,6 +9,7 @@ use crate::browser::state::SharedBrowserState;
 pub struct HulyRequestHandlerCallbacks {
     #[allow(unused)]
     state: SharedBrowserState,
+    #[allow(unused)]
     resource_request_handler: ResourceRequestHandler,
 }
 
