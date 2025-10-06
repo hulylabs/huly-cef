@@ -2,7 +2,7 @@ use cef_ui::{
     Browser, BrowserSettings, Client, DictionaryValue, Frame, LifeSpanHandlerCallbacks,
     PopupFeatures, WindowInfo, WindowOpenDisposition,
 };
-use log::{self};
+use log;
 
 use crate::{browser::state::SharedBrowserState, TabMessage};
 
