@@ -159,7 +159,14 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
     }
 
     fn on_popup_size(&mut self, _: Browser, rect: &Rect) {
-        self.popup_rect = Some(rect.clone());
+        let dpr = self.state.read(|s| s.dpr);
+        let scaled_rect = Rect {
+            x: (rect.x as f64 * dpr) as i32,
+            y: (rect.y as f64 * dpr) as i32,
+            width: (rect.width as f64 * dpr) as i32,
+            height: (rect.height as f64 * dpr) as i32,
+        };
+        self.popup_rect = Some(scaled_rect);
     }
 
     fn on_paint(
