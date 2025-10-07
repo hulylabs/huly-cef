@@ -94,6 +94,8 @@ export class Tab {
         down: boolean,
         ctrl: boolean = false,
         shift: boolean = false,
+        alt: boolean = false,
+        meta: boolean = false
     ): Promise<void> {
         let platformKeyCode = 0;
         switch (this.platform) {
@@ -114,6 +116,8 @@ export class Tab {
             down: down,
             ctrl: ctrl,
             shift: shift,
+            alt: alt,
+            meta: meta,
         });
     }
 

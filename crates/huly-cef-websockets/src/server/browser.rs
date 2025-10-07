@@ -232,6 +232,8 @@ struct KeyParams {
     down: bool,
     ctrl: bool,
     shift: bool,
+    alt: bool,
+    meta: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -524,6 +526,8 @@ fn key(
         params.down,
         params.ctrl,
         params.shift,
+        params.alt,
+        params.meta,
     );
 
     Ok(json!({ "success": true }))

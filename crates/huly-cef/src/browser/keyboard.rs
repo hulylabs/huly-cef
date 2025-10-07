@@ -29,9 +29,21 @@ impl Keyboard {
         down: bool,
         ctrl: bool,
         shift: bool,
+        alt: bool,
+        meta: bool,
     ) {
         let host = self.inner.get_host().unwrap();
-        process_key_event(&host, character, windowscode, code, down, ctrl, shift);
+        process_key_event(
+            &host,
+            character,
+            windowscode,
+            code,
+            down,
+            ctrl,
+            shift,
+            alt,
+            meta,
+        );
     }
 
     pub fn char(&self, character: u16) {
@@ -77,11 +89,17 @@ fn process_key_event(
     down: bool,
     ctrl: bool,
     shift: bool,
+    alt: bool,
+    meta: bool,
 ) {
     let mut event_type = KeyEventType::KeyUp;
     if down {
         event_type = KeyEventType::KeyDown;
     };
+
+    if cfg!(target_os = "macos") && event_type == KeyEventType::KeyUp {
+        return;
+    }
 
     let mut modifiers = EventFlags::empty();
     if ctrl {
@@ -89,6 +107,12 @@ fn process_key_event(
     }
     if shift {
         modifiers = modifiers | EventFlags::ShiftDown;
+    }
+    if alt {
+        modifiers = modifiers | EventFlags::AltDown;
+    }
+    if meta {
+        modifiers = modifiers | EventFlags::CommandDown;
     }
 
     let mut event = KeyEvent {
@@ -119,6 +143,8 @@ fn process_key_event(
     down: bool,
     ctrl: bool,
     shift: bool,
+    alt: bool,
+    meta: bool,
 ) {
     let mut modifiers = EventFlags::empty();
     if ctrl {
@@ -126,6 +152,12 @@ fn process_key_event(
     }
     if shift {
         modifiers = modifiers | EventFlags::ShiftDown;
+    }
+    if alt {
+        modifiers = modifiers | EventFlags::AltDown;
+    }
+    if meta {
+        modifiers = modifiers | EventFlags::CommandDown;
     }
 
     if down {
