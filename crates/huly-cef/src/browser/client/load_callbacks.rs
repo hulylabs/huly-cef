@@ -29,8 +29,13 @@ impl LoadHandlerCallbacks for HulyLoadHandlerCallbacks {
         (*load_state).can_go_back = can_go_back;
         (*load_state).can_go_forward = can_go_forward;
 
-        if is_loading && self.state.read(|s| s.navigation_started) {
-            (*load_state).status = LoadStatus::Loading;
+        if self.state.read(|s| s.navigation_started) {
+            if is_loading {
+                (*load_state).status = LoadStatus::Loading;
+            } else {
+                (*load_state).status = LoadStatus::Loaded;
+                self.state.update(|s| s.navigation_started = false);
+            }
         }
 
         self.state.update(|s| s.load_state = load_state.clone());
