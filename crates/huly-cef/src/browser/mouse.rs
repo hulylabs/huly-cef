@@ -1,6 +1,5 @@
 use crate::{state::SharedBrowserState, MouseButton};
 use cef_ui::{Browser, MouseButtonType, MouseEvent};
-use log::info;
 
 pub struct Mouse {
     inner: Browser,

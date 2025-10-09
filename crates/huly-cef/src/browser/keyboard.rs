@@ -1,5 +1,4 @@
 use cef_ui::{Browser, BrowserHost, EventFlags, KeyEvent, KeyEventType};
-use log::info;
 
 use crate::state::SharedBrowserState;
 
