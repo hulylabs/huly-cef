@@ -1,5 +1,6 @@
 use crate::{state::SharedBrowserState, MouseButton};
-use cef_ui::{Browser, EventFlags, MouseButtonType, MouseEvent};
+use cef_ui::{Browser, MouseButtonType, MouseEvent};
+use log::info;
 
 pub struct Mouse {
     inner: Browser,
@@ -21,11 +22,7 @@ impl Mouse {
     }
 
     pub fn move_to(&self, x: i32, y: i32) {
-        let mut modifiers = EventFlags::empty();
-        if self.state.read(|s| s.left_mouse_button_down) {
-            modifiers.insert(EventFlags::LeftMouseButton);
-        }
-
+        let modifiers = self.state.read(|s| s.input.get_event_flags());
         let event = MouseEvent { x, y, modifiers };
 
         self.inner
@@ -38,15 +35,12 @@ impl Mouse {
     pub fn click(&self, x: i32, y: i32, button: MouseButton, down: bool) {
         if button == MouseButton::Left {
             self.state.update(|state| {
-                state.left_mouse_button_down = down;
+                state.input.left_mouse_button_down = down;
             });
         }
 
-        let event = MouseEvent {
-            x,
-            y,
-            modifiers: EventFlags::empty(),
-        };
+        let modifiers = self.state.read(|s| s.input.get_event_flags());
+        let event = MouseEvent { x, y, modifiers };
 
         let button = match button {
             MouseButton::Left => MouseButtonType::Left,
@@ -62,7 +56,7 @@ impl Mouse {
     }
 
     pub fn wheel(&self, x: i32, y: i32, dx: i32, dy: i32) {
-        let modifiers = EventFlags::empty();
+        let modifiers = self.state.read(|s| s.input.get_event_flags());
         let event = MouseEvent { x, y, modifiers };
         self.inner
             .get_host()

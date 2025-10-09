@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cef_ui::{DownloadItemCallback, FileDialogCallback};
+use cef_ui::{DownloadItemCallback, EventFlags, FileDialogCallback};
 use log::{error, info};
 
 use std::{
@@ -17,6 +17,50 @@ use crate::{browser::automation::JSMessage, messages::TabMessage, LoadState, Tab
 
 type TabMessageCallback = Box<dyn Fn(TabMessage) + Send + Sync>;
 
+#[derive(Default)]
+pub struct InputState {
+    pub ctrl_down: bool,
+    pub shift_down: bool,
+    pub alt_down: bool,
+    pub meta_down: bool,
+    pub left_mouse_button_down: bool,
+}
+
+impl InputState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn get_event_flags(&self) -> EventFlags {
+        let mut flags = EventFlags::empty();
+
+        if self.ctrl_down {
+            flags |= EventFlags::ControlDown;
+        }
+        if self.shift_down {
+            flags |= EventFlags::ShiftDown;
+        }
+        if self.alt_down {
+            flags |= EventFlags::AltDown;
+        }
+        if self.meta_down {
+            flags |= EventFlags::CommandDown;
+        }
+        if self.left_mouse_button_down {
+            flags |= EventFlags::LeftMouseButton;
+        }
+
+        flags
+    }
+
+    pub fn update_modifier_keys(&mut self, ctrl: bool, shift: bool, alt: bool, meta: bool) {
+        self.ctrl_down = ctrl;
+        self.shift_down = shift;
+        self.alt_down = alt;
+        self.meta_down = meta;
+    }
+}
+
 pub struct BrowserState {
     pub title: String,
     pub url: String,
@@ -28,7 +72,8 @@ pub struct BrowserState {
     pub height: u32,
     pub dpr: f64,
     pub active: bool,
-    pub left_mouse_button_down: bool,
+
+    pub input: InputState,
 
     pub file_dialog_callback: Option<FileDialogCallback>,
 

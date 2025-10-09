@@ -1,4 +1,5 @@
 use cef_ui::{Browser, BrowserHost, EventFlags, KeyEvent, KeyEventType};
+use log::info;
 
 use crate::state::SharedBrowserState;
 
@@ -32,6 +33,9 @@ impl Keyboard {
         alt: bool,
         meta: bool,
     ) {
+        self.state
+            .update(|s| s.input.update_modifier_keys(ctrl, shift, alt, meta));
+
         let host = self.inner.get_host().unwrap();
         process_key_event(
             &host,

@@ -258,7 +258,8 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             height: self.height,
             dpr: self.dpr,
             active: true,
-            left_mouse_button_down: false,
+
+            input: state::InputState::new(),
 
             file_dialog_callback: None,
             downloads: HashMap::new(),

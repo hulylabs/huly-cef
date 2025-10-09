@@ -1,10 +1,10 @@
 use cef_ui::{
     Browser, Frame, Request, RequestHandlerCallbacks, ResourceRequestHandler,
-    ResourceRequestHandlerCallbacks, TerminationStatus,
+    ResourceRequestHandlerCallbacks, TerminationStatus, WindowOpenDisposition,
 };
-use log::info;
+use log::{info, warn};
 
-use crate::browser::state::SharedBrowserState;
+use crate::{browser::state::SharedBrowserState, TabMessage};
 
 pub struct HulyRequestHandlerCallbacks {
     #[allow(unused)]
@@ -35,8 +35,29 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _request_initiator: &str,
         _disable_default_handling: &mut bool,
     ) -> Option<ResourceRequestHandler> {
+        // TODO: It crashes, updating to CEF 135 might help
         // Some(self.resource_request_handler.clone())
         None
+    }
+
+    fn on_open_urlfrom_tab(
+        &mut self,
+        _: Browser,
+        _: Frame,
+        target_url: &str,
+        target_disposition: cef_ui::WindowOpenDisposition,
+        _: bool,
+    ) -> bool {
+        match target_disposition {
+            WindowOpenDisposition::NewForegroundTab
+            | WindowOpenDisposition::NewBackgroundTab
+            | WindowOpenDisposition::NewWindow => {
+                self.state
+                    .notify(TabMessage::NewTab(target_url.to_string()));
+            }
+            _ => {}
+        };
+        true
     }
     fn on_render_process_terminated(
         &mut self,
@@ -45,7 +66,7 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         error_code: i32,
         _error_string: Option<String>,
     ) {
-        println!("Render process terminated: {:?} - {}", status, error_code);
+        warn!("Render process terminated: {:?} - {}", status, error_code);
     }
 }
 
