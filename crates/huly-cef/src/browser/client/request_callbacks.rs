@@ -45,7 +45,7 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _: Browser,
         _: Frame,
         target_url: &str,
-        target_disposition: cef_ui::WindowOpenDisposition,
+        target_disposition: WindowOpenDisposition,
         _: bool,
     ) -> bool {
         match target_disposition {
