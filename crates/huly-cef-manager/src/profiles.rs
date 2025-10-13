@@ -1,10 +1,6 @@
 use std::{fs, io, path::PathBuf};
 
 use log::info;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Profile;
 
 pub struct ProfileManager {
     cache_dir: String,
