@@ -53,6 +53,7 @@ fn main() -> Result<()> {
 }
 
 fn run(app: App) -> Result<i32> {
+    cef_api_hash();
     let _sandbox = ScopedSandbox::new()?;
     let main_args = MainArgs::new()?;
     Ok(execute_process(main_args, Some(app)))

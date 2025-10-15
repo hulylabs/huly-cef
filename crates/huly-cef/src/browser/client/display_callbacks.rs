@@ -1,7 +1,4 @@
-use cef_ui::{
-    Browser, CursorHandle, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, LogSeverity,
-    Size,
-};
+use cef_ui::{Browser, CursorInfo, CursorType, DisplayHandlerCallbacks, Frame, LogSeverity, Size};
 use log::error;
 use url::Url;
 
@@ -93,7 +90,6 @@ impl DisplayHandlerCallbacks for HulyDisplayHandlerCallbacks {
     fn on_cursor_change(
         &mut self,
         _: Browser,
-        _: CursorHandle,
         cursor_type: CursorType,
         _: Option<CursorInfo>,
     ) -> bool {
