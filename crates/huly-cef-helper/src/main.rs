@@ -2,7 +2,8 @@ use std::process::exit;
 
 use anyhow::Result;
 use cef_ui_helper::{
-    execute_process, App, AppCallbacks, MainArgs, SchemeOptions, SchemeRegistrar, ScopedSandbox,
+    cef_api_hash, execute_process, App, AppCallbacks, MainArgs, SchemeOptions, SchemeRegistrar,
+    ScopedSandbox,
 };
 use log::{error, info, SetLoggerError};
 use log4rs::{
@@ -50,6 +51,7 @@ fn main() -> Result<()> {
 }
 
 fn run(app: App) -> Result<i32> {
+    cef_api_hash();
     let _sandbox = ScopedSandbox::new()?;
     let main_args = MainArgs::new()?;
     Ok(execute_process(main_args, Some(app)))
