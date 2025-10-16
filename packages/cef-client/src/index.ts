@@ -2,8 +2,8 @@ import { Browser } from "./browser.js";
 export { Config, setConfig, getConfig } from "./config.js";
 export { KeyCode } from "./keyboard.js";
 export { Browser } from "./browser.js";
-export { MouseButton, LoadState, LoadStatus, Cursor } from "./types.js";
-export { TabEventStream, DownloadProgress, FileDialog } from "./event_stream.js";
+export { MouseButton, LoadState, LoadStatus, Cursor, DownloadProgress, FileDialog } from "./types.js";
+export { TabEventStream } from "./event_stream.js";
 export { Tab } from "./tab.js";
 
 

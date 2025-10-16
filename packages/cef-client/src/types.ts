@@ -60,3 +60,27 @@ export enum Cursor {
     IBeam = "IBeam",
     Crosshair = "Crosshair",
 }
+
+export interface DownloadProgress {
+    id: number;
+    path: string;
+    received: number;
+    total: number;
+    is_complete: boolean;
+    is_aborted: boolean;
+}
+
+export interface FileDialog {
+    mode: number;
+    title: string;
+    default_file_path: string;
+    accept_types: string[];
+    accept_extensions: string[];
+    accept_descriptions: string[];
+}
+
+export interface Frame {
+    width: number;
+    height: number;
+    data: Uint8Array;
+}

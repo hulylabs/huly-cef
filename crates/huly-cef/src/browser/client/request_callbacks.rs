@@ -27,11 +27,13 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _: bool,
     ) -> bool {
         let url = request.get_url().unwrap_or_default();
-        let custom = PROTOCOLS.iter().any(|proto| url.starts_with(proto));
+        let custom = PROTOCOLS.iter().all(|proto| !url.starts_with(proto));
         let external = if custom { url } else { "".into() };
+
         self.state
             .notify(TabMessage::ExternalLink(external.clone()));
         self.state.update(|s| s.external_link = external);
+
         false
     }
 

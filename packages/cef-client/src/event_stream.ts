@@ -1,28 +1,4 @@
-import { Cursor, LoadState } from "./types.js";
-
-export interface DownloadProgress {
-    id: number;
-    path: string;
-    received: number;
-    total: number;
-    is_complete: boolean;
-    is_aborted: boolean;
-}
-
-export interface FileDialog {
-    mode: number;
-    title: string;
-    default_file_path: string;
-    accept_types: string[];
-    accept_extensions: string[];
-    accept_descriptions: string[];
-}
-
-export interface Frame {
-    width: number;
-    height: number;
-    data: Uint8Array;
-}
+import { Cursor, DownloadProgress, FileDialog, Frame, LoadState } from "./types.js";
 
 type TabEvent = {
     Title: string;
@@ -32,6 +8,7 @@ type TabEvent = {
     Cursor: Cursor;
     UrlHovered: string;
     NewTab: string;
+    ExternalLink: string;
     Frame: Frame;
     DownloadProgress: DownloadProgress;
     FileDialog: FileDialog;
