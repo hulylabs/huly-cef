@@ -5,7 +5,7 @@ use log::warn;
 
 use crate::{browser::state::SharedBrowserState, TabMessage};
 
-static PROTOCOLS: &[&str] = &["http", "https", "file"];
+static PROTOCOLS: &[&str] = &["http", "https", "file", "huly"];
 pub struct HulyRequestHandlerCallbacks {
     #[allow(unused)]
     state: SharedBrowserState,
