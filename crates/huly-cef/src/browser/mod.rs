@@ -259,6 +259,8 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             dpr: self.dpr,
             active: true,
 
+            external_link: "".to_string(),
+
             input: state::InputState::new(),
 
             file_dialog_callback: None,

@@ -73,6 +73,8 @@ pub struct BrowserState {
     pub dpr: f64,
     pub active: bool,
 
+    pub external_link: String,
+
     pub input: InputState,
 
     pub file_dialog_callback: Option<FileDialogCallback>,

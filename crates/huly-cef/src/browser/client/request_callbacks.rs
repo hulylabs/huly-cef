@@ -1,43 +1,38 @@
 use cef_ui::{
-    Browser, Frame, Request, RequestHandlerCallbacks, ResourceRequestHandler,
-    ResourceRequestHandlerCallbacks, TerminationStatus, WindowOpenDisposition,
+    Browser, Frame, Request, RequestHandlerCallbacks, TerminationStatus, WindowOpenDisposition,
 };
-use log::{info, warn};
+use log::warn;
 
 use crate::{browser::state::SharedBrowserState, TabMessage};
 
+static PROTOCOLS: &[&str] = &["http", "https", "file"];
 pub struct HulyRequestHandlerCallbacks {
     #[allow(unused)]
     state: SharedBrowserState,
-    #[allow(unused)]
-    resource_request_handler: ResourceRequestHandler,
 }
 
 impl HulyRequestHandlerCallbacks {
     pub fn new(state: SharedBrowserState) -> Self {
-        Self {
-            state,
-            resource_request_handler: ResourceRequestHandler::new(
-                HulyResourceRequestHandlerCallbacks {},
-            ),
-        }
+        Self { state }
     }
 }
 
 impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
-    fn get_resource_request_handler(
+    fn on_before_browse(
         &mut self,
-        _browser: Browser,
-        _frame: Frame,
-        _request: Request,
-        _is_navigation: bool,
-        _is_download: bool,
-        _request_initiator: &str,
-        _disable_default_handling: &mut bool,
-    ) -> Option<ResourceRequestHandler> {
-        // TODO: It crashes, updating to CEF 135 might help
-        // Some(self.resource_request_handler.clone())
-        None
+        _: Browser,
+        _: Frame,
+        request: Request,
+        _: bool,
+        _: bool,
+    ) -> bool {
+        let url = request.get_url().unwrap_or_default();
+        let custom = PROTOCOLS.iter().any(|proto| url.starts_with(proto));
+        let external = if custom { url } else { "".into() };
+        self.state
+            .notify(TabMessage::ExternalLink(external.clone()));
+        self.state.update(|s| s.external_link = external);
+        false
     }
 
     fn on_open_urlfrom_tab(
@@ -67,19 +62,5 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _error_string: Option<String>,
     ) {
         warn!("Render process terminated: {:?} - {}", status, error_code);
-    }
-}
-
-struct HulyResourceRequestHandlerCallbacks;
-
-impl ResourceRequestHandlerCallbacks for HulyResourceRequestHandlerCallbacks {
-    fn on_protocol_execution(
-        &mut self,
-        _browser: Option<Browser>,
-        _frame: Option<Frame>,
-        _request: Request,
-    ) -> bool {
-        info!("on_protocol_execution");
-        true
     }
 }

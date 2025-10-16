@@ -76,6 +76,7 @@ pub enum TabMessageType {
     UrlHovered,
     NewTab,
     LoadState,
+    ExternalLink,
     DownloadProgress,
     FileDialog,
 }
@@ -93,6 +94,7 @@ pub enum TabMessage {
     UrlHovered(String),
     NewTab(String),
     LoadState(LoadState),
+    ExternalLink(String),
     DownloadProgress {
         id: u32,
         path: String,
@@ -123,6 +125,7 @@ impl TabMessage {
             TabMessage::UrlHovered { .. } => TabMessageType::UrlHovered,
             TabMessage::NewTab(_) => TabMessageType::NewTab,
             TabMessage::LoadState(_) => TabMessageType::LoadState,
+            TabMessage::ExternalLink(_) => TabMessageType::ExternalLink,
             TabMessage::DownloadProgress { .. } => TabMessageType::DownloadProgress,
             TabMessage::FileDialog { .. } => TabMessageType::FileDialog,
         }
