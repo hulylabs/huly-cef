@@ -18,20 +18,6 @@ export class Browser {
         this.websocket.close();
     }
 
-    close(): Promise<void> {
-        return this.messageHandler.send('close', {});
-    }
-
-    async restore(): Promise<Tab[]> {
-        const result = await this.messageHandler.send('restore', {});
-
-        if (result && Array.isArray(result.urls)) {
-            return Promise.all(result.urls.map((url: string) => this.openTab({ url })));
-        }
-
-        throw new Error('Invalid response from restore');
-    }
-
     async openTab(options?: Partial<OpenTabOptions>): Promise<Tab> {
         const params = {
             url: (options && options.url !== "") ? options.url : getConfig().defaultUrl,

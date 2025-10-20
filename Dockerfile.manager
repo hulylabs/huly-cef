@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY . /huly-cef
 WORKDIR /huly-cef
-RUN cargo run --bin huly-cef-build -- --profile=release
+RUN cargo run --bin huly-cef-build --release -- --profile=release
 RUN cargo build --bin huly-cef-manager --release
 
 FROM debian:bookworm-slim AS runtime

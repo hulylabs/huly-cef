@@ -1,1 +1,8 @@
 cef
+cache
+target/
+.git
+*.log
+.DS_Store
+.env
+.vscode/
