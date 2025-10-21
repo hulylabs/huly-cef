@@ -8,7 +8,15 @@ pub struct ProfileManager {
 
 impl ProfileManager {
     pub fn new(cache_dir: String) -> Self {
-        Self { cache_dir }
+        let mut profiles = Self { cache_dir };
+        let list = profiles.list().expect("couldn't read cache directory");
+        if list.is_empty() {
+            profiles
+                .create("default")
+                .expect("couldn't create default profile");
+        }
+
+        profiles
     }
 
     pub fn create(&mut self, id: &str) -> Result<(), String> {

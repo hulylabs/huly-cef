@@ -26,7 +26,7 @@ You can develop the CEF Manager locally without Docker containers. This provides
 Before running the CEF Manager, you must first build the CEF Websockets component:
 
 ```bash
-cargo run --bin huly-cef-build
+cargo run --bin huly-cef-build -- --profile release
 ```
 
 This command builds the necessary CEF binaries and websockets server that the manager will control.
