@@ -166,7 +166,7 @@ fn default_dpr() -> f64 {
 }
 
 #[derive(Debug, Deserialize)]
-struct OpenTabParamss {
+struct OpenTabParams {
     url: String,
     wait_until_loaded: bool,
     #[serde(default = "default_dpr")]
@@ -294,7 +294,7 @@ async fn close(state: &SharedServerState) -> Result<serde_json::Value, serde_jso
 
 async fn open_tab(
     state: &SharedServerState,
-    params: OpenTabParamss,
+    params: OpenTabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let (width, height) = { state.lock().size };
     info!(

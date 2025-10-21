@@ -36,17 +36,17 @@ To build and run Huly CEF Websockets, use:
 2. **Run Huly CEF Websockets**  
    **Linux**:
    ```bash
-   ./target/release/huly-cef-websockets --cache-path cache
+   ./target/release/huly-cef-websockets --cache-path cache/default
    ```
 
    **Windows:**
    ```bash
-   ./target/release/huly-cef-websockets.exe --cache-path cache
+   ./target/release/huly-cef-websockets.exe --cache-path cache/default
    ```
 
    **macOS:**
    ```bash
-   ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets --cache-path cache
+   ./target/release/huly-cef-websockets.app/Contents/MacOS/huly-cef-websockets --cache-path cache/default
    ```
 
 ## CEF Client (Development Only)
