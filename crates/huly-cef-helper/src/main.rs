@@ -2,7 +2,8 @@ use std::process::exit;
 
 use anyhow::Result;
 use cef_ui_helper::{
-    execute_process, App, AppCallbacks, MainArgs, SchemeOptions, SchemeRegistrar, ScopedSandbox,
+    execute_process, App, AppCallbacks, MainArgs, RenderProcessHandler, SchemeOptions,
+    SchemeRegistrar, ScopedSandbox,
 };
 use log::{error, info, SetLoggerError};
 use log4rs::{
@@ -11,6 +12,8 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
+
+use crate::render_process::RenderProcessCallbacks;
 
 mod js;
 mod render_process;
@@ -55,13 +58,13 @@ fn run(app: App) -> Result<i32> {
     Ok(execute_process(main_args, Some(app)))
 }
 struct HelperAppCallbacks {
-    // render_process_handler: RenderProcessHandler,
+    render_process_handler: RenderProcessHandler,
 }
 
 impl HelperAppCallbacks {
     fn new() -> Self {
         Self {
-            // render_process_handler: RenderProcessHandler::new(RenderProcessCallbacks),
+            render_process_handler: RenderProcessHandler::new(RenderProcessCallbacks),
         }
     }
 }
@@ -70,8 +73,7 @@ impl AppCallbacks for HelperAppCallbacks {
     fn on_register_custom_schemes(&mut self, registrar: SchemeRegistrar) {
         let _ = registrar.add_custom_scheme("huly", SchemeOptions::Local.into());
     }
-
-    // fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
-    //     Some(self.render_process_handler.clone())
-    // }
+    fn get_render_process_handler(&mut self) -> Option<RenderProcessHandler> {
+        Some(self.render_process_handler.clone())
+    }
 }
