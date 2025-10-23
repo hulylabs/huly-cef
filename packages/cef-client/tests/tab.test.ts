@@ -68,7 +68,7 @@ describe('tabs', () => {
         expect(titles.sort()).toEqual(["Title", "Keyboard", "Links"].sort());
     });
 
-    test.skip('tab navigation', async () => {
+    test('tab navigation', async () => {
         const tab = await browser.openTab({ url: getPageUrl("links.html"), wait_until_loaded: true });
         expect(await tab.title()).toBe("Links");
 
@@ -89,7 +89,7 @@ describe('tabs', () => {
         expect(await tab.title()).toBe("Title");
     });
 
-    test.skip('tab reloading', async () => {
+    test('tab reloading', async () => {
         const tab = await browser.openTab({ url: getPageUrl("reload.html"), wait_until_loaded: true });
         tab.reload(true);
         expect(await tab.title()).toBe("Reloads: 2");
