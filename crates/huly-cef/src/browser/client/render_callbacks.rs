@@ -1,4 +1,6 @@
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use crate::{state::SharedBrowserState, Framebuffer, TabMessage};
 use cef_ui::{Browser, PaintElementType, Rect, RenderHandlerCallbacks, ScreenInfo};
@@ -56,6 +58,9 @@ pub struct HulyRenderHandlerCallbacks {
     framebuffer: Arc<Mutex<Framebuffer>>,
     popup_rect: Option<Rect>,
     popup_data: Option<Vec<u8>>,
+
+    frame_times: VecDeque<Instant>,
+    last_fps_print: Instant,
 }
 
 impl HulyRenderHandlerCallbacks {
@@ -68,6 +73,8 @@ impl HulyRenderHandlerCallbacks {
             framebuffer,
             popup_rect: None,
             popup_data: None,
+            frame_times: VecDeque::new(),
+            last_fps_print: Instant::now(),
         }
     }
 
@@ -105,6 +112,29 @@ impl HulyRenderHandlerCallbacks {
         };
 
         framebuffer.copy_rect(popup_data, src_stride, src_rect, popup_rect);
+    }
+
+    fn update_fps(&mut self, browser: Browser) {
+        let now = Instant::now();
+
+        self.frame_times.push_back(now);
+
+        while let Some(front_time) = self.frame_times.front() {
+            if now.duration_since(*front_time).as_secs() >= 1 {
+                self.frame_times.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        if now.duration_since(self.last_fps_print).as_secs() >= 1 {
+            let fps = self.frame_times.len();
+            match browser.get_identifier() {
+                Ok(browser_id) => println!("Browser {}: FPS = {}", browser_id, fps),
+                Err(_) => println!("Browser (unknown): FPS = {}", fps),
+            }
+            self.last_fps_print = now;
+        }
     }
 }
 
@@ -171,7 +201,7 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
 
     fn on_paint(
         &mut self,
-        _: Browser,
+        browser: Browser,
         paint_element_type: PaintElementType,
         dirty_rects: &[Rect],
         buffer: &[u8],
@@ -182,6 +212,9 @@ impl RenderHandlerCallbacks for HulyRenderHandlerCallbacks {
         if !active {
             return;
         }
+
+        // Update FPS calculation
+        self.update_fps(browser);
 
         match paint_element_type {
             PaintElementType::View => {
