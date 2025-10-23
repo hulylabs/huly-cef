@@ -65,6 +65,14 @@ impl Browser {
         rx.recv().expect("failed to receive created browser")
     }
 
+    pub fn invalidate(&self) {
+        let _ = self
+            .inner
+            .get_host()
+            .unwrap()
+            .invalidate(PaintElementType::View);
+    }
+
     pub fn start_video(&self) {
         self.state.update(|state| {
             state.active = true;
@@ -257,7 +265,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             width: self.width,
             height: self.height,
             dpr: self.dpr,
-            active: true,
+            active: false,
 
             external_link: "".to_string(),
 

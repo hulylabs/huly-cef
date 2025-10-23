@@ -372,7 +372,7 @@ fn resize(
 
     let mut state = state.lock();
     if state.use_server_size {
-        error!("cannot resize, server size is used");
+        state.tabs.iter().for_each(|t| t.1.invalidate());
         return Err(json!({
             "message": "server size is used, cannot resize"
         }));

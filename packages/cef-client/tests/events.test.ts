@@ -66,6 +66,7 @@ describe('tab events', () => {
         let frames: number[] = [];
         stream.on("Frame", (data) => frames.push(data.data.length));
 
+        tab.startVideo();
         await expect.poll(() => frames.length, pollTimeout).toBeGreaterThan(10);
 
         tab.stopVideo();

@@ -14,8 +14,8 @@ use huly_cef::browser::Browser;
 mod browser;
 mod tab;
 
-pub const WIDTH: u32 = 1920;
-pub const HEIGHT: u32 = 1080;
+pub const WIDTH: u32 = 1280;
+pub const HEIGHT: u32 = 720;
 
 enum ConnectionType {
     Browser,
