@@ -4,8 +4,8 @@ use crate::javascript::{
     INTERACTIVE_ELEMENT_FUNCTION, IS_ELEMENT_VISIBLE_FUNCTION, WALK_DOM_FUNCTION,
 };
 use cef_ui::{
-    register_extension, Browser, DictionaryValue, Frame, ProcessId, ProcessMessage,
-    RenderProcessHandlerCallbacks, V8Context, V8HandlerCallbacks, V8Value,
+    register_extension, Browser, Frame, ProcessId, ProcessMessage, RenderProcessHandlerCallbacks,
+    V8Context, V8Handler, V8HandlerCallbacks, V8Value,
 };
 
 pub struct RenderProcessCallbacks;
@@ -17,46 +17,30 @@ impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
         _ = register_extension("walk_dom", WALK_DOM_FUNCTION, None);
     }
 
-    fn on_browser_created(&mut self, _: Browser, _: Option<DictionaryValue>) {}
-
-    fn on_browser_destroyed(&mut self, _: Browser) {}
-
-    fn on_context_created(&mut self, _browser: Browser, frame: Frame, _context: V8Context) {
+    fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {
         if !frame.is_main().unwrap() {
             return;
         }
 
-        // let func = V8Value::create_function(
-        //     "sendMessage",
-        //     V8Handler::new(SendMessageHandler::new(browser)),
-        // )
-        // .expect("failed to create func sendMessage");
+        let func = V8Value::create_function(
+            "sendMessage",
+            V8Handler::new(SendMessageHandler::new(browser)),
+        )
+        .expect("failed to create func sendMessage");
 
-        // context
-        //     .get_global()
-        //     .expect("failed to get global context object")
-        //     .set_value_by_key("sendMessage", func)
-        //     .expect("failed to set sendMessage function");
-    }
-
-    fn on_process_message_received(
-        &mut self,
-        _: Browser,
-        _: Frame,
-        _: ProcessId,
-        _: &mut ProcessMessage,
-    ) -> bool {
-        true
+        context
+            .get_global()
+            .expect("failed to get global context object")
+            .set_value_by_key("sendMessage", func)
+            .expect("failed to set sendMessage function");
     }
 }
 
-#[allow(dead_code)]
 pub struct SendMessageHandler {
     browser: Browser,
 }
 
 impl SendMessageHandler {
-    #[allow(dead_code)]
     pub fn new(browser: Browser) -> Self {
         Self { browser }
     }
