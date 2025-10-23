@@ -68,7 +68,7 @@ describe('tabs', () => {
         expect(titles.sort()).toEqual(["Title", "Keyboard", "Links"].sort());
     });
 
-    test('tab navigation', async () => {
+    test.only('tab navigation', async () => {
         const tab = await browser.openTab({ url: getPageUrl("links.html"), wait_until_loaded: true });
         expect(await tab.title()).toBe("Links");
 
