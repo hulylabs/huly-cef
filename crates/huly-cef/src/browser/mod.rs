@@ -273,7 +273,7 @@ impl CefTaskCallbacks for CreateBrowserTaskCallback {
             file_dialog_callback: None,
             downloads: HashMap::new(),
 
-            javascript_messages: HashMap::new(),
+            ipc_messages: HashMap::new(),
             subscribers: HashMap::new(),
             single_event_subscribers: HashMap::new(),
         });

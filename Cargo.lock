@@ -1241,6 +1241,8 @@ dependencies = [
  "libloading",
  "log",
  "log4rs",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

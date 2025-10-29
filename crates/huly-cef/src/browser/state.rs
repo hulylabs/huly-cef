@@ -13,7 +13,7 @@ use tokio::{
     time::error::Elapsed,
 };
 
-use crate::{browser::automation::JSMessage, messages::TabMessage, LoadState, TabMessageType};
+use crate::{application::ipc, messages::TabMessage, LoadState, TabMessageType};
 
 type TabMessageCallback = Box<dyn Fn(TabMessage) + Send + Sync>;
 
@@ -81,7 +81,7 @@ pub struct BrowserState {
 
     pub downloads: HashMap<u32, DownloadItemCallback>,
 
-    pub javascript_messages: HashMap<String, oneshot::Sender<Result<JSMessage>>>,
+    pub ipc_messages: HashMap<String, oneshot::Sender<ipc::Response>>,
     pub subscribers: HashMap<i32, UnboundedSender<TabMessage>>,
     pub single_event_subscribers: HashMap<TabMessageType, TabMessageCallback>,
 }

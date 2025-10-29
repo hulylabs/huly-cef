@@ -15,6 +15,7 @@ use log4rs::{
 
 use crate::render_process::RenderProcessCallbacks;
 
+mod ipc;
 mod js;
 mod render_process;
 

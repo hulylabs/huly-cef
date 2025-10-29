@@ -7,13 +7,12 @@ use std::{
 use anyhow::Result;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
-use cef_ui::{Browser, ProcessId, ProcessMessage, StringVisitor};
+use cef_ui::{Browser, ProcessId, StringVisitor};
 use image::{imageops::FilterType, ImageFormat};
-use log::error;
-use serde::{Deserialize, Serialize};
 use tokio::sync::{oneshot, Notify};
 
 use crate::{
+    application::ipc::{self, ResponseBody},
     browser::{
         automation::{devtools::DevTools, dom::DOMVisitor},
         mouse::Mouse,
@@ -24,15 +23,6 @@ use crate::{
 
 mod devtools;
 mod dom;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum JSMessage {
-    ClickableElements(Vec<ClickableElement>),
-    ElementCenter { x: i32, y: i32 },
-    Clicked(bool),
-    Error(String),
-}
 
 pub struct Automation {
     browser: Browser,
@@ -147,113 +137,83 @@ impl Automation {
         }
     }
 
-    pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
-        let msg = self
-            .send_message("getClickableElements")
-            .await
-            .expect("didn't receive any response");
+    pub async fn get_clickable_elements(&self) -> Result<Vec<ClickableElement>, String> {
+        let response = self
+            .send_request(ipc::RequestBody::GetClickableElements)
+            .await?;
+        let ipc::ResponseBody::ClickableElements(elements) = response else {
+            return Err(format!("unexpected response: {:?}", response));
+        };
 
-        match msg {
-            Ok(JSMessage::ClickableElements(elements)) => {
-                self.clickable_elements
-                    .lock()
-                    .unwrap()
-                    .replace(elements.clone());
-                return elements;
-            }
-            _ => {
-                error!("Unexpected JavaScript message body: {:?}", msg);
-            }
-        }
-        vec![]
+        self.clickable_elements
+            .lock()
+            .unwrap()
+            .replace(elements.clone());
+        Ok(elements)
     }
 
-    pub async fn click_element(&self, id: i32) {
-        let element = self
+    pub async fn click_element(&self, id: i32) -> Result<(), String> {
+        let Some(element) = self
             .clickable_elements
             .lock()
             .unwrap()
             .as_ref()
-            .and_then(|elements| elements.get(id as usize).cloned());
-        if let Some(e) = element {
-            let id = e.id;
+            .and_then(|elements| elements.get(id as usize).cloned())
+        else {
+            return Err(format!("Element not found: {}", id));
+        };
 
-            let mut script = format!(
-                r#"
-                let center = {{ }};
-                let element = document.querySelector('[data-clickable-id="{id}"]');
-                if (element) {{
-                    const rect = element.getBoundingClientRect();
-                    const x = Math.floor(rect.left + rect.width / 2);
-                    const y = Math.floor(rect.top + rect.height / 2);     
-                    center = {{ x, y }}
+        let request = ipc::RequestBody::GetElementCenter {
+            selector: format!("[data-clickable-id={}]", element.id),
+        };
 
-                    element.onclick = function(event) {{
-                        element.setAttribute('data-clicked', 'true');
-                    }};
-                }}
-                "#
-            );
+        let response = self.send_request(request).await?;
+        let ResponseBody::ElementCenter { x, y } = response else {
+            return Err(format!("unexpected response: {:?}", response));
+        };
 
-            // let msg = self.execute_javascript(&script, "center").await;
+        self.mouse.click(x, y, MouseButton::Left, true);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        self.mouse.click(x, y, MouseButton::Left, false);
+        std::thread::sleep(std::time::Duration::from_millis(1000));
 
-            if let Ok(JSMessage::ElementCenter { x, y }) = msg {
-                self.mouse.click(x, y, MouseButton::Left, true);
-                std::thread::sleep(std::time::Duration::from_millis(20));
-                self.mouse.click(x, y, MouseButton::Left, false);
-                std::thread::sleep(std::time::Duration::from_millis(1000));
+        let request = ipc::RequestBody::CheckElementClicked {
+            selector: format!("[data-clickable-id={}]", element.id),
+        };
 
-                script = format!(
-                    r#"
-                    let clicked = false;
-                    let element = document.querySelector('[data-clickable-id="{id}"]');
-                    if (element && element.hasAttribute('data-clicked')) {{
-                        clicked = true;
-                        element.removeAttribute('data-clicked');
-                    }} else if (!element) {{
-                        clicked = true;
-                    }}
-                "#
-                );
+        let response = self.send_request(request).await?;
+        let ResponseBody::Clicked(clicked) = response else {
+            return Err(format!("unexpected response: {:?}", response));
+        };
 
-                // let msg = self.execute_javascript(&script, "clicked").await;
-                if let Ok(JSMessage::Clicked(clicked)) = msg {
-                    if !clicked {
-                        self.mouse.click(x, y, MouseButton::Left, true);
-                        std::thread::sleep(std::time::Duration::from_millis(20));
-                        self.mouse.click(x, y, MouseButton::Left, false);
-                    }
-                }
-            } else {
-                error!("unexpected JavaScript message body: {:?}", msg);
-            }
+        if !clicked {
+            self.mouse.click(x, y, MouseButton::Left, true);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            self.mouse.click(x, y, MouseButton::Left, false);
         }
+
+        Ok(())
     }
 
-    fn create_message(id: &str, name: &str) -> ProcessMessage {
-        let message = ProcessMessage::new(name);
-        let argument_list = message
-            .get_argument_list()
-            .ok()
-            .flatten()
-            .expect("failed to get argument list");
-        argument_list
-            .set_string(0, id)
-            .expect("failed to set IPC message id");
-
-        message
-    }
-
-    fn send_message(&self, name: &str) -> oneshot::Receiver<Result<JSMessage>> {
+    async fn send_request(&self, body: ipc::RequestBody) -> Result<ipc::ResponseBody, String> {
         let id = uuid::Uuid::new_v4().to_string();
+        let request = ipc::Request {
+            id: id.clone(),
+            body,
+        };
 
         let frame = self.browser.get_main_frame().unwrap().unwrap();
-        _ = frame.send_process_message(ProcessId::Renderer, Self::create_message(&id, name));
+        frame
+            .send_process_message(ProcessId::Renderer, request.into())
+            .expect("failed to send IPC message");
 
-        let (tx, rx) = oneshot::channel::<Result<JSMessage>>();
+        let (tx, rx) = oneshot::channel::<ipc::Response>();
         self.state.update(|state| {
-            state.javascript_messages.insert(id.to_string(), tx);
+            state.ipc_messages.insert(id.to_string(), tx);
         });
-        rx
+
+        let response = rx.await.expect("failed to receive IPC response");
+
+        Ok(response.body)
     }
 }

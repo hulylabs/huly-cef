@@ -12,6 +12,10 @@ cef-ui-util = { git = "https://github.com/hulylabs/cef-ui.git" }
 anyhow = { workspace = true }
 log = { workspace = true }
 log4rs = { workspace = true }
+
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
 libloading = "0.8"
+
 
 cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git", rev = "6a8b96a" }

@@ -3,6 +3,8 @@ use cef_ui::{
     SchemeRegistrar,
 };
 
+pub(crate) mod ipc;
+
 mod browser_process;
 mod render_process;
 

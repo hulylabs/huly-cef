@@ -1,4 +1,4 @@
-pub const INTERACTIVE_ELEMENT_FUNCTION: &str = r#"
+pub const IS_INTERACTIVE_ELEMENT: &str = r#"
 function isInteractiveElement(element) {
     // Immediately return false for body tag
     if (element.tagName && element.tagName.toLowerCase() === 'body') {
@@ -62,6 +62,7 @@ function isInteractiveElement(element) {
     const role = element.getAttribute('role');
     const ariaRole = element.getAttribute('aria-role');
     const tabIndex = element.getAttribute('tabindex');
+
 
     // Basic role/attribute checks
     const hasInteractiveRole =
@@ -174,7 +175,7 @@ function isInteractiveElement(element) {
 }
 "#;
 
-pub const IS_ELEMENT_VISIBLE_FUNCTION: &str = r#"
+pub const IS_ELEMENT_VISIBLE: &str = r#"
 function isElementVisible(element) {
     const style = window.getComputedStyle(element);
     return (
@@ -186,7 +187,7 @@ function isElementVisible(element) {
 }
 "#;
 
-pub const WALK_DOM_FUNCTION: &str = r#"
+pub const WALK_DOM: &str = r#"
 function walkDOM(node, clickableElements, processedElements) {
     if (node.nodeType !== Node.ELEMENT_NODE) {
         return;
@@ -240,7 +241,26 @@ function walkDOM(node, clickableElements, processedElements) {
 }
 "#;
 
-pub const GET_CLICKABLE_ELEMENTS_SCRIPT: &str = r#"
+pub const GET_ELEMENT_CENTER: &str = r#"
+function getElementCenter(selector) {
+    let element = document.querySelector(selector);
+
+    if (!element) {
+        return `element with selector ${selector} not found`;
+    }
+
+    element.onclick = function(event) {
+        element.setAttribute('data-clicked', 'true');
+    };
+    const rect = element.getBoundingClientRect();
+    const x = Math.floor(rect.left + rect.width / 2);
+    const y = Math.floor(rect.top + rect.height / 2);     
+
+    return JSON.stringify({ x, y });
+}
+"#;
+
+pub const GET_CLICKABLE_ELEMENTS: &str = r#"
 function getClickableElements() {
     let clickableElements = [];
     let processedElements = new Set();
@@ -254,5 +274,22 @@ function getClickableElements() {
 
     let elements = clickableElements.map(e => ({ id: e.id, tag: e.tag, text: e.text }));
     return JSON.stringify(elements);
+}
+"#;
+
+pub const IS_ELEMENT_CLICKED: &str = r#"
+function isElementClicked(selector) {
+    let element = document.querySelector(selector);
+
+    if (!element) {
+        return 'true';
+    }
+
+    if (element && element.hasAttribute('data-clicked')) {
+        element.removeAttribute('data-clicked');
+        return 'true';
+    }
+
+    return 'false';
 }
 "#;

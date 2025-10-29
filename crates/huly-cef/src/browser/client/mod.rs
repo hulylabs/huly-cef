@@ -1,4 +1,4 @@
-use crate::browser::{automation::JSMessage, state::SharedBrowserState};
+use crate::{application::ipc, browser::state::SharedBrowserState};
 use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DialogHandler, DisplayHandler,
     DownloadHandler, Frame, LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler,
@@ -103,31 +103,15 @@ impl ClientCallbacks for HulyClientCallbacks {
         _: Browser,
         _: Frame,
         _: ProcessId,
-        ipc_msg: ProcessMessage,
+        msg: ProcessMessage,
     ) -> bool {
-        let name = ipc_msg.get_name().unwrap_or_default();
-        if name == "javascript_message" {
-            let args = ipc_msg
-                .get_argument_list()
-                .unwrap()
-                .expect("failed to get argument list");
+        let response = ipc::Response::from(msg);
 
-            let id = args.get_string(0).ok().flatten().expect("no id");
-            let msg = args.get_string(1).ok().flatten().expect("no message");
-
-            let result = match serde_json::from_str::<JSMessage>(&msg) {
-                Ok(value) => Ok(value),
-                Err(e) => Err(anyhow::anyhow!("Failed to parse JSON message: {}", e)),
-            };
-
-            self.state.update(|state| {
-                state
-                    .javascript_messages
-                    .remove(&id)
-                    .and_then(|tx| Some(tx.send(result)));
-            });
-        }
-
+        self.state.update(|s| {
+            s.ipc_messages
+                .remove(&response.id)
+                .and_then(|tx| Some(tx.send(response)));
+        });
         true
     }
 }
