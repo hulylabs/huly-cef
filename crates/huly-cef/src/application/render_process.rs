@@ -1,83 +1,87 @@
 use anyhow::Result;
 
-use crate::javascript::{
-    INTERACTIVE_ELEMENT_FUNCTION, IS_ELEMENT_VISIBLE_FUNCTION, WALK_DOM_FUNCTION,
-};
+use crate::{GET_CLICKABLE_ELEMENTS, IS_ELEMENT_VISIBLE, IS_INTERACTIVE_ELEMENT, WALK_DOM};
 use cef_ui::{
     register_extension, Browser, Frame, ProcessId, ProcessMessage, RenderProcessHandlerCallbacks,
-    V8Context, V8Handler, V8HandlerCallbacks, V8Value,
+    V8Context, V8Value,
 };
 
 pub struct RenderProcessCallbacks;
 
 impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
     fn on_web_kit_initialized(&mut self) {
-        _ = register_extension("is_interactive_element", INTERACTIVE_ELEMENT_FUNCTION, None);
-        _ = register_extension("is_element_visible", IS_ELEMENT_VISIBLE_FUNCTION, None);
-        _ = register_extension("walk_dom", WALK_DOM_FUNCTION, None);
+        _ = register_extension("is_interactive_element", IS_INTERACTIVE_ELEMENT, None);
+        _ = register_extension("is_element_visible", IS_ELEMENT_VISIBLE, None);
+        _ = register_extension("walk_dom", WALK_DOM, None);
+        _ = register_extension("get_clickable_elements", GET_CLICKABLE_ELEMENTS, None);
     }
 
-    fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {
-        if !frame.is_main().unwrap() {
-            return;
-        }
+    fn on_process_message_received(
+        &mut self,
+        browser: Browser,
+        frame: Frame,
+        _source_process: ProcessId,
+        message: &mut ProcessMessage,
+    ) -> bool {
+        let name = message
+            .get_name()
+            .expect("failed to get process message name");
 
-        let func = V8Value::create_function(
-            "sendMessage",
-            V8Handler::new(SendMessageHandler::new(browser)),
-        )
-        .expect("failed to create func sendMessage");
-
-        context
-            .get_global()
-            .expect("failed to get global context object")
-            .set_value_by_key("sendMessage", func)
-            .expect("failed to set sendMessage function");
-    }
-}
-
-pub struct SendMessageHandler {
-    browser: Browser,
-}
-
-impl SendMessageHandler {
-    pub fn new(browser: Browser) -> Self {
-        Self { browser }
-    }
-}
-
-impl V8HandlerCallbacks for SendMessageHandler {
-    fn execute(&mut self, _: String, _: V8Value, _: usize, arguments: Vec<V8Value>) -> Result<i32> {
-        let first_arg = arguments.get(0).expect("first argument is required");
-
-        let id = first_arg
-            .get_value_by_key("id")
-            .expect("failed to get id")
-            .get_string_value()
-            .expect("id must be a string");
-
-        let message = first_arg
-            .get_value_by_key("message")
-            .expect("failed to get message")
-            .get_string_value()
-            .expect("message must be a string");
-
-        let ipc_message = ProcessMessage::new("javascript_message");
-        let argument_list = ipc_message
+        let args = message
             .get_argument_list()
             .ok()
             .flatten()
-            .expect("failed to get argument list");
-        _ = argument_list.set_string(0, &id);
-        _ = argument_list.set_string(1, &message);
+            .expect("failed to get message arguments");
 
-        _ = self
-            .browser
-            .get_main_frame()
-            .unwrap()
-            .unwrap()
-            .send_process_message(ProcessId::Browser, ipc_message);
+        let id = args.get_string(0).ok().flatten().expect("no id");
 
-        Ok(1)
+        let context = frame
+            .get_v8context()
+            .expect("failed to get V8 context from the frame");
+
+        if name == "getClickableElements" {
+            let result = process_get_clickable_elements_message(&context);
+            send_js_message(&browser, &id, &result)
+                .expect("failed to send clickable elements message");
+            return true;
+        }
+
+        false
     }
+}
+
+fn process_get_clickable_elements_message(context: &V8Context) -> String {
+    context.enter().expect("failed to enter V8 context");
+
+    let mut result = V8Value::create_string("");
+
+    context
+        .eval("getClickableElements();", "", 0, &mut result)
+        .expect("failed to evaluate getClickableElements() function");
+
+    let clickable_elements_json = result.get_string_value().expect("result must be a string");
+    println!("Clickable elements JSON: {}", clickable_elements_json);
+
+    context.exit().expect("failed to exit V8 context");
+
+    clickable_elements_json
+}
+
+fn send_js_message(browser: &Browser, id: &str, message: &str) -> Result<()> {
+    let ipc_message = ProcessMessage::new("javascript_message");
+    let argument_list = ipc_message
+        .get_argument_list()
+        .ok()
+        .flatten()
+        .expect("failed to get argument list");
+    _ = argument_list.set_string(0, id);
+    _ = argument_list.set_string(1, message);
+
+    _ = browser
+        .get_main_frame()
+        .unwrap()
+        .unwrap()
+        .send_process_message(ProcessId::Browser, ipc_message);
+
+    Ok(())
 }

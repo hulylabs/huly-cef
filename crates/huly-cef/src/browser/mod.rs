@@ -13,7 +13,6 @@ use crate::{browser::state::SharedBrowserState, LoadState, TabMessage};
 
 mod automation;
 mod client;
-mod devtools;
 mod keyboard;
 mod mouse;
 pub(crate) mod state;

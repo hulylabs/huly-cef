@@ -14,4 +14,4 @@ log = { workspace = true }
 log4rs = { workspace = true }
 libloading = "0.8"
 
-cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git" }
+cef-ui-helper = { git = "https://github.com/hulylabs/cef-ui.git", rev = "6a8b96a" }

@@ -239,3 +239,20 @@ function walkDOM(node, clickableElements, processedElements) {
     }
 }
 "#;
+
+pub const GET_CLICKABLE_ELEMENTS_SCRIPT: &str = r#"
+function getClickableElements() {
+    let clickableElements = [];
+    let processedElements = new Set();
+    walkDOM(document.body, clickableElements, processedElements);
+
+    let id = 0;
+    for (let element of clickableElements) {
+        element.element.setAttribute('data-clickable-id', id);
+        element.id = id++;
+    }
+
+    let elements = clickableElements.map(e => ({ id: e.id, tag: e.tag, text: e.text }));
+    return JSON.stringify(elements);
+}
+"#;

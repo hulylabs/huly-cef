@@ -7,36 +7,23 @@ use std::{
 use anyhow::Result;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
-use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
+use cef_ui::{Browser, ProcessId, ProcessMessage, StringVisitor};
 use image::{imageops::FilterType, ImageFormat};
 use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{oneshot, Notify};
 
 use crate::{
-    browser::{devtools::DevTools, mouse::Mouse},
+    browser::{
+        automation::{devtools::DevTools, dom::DOMVisitor},
+        mouse::Mouse,
+    },
     state::SharedBrowserState,
     ClickableElement, LoadState, LoadStatus, MouseButton, TabMessage, TabMessageType,
-    GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
-pub struct DOMVisitor {
-    tx: Option<oneshot::Sender<String>>,
-}
-
-impl DOMVisitor {
-    pub fn new(tx: oneshot::Sender<String>) -> Self {
-        DOMVisitor { tx: Some(tx) }
-    }
-}
-
-impl StringVisitorCallbacks for DOMVisitor {
-    fn visit(&mut self, string: &str) {
-        if let Err(e) = self.tx.take().unwrap().send(string.to_string()) {
-            error!("failed to get DOM: {}", e);
-        }
-    }
-}
+mod devtools;
+mod dom;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -44,6 +31,7 @@ pub enum JSMessage {
     ClickableElements(Vec<ClickableElement>),
     ElementCenter { x: i32, y: i32 },
     Clicked(bool),
+    Error(String),
 }
 
 pub struct Automation {
@@ -116,7 +104,7 @@ impl Automation {
             .unwrap()
             .get_source(StringVisitor::new(DOMVisitor::new(tx)));
 
-        rx.await.unwrap()
+        rx.await.expect("failed to get the page source")
     }
 
     pub async fn screenshot(&self, width: u32, height: u32) -> Result<String> {
@@ -161,8 +149,9 @@ impl Automation {
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
         let msg = self
-            .execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "elements")
-            .await;
+            .send_message("getClickableElements")
+            .await
+            .expect("didn't receive any response");
 
         match msg {
             Ok(JSMessage::ClickableElements(elements)) => {
@@ -206,7 +195,7 @@ impl Automation {
                 "#
             );
 
-            let msg = self.execute_javascript(&script, "center").await;
+            // let msg = self.execute_javascript(&script, "center").await;
 
             if let Ok(JSMessage::ElementCenter { x, y }) = msg {
                 self.mouse.click(x, y, MouseButton::Left, true);
@@ -227,7 +216,7 @@ impl Automation {
                 "#
                 );
 
-                let msg = self.execute_javascript(&script, "clicked").await;
+                // let msg = self.execute_javascript(&script, "clicked").await;
                 if let Ok(JSMessage::Clicked(clicked)) = msg {
                     if !clicked {
                         self.mouse.click(x, y, MouseButton::Left, true);
@@ -241,31 +230,30 @@ impl Automation {
         }
     }
 
-    async fn execute_javascript(&self, script: &str, value_to_return: &str) -> Result<JSMessage> {
-        // TODO: We need to wait for context to be initialized before executing JavaScript. It's done in render process.
-        let id = uuid::Uuid::new_v4().to_string();
-        let script = format!(
-            r#"{{
-                {script}
-                sendMessage({{
-                    id: "{}",
-                    message: JSON.stringify({value_to_return}),
-                }});
-            }}"#,
-            id.clone()
-        );
+    fn create_message(id: &str, name: &str) -> ProcessMessage {
+        let message = ProcessMessage::new(name);
+        let argument_list = message
+            .get_argument_list()
+            .ok()
+            .flatten()
+            .expect("failed to get argument list");
+        argument_list
+            .set_string(0, id)
+            .expect("failed to set IPC message id");
 
-        _ = self
-            .browser
-            .get_main_frame()
-            .unwrap()
-            .unwrap()
-            .execute_java_script(&script, "", 0);
+        message
+    }
+
+    fn send_message(&self, name: &str) -> oneshot::Receiver<Result<JSMessage>> {
+        let id = uuid::Uuid::new_v4().to_string();
+
+        let frame = self.browser.get_main_frame().unwrap().unwrap();
+        _ = frame.send_process_message(ProcessId::Renderer, Self::create_message(&id, name));
 
         let (tx, rx) = oneshot::channel::<Result<JSMessage>>();
         self.state.update(|state| {
             state.javascript_messages.insert(id.to_string(), tx);
         });
-        rx.await?
+        rx
     }
 }
