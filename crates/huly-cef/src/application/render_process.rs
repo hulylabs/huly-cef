@@ -1,9 +1,6 @@
-use anyhow::Result;
-use serde_json::json;
-
 use crate::{
-    application::ipc, GET_CLICKABLE_ELEMENTS, GET_ELEMENT_CENTER, IS_ELEMENT_CLICKED,
-    IS_ELEMENT_VISIBLE, IS_INTERACTIVE_ELEMENT, WALK_DOM,
+    application::ipc, ClickableElement, GET_CLICKABLE_ELEMENTS, GET_ELEMENT_CENTER,
+    IS_ELEMENT_CLICKED, IS_ELEMENT_VISIBLE, IS_INTERACTIVE_ELEMENT, WALK_DOM,
 };
 use cef_ui::{
     register_extension, Browser, Frame, ProcessId, ProcessMessage, RenderProcessHandlerCallbacks,
@@ -24,7 +21,7 @@ impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
 
     fn on_process_message_received(
         &mut self,
-        browser: Browser,
+        _: Browser,
         frame: Frame,
         _: ProcessId,
         message: &mut ProcessMessage,
@@ -38,27 +35,38 @@ impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
         let result = match request.body {
             ipc::RequestBody::GetClickableElements => {
                 let result = execute_javascript(&context, "getClickableElements();");
-                json!({ "clickable_elements": result })
+                let elements: Vec<ClickableElement> = serde_json::from_str(&result)
+                    .expect("failed to deserialize clickable elements");
+
+                ipc::ResponseBody::ClickableElements(elements)
             }
             ipc::RequestBody::GetElementCenter { selector } => {
                 let result =
                     execute_javascript(&context, &format!("getElementCenter('{}');", selector));
-                json!({ "element_center": result })
+                let center: (i32, i32) =
+                    serde_json::from_str(&result).expect("failed to deserialize center");
+                ipc::ResponseBody::ElementCenter {
+                    x: center.0,
+                    y: center.1,
+                }
             }
             ipc::RequestBody::CheckElementClicked { selector } => {
                 let result =
                     execute_javascript(&context, &format!("isElementClicked('{}');", selector));
-                json!({ "clicked": result })
+                let clicked: bool =
+                    serde_json::from_str(&result).expect("failed to deserialize clicked");
+                ipc::ResponseBody::Clicked(clicked)
             }
         };
 
-        let response = json!({
-            "id": request.id,
-            "body": result,
-        })
-        .to_string();
+        let response = ipc::Response {
+            id: request.id,
+            body: result,
+        };
 
-        send_message(&browser, &response).expect("failed to send IPC response message");
+        frame
+            .send_process_message(ProcessId::Browser, response.into())
+            .expect("failed to send IPC response message");
 
         false
     }
@@ -78,19 +86,4 @@ fn execute_javascript(context: &V8Context, script: &str) -> String {
     context.exit().expect("failed to exit V8 context");
 
     result
-}
-
-fn send_message(browser: &Browser, message: &str) -> Result<()> {
-    let ipc_message = ProcessMessage::new("response");
-    let argument_list = ipc_message
-        .get_argument_list()?
-        .expect("failed to get argument list");
-    argument_list.set_string(0, &message)?;
-
-    browser
-        .get_main_frame()?
-        .unwrap()
-        .send_process_message(ProcessId::Browser, ipc_message)?;
-
-    Ok(())
 }

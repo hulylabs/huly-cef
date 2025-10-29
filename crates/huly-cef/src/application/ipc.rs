@@ -1,5 +1,4 @@
 use cef_ui::ProcessMessage;
-use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::ClickableElement;
@@ -80,9 +79,25 @@ impl From<ProcessMessage> for Response {
             .flatten()
             .expect("failed to get argument string");
 
-        info!("IPC Response JSON: {}", json);
-
         let body = serde_json::from_str(&json).expect("failed to deserialize response from JSON");
         Response { id, body }
+    }
+}
+
+impl Into<ProcessMessage> for Response {
+    fn into(self) -> ProcessMessage {
+        let message = ProcessMessage::new(&self.id);
+        let arg_list = message
+            .get_argument_list()
+            .ok()
+            .flatten()
+            .expect("failed to get arg list");
+
+        let json = serde_json::to_string(&self.body).expect("failed to serialize response to JSON");
+        arg_list
+            .set_string(0, &json)
+            .expect("failed to set argument string");
+
+        message
     }
 }

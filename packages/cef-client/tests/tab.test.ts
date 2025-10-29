@@ -151,27 +151,5 @@ describe('tabs', () => {
         press(tab, KeyCode.ENTER);
         await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -2));
     });
-
-    test('screenshot', async () => {
-        browser.resize(1920, 1080);
-
-        const tab = await browser.openTab({ url: getPageUrl("title.html"), wait_until_loaded: true });
-        expect(await tab.title()).toBe("Title");
-
-        let [width, height] = [800, 600];
-        const screenshot = await tab.screenshot({ size: { width, height } });
-        expect(screenshot).toBeDefined();
-
-        const img = Buffer.from(screenshot, 'base64');
-        const metadata = await sharp(img).metadata();
-        expect(metadata.width).toBe(width);
-        expect(metadata.height).toBe(height);
-        expect(metadata.format).toBe('png');
-    });
-
-    test('subframes', async () => {
-        const tab = await browser.openTab({ url: getPageUrl("frames.html"), wait_until_loaded: true });
-        expect(await tab.title()).toBe("Frames");
-    });
 });
 

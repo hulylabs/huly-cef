@@ -616,7 +616,7 @@ async fn get_clickable_elements(
     params: TabParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
-    let elements = tab.automation.get_clickable_elements().await;
+    let elements = tab.automation.get_clickable_elements().await?;
 
     Ok(json!({ "elements": elements }))
 }

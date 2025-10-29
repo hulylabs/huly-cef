@@ -1,7 +1,7 @@
 use cef_ui::{
     Browser, Frame, Request, RequestHandlerCallbacks, TerminationStatus, WindowOpenDisposition,
 };
-use log::warn;
+use log::{info, warn};
 
 use crate::{browser::state::SharedBrowserState, TabMessage};
 
@@ -27,6 +27,8 @@ impl RequestHandlerCallbacks for HulyRequestHandlerCallbacks {
         _: bool,
     ) -> bool {
         let url = request.get_url().unwrap_or_default();
+        info!("browsing to: {}", url);
+
         let custom = PROTOCOLS.iter().all(|proto| !url.starts_with(proto));
         let external = if custom { url } else { "".into() };
 
