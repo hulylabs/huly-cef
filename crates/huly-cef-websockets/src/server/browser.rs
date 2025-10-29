@@ -626,8 +626,7 @@ async fn click_element(
     params: ClickElementParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let tab = get_tab(state, params.tab)?;
-    // TODO: check that element exists
-    tab.automation.click_element(params.element_id).await;
+    tab.automation.click_element(params.element_id).await?;
 
     Ok(json!({ "success": true }))
 }
