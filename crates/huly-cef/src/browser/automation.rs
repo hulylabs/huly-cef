@@ -10,14 +10,12 @@ use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
 use image::{imageops::FilterType, ImageFormat};
 use log::error;
-use serde::{Deserialize, Serialize};
 use tokio::sync::{oneshot, Notify};
 
 use crate::{
     browser::{devtools::DevTools, mouse::Mouse},
     state::SharedBrowserState,
     ClickableElement, LoadState, LoadStatus, MouseButton, TabMessage, TabMessageType,
-    GET_CLICKABLE_ELEMENTS_SCRIPT,
 };
 
 pub struct DOMVisitor {
@@ -36,14 +34,6 @@ impl StringVisitorCallbacks for DOMVisitor {
             error!("failed to get DOM: {}", e);
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum JSMessage {
-    ClickableElements(Vec<ClickableElement>),
-    ElementCenter { x: i32, y: i32 },
-    Clicked(bool),
 }
 
 pub struct Automation {
@@ -160,23 +150,15 @@ impl Automation {
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
-        let msg = self
-            .execute_javascript(GET_CLICKABLE_ELEMENTS_SCRIPT, "elements")
+        let elements = self
+            .execute_javascript::<Vec<ClickableElement>>("getClickableElements();")
             .await;
 
-        match msg {
-            Ok(JSMessage::ClickableElements(elements)) => {
-                self.clickable_elements
-                    .lock()
-                    .unwrap()
-                    .replace(elements.clone());
-                return elements;
-            }
-            _ => {
-                error!("Unexpected JavaScript message body: {:?}", msg);
-            }
-        }
-        vec![]
+        self.clickable_elements
+            .lock()
+            .unwrap()
+            .replace(elements.clone());
+        elements
     }
 
     pub async fn click_element(&self, id: i32) {
@@ -186,73 +168,39 @@ impl Automation {
             .unwrap()
             .as_ref()
             .and_then(|elements| elements.get(id as usize).cloned());
-        if let Some(e) = element {
-            let id = e.id;
 
-            let mut script = format!(
-                r#"
-                let center = {{ }};
-                let element = document.querySelector('[data-clickable-id="{id}"]');
-                if (element) {{
-                    const rect = element.getBoundingClientRect();
-                    const x = Math.floor(rect.left + rect.width / 2);
-                    const y = Math.floor(rect.top + rect.height / 2);     
-                    center = {{ x, y }}
+        if element.is_none() {
+            error!("No clickable element found with id {}", id);
+            return;
+        }
 
-                    element.onclick = function(event) {{
-                        element.setAttribute('data-clicked', 'true');
-                    }};
-                }}
-                "#
-            );
+        let selector = format!("[data-clickable-id=\"{}\"]", id);
 
-            let msg = self.execute_javascript(&script, "center").await;
+        let script = format!("getElementCenter('{selector}');");
+        let (x, y) = self.execute_javascript::<(i32, i32)>(&script).await;
 
-            if let Ok(JSMessage::ElementCenter { x, y }) = msg {
-                self.mouse.click(x, y, MouseButton::Left, true);
-                std::thread::sleep(std::time::Duration::from_millis(20));
-                self.mouse.click(x, y, MouseButton::Left, false);
-                std::thread::sleep(std::time::Duration::from_millis(1000));
+        self.mouse.click(x, y, MouseButton::Left, true);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        self.mouse.click(x, y, MouseButton::Left, false);
+        std::thread::sleep(std::time::Duration::from_millis(1000));
 
-                script = format!(
-                    r#"
-                    let clicked = false;
-                    let element = document.querySelector('[data-clickable-id="{id}"]');
-                    if (element && element.hasAttribute('data-clicked')) {{
-                        clicked = true;
-                        element.removeAttribute('data-clicked');
-                    }} else if (!element) {{
-                        clicked = true;
-                    }}
-                "#
-                );
+        let script = format!("isElementClicked('{selector}');");
+        let clicked = self.execute_javascript::<bool>(&script).await;
 
-                let msg = self.execute_javascript(&script, "clicked").await;
-                if let Ok(JSMessage::Clicked(clicked)) = msg {
-                    if !clicked {
-                        self.mouse.click(x, y, MouseButton::Left, true);
-                        std::thread::sleep(std::time::Duration::from_millis(20));
-                        self.mouse.click(x, y, MouseButton::Left, false);
-                    }
-                }
-            } else {
-                error!("unexpected JavaScript message body: {:?}", msg);
-            }
+        if !clicked {
+            self.mouse.click(x, y, MouseButton::Left, true);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            self.mouse.click(x, y, MouseButton::Left, false);
         }
     }
 
-    async fn execute_javascript(&self, script: &str, value_to_return: &str) -> Result<JSMessage> {
-        // TODO: We need to wait for context to be initialized before executing JavaScript. It's done in render process.
+    async fn execute_javascript<T: serde::de::DeserializeOwned>(&self, script: &str) -> T {
         let id = uuid::Uuid::new_v4().to_string();
         let script = format!(
             r#"{{
-                {script}
-                sendMessage({{
-                    id: "{}",
-                    message: JSON.stringify({value_to_return}),
-                }});
-            }}"#,
-            id.clone()
+            let result = {script};
+            sendMessage({{ id: "{id}", message: JSON.stringify(result) }});
+        }}"#
         );
 
         _ = self
@@ -262,10 +210,15 @@ impl Automation {
             .unwrap()
             .execute_java_script(&script, "", 0);
 
-        let (tx, rx) = oneshot::channel::<Result<JSMessage>>();
-        self.state.update(|state| {
-            state.javascript_messages.insert(id.to_string(), tx);
+        let (tx, rx) = oneshot::channel::<String>();
+        self.state.update(|s| {
+            s.js_messages.insert(id, tx);
         });
-        rx.await?
+
+        let response = rx
+            .await
+            .expect("failed to get a response from the JS channel");
+
+        serde_json::from_str::<T>(&response).expect("failed to deserialize a JS response")
     }
 }

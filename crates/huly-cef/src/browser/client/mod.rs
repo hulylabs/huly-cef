@@ -1,4 +1,4 @@
-use crate::browser::{automation::JSMessage, state::SharedBrowserState};
+use crate::browser::state::SharedBrowserState;
 use cef_ui::{
     Browser, Client, ClientCallbacks, ContextMenuHandler, DialogHandler, DisplayHandler,
     DownloadHandler, Frame, LifeSpanHandler, LoadHandler, ProcessId, ProcessMessage, RenderHandler,
@@ -115,16 +115,8 @@ impl ClientCallbacks for HulyClientCallbacks {
             let id = args.get_string(0).ok().flatten().expect("no id");
             let msg = args.get_string(1).ok().flatten().expect("no message");
 
-            let result = match serde_json::from_str::<JSMessage>(&msg) {
-                Ok(value) => Ok(value),
-                Err(e) => Err(anyhow::anyhow!("Failed to parse JSON message: {}", e)),
-            };
-
-            self.state.update(|state| {
-                state
-                    .javascript_messages
-                    .remove(&id)
-                    .and_then(|tx| Some(tx.send(result)));
+            self.state.update(|s| {
+                s.js_messages.remove(&id).and_then(|tx| Some(tx.send(msg)));
             });
         }
 
