@@ -1,3 +1,4 @@
+import { getConfig } from "./config.js";
 import { Cursor, DownloadProgress, FileDialog, Frame, LoadState } from "./types.js";
 
 type TabEvent = {
@@ -43,6 +44,11 @@ export class TabEventStream {
     private onmessage(event: MessageEvent) {
         if (typeof event.data === "string") {
             let message: Message<keyof TabEvent> = JSON.parse(event.data);
+
+            if (getConfig().logging) {
+                console.log(`[${new Date().toISOString()}] Received tab event:`, message);
+            }
+
             this.emit(message.type, message.data);
         }
 

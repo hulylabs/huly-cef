@@ -1,19 +1,21 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
-import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
+import { Browser, connect, KeyCode, MouseButton, setConfig, Tab } from '../src/index';
 
 import { pollTimeout, getPageUrl, launchCef, CefProcess } from './common';
 
 describe('tabs', () => {
     let browser: Browser;
     let cef_process: CefProcess;
-    let port: number;
+    let port: number
 
     beforeAll(async () => {
         port = 8081;
         cef_process = await launchCef(port, "cache/tabs", 5000);
         browser = await connect("ws://localhost:" + port + "/browser");
+
+        setConfig({ logging: true });
     });
 
     afterAll(() => {
