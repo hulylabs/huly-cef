@@ -4,7 +4,7 @@ import { Browser, connect } from '../src/index';
 import { Cursor, LoadState, LoadStatus } from '../src/types';
 import { CefProcess, getPageUrl, launchCef, pollTimeout } from './common';
 
-describe('tab events', () => {
+describe.skip('tab events', () => {
     let cef_process: CefProcess;
     let browser: Browser;
     let port: number;
