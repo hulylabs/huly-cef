@@ -253,21 +253,13 @@ function getClickableElements() {
         element.id = id++;
     }
 
-    let elements = clickableElements.map(e => {
-        return {
-            id: e.id,
-            tag: e.tag,
-            text: e.text
-        };
-    });
-
-    return elements;
+    return clickableElements.map(e => ({ id: e.id, tag: e.tag, text: e.text }));
 }
 "#;
 
 pub const GET_ELEMENT_CENTER: &str = r#"
 function getElementCenter(selector) {
-    let element = document.querySelector('[data-clickable-id="{id}"]');
+    let element = document.querySelector(selector);
     if (!element) {
         return null;
     }

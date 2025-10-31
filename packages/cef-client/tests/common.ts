@@ -26,7 +26,10 @@ export interface CefProcess {
 }
 
 export async function launchCef(port: number, cache: string, timeout: number): Promise<CefProcess> {
-    const cef = spawn(cefExe, ["--port", port.toString(), "--cache-path", cache]);
+    const cef = spawn(cefExe, ["--port", port.toString(), "--cache-path", cache], {
+        stdout: "inherit",
+    });
+
     cef.on('error', (err) => {
         console.error("Failed to start CEF process:", err);
     });

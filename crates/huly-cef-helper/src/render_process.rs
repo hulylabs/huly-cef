@@ -1,6 +1,9 @@
 use anyhow::Result;
 
-use crate::js::{INTERACTIVE_ELEMENT_FUNCTION, IS_ELEMENT_VISIBLE_FUNCTION, WALK_DOM_FUNCTION};
+use crate::js::{
+    GET_CLICKABLE_ELEMENTS, GET_ELEMENT_CENTER, IS_ELEMENT_CLICKED, IS_ELEMENT_VISIBLE,
+    IS_INTERACTIVE_ELEMENT, WALK_DOM,
+};
 use cef_ui_helper::{
     register_extension, Browser, Frame, ProcessId, ProcessMessage, RenderProcessHandlerCallbacks,
     V8Context, V8Handler, V8HandlerCallbacks, V8Value,
@@ -10,9 +13,12 @@ pub struct RenderProcessCallbacks;
 
 impl RenderProcessHandlerCallbacks for RenderProcessCallbacks {
     fn on_web_kit_initialized(&mut self) {
-        _ = register_extension("is_interactive_element", INTERACTIVE_ELEMENT_FUNCTION, None);
-        _ = register_extension("is_element_visible", IS_ELEMENT_VISIBLE_FUNCTION, None);
-        _ = register_extension("walk_dom", WALK_DOM_FUNCTION, None);
+        _ = register_extension("is_interactive_element", IS_INTERACTIVE_ELEMENT, None);
+        _ = register_extension("get_clickable_elements", GET_CLICKABLE_ELEMENTS, None);
+        _ = register_extension("is_element_visible", IS_ELEMENT_VISIBLE, None);
+        _ = register_extension("get_element_center", GET_ELEMENT_CENTER, None);
+        _ = register_extension("is_element_clicked", IS_ELEMENT_CLICKED, None);
+        _ = register_extension("walk_dom", WALK_DOM, None);
     }
 
     fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {

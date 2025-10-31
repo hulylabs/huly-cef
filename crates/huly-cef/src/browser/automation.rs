@@ -9,7 +9,7 @@ use anyhow::Result;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use cef_ui::{Browser, StringVisitor, StringVisitorCallbacks};
 use image::{imageops::FilterType, ImageFormat};
-use log::error;
+use log::{debug, error, info};
 use tokio::sync::{oneshot, Notify};
 
 use crate::{
@@ -150,6 +150,7 @@ impl Automation {
     }
 
     pub async fn get_clickable_elements(&self) -> Vec<ClickableElement> {
+        info!("Getting clickable elements from the page");
         let elements = self
             .execute_javascript::<Vec<ClickableElement>>("getClickableElements();")
             .await;
@@ -174,6 +175,8 @@ impl Automation {
             return;
         }
 
+        info!("Clicking element with id {}", id);
+
         let selector = format!("[data-clickable-id=\"{}\"]", id);
 
         let script = format!("getElementCenter('{selector}');");
@@ -183,6 +186,8 @@ impl Automation {
         std::thread::sleep(std::time::Duration::from_millis(20));
         self.mouse.click(x, y, MouseButton::Left, false);
         std::thread::sleep(std::time::Duration::from_millis(1000));
+
+        info!("Element with id {} clicked", id);
 
         let script = format!("isElementClicked('{selector}');");
         let clicked = self.execute_javascript::<bool>(&script).await;
@@ -195,6 +200,7 @@ impl Automation {
     }
 
     async fn execute_javascript<T: serde::de::DeserializeOwned>(&self, script: &str) -> T {
+        debug!("Executing JavaScript: {}", script);
         let id = uuid::Uuid::new_v4().to_string();
         let script = format!(
             r#"{{
@@ -218,6 +224,8 @@ impl Automation {
         let response = rx
             .await
             .expect("failed to get a response from the JS channel");
+
+        debug!("JS Response: {}", response);
 
         serde_json::from_str::<T>(&response).expect("failed to deserialize a JS response")
     }
