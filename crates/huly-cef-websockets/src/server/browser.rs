@@ -4,7 +4,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 
 use crate::server::SharedServerState;
-use log::{error, info};
+use log::{debug, error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 
@@ -550,6 +550,9 @@ async fn go_back(
     params: NavigateParams,
 ) -> Result<serde_json::Value, serde_json::Value> {
     let mut tab = get_tab(state, params.tab)?;
+
+    debug!("Going back in tab id {}", tab.get_id());
+
     tab.go_back();
     let id = tab.get_id();
 
