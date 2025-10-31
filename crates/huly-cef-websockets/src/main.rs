@@ -100,7 +100,7 @@ fn setup_logging(cache_dir: &str) -> Result<log4rs::Handle, SetLoggerError> {
             Root::builder()
                 .appender("stdout")
                 .appender("file")
-                .build(log::LevelFilter::Info),
+                .build(log::LevelFilter::Debug),
         )
         .unwrap();
 

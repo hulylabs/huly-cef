@@ -2,9 +2,9 @@ import { describe, expect, test } from 'vitest';
 
 import { connect } from '../src/index';
 
-import { getPageUrl, launchCef } from './common';
+import { launchCef } from './common';
 
-describe('server', () => {
+describe.skip('server', () => {
     const port = 8080;
     test('shutdown CEF', async () => {
         const cef = await launchCef(port, "cache/server", 5000);

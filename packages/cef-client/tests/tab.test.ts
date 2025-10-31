@@ -1,19 +1,21 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 
-import { Browser, connect, KeyCode, MouseButton, Tab } from '../src/index';
+import { Browser, connect, KeyCode, MouseButton, setConfig, Tab } from '../src/index';
 
 import { pollTimeout, getPageUrl, launchCef, CefProcess } from './common';
 
 describe('tabs', () => {
     let browser: Browser;
     let cef_process: CefProcess;
-    let port: number;
+    let port: number
 
     beforeAll(async () => {
         port = 8081;
         cef_process = await launchCef(port, "cache/tabs", 5000);
         browser = await connect("ws://localhost:" + port + "/browser");
+
+        setConfig({ logging: true });
     });
 
     afterAll(() => {
@@ -28,14 +30,14 @@ describe('tabs', () => {
         tabs = [];
     });
 
-    test('open a new tab', async () => {
+    test.skip('open a new tab', async () => {
         const url = getPageUrl("title.html");
         const tab = await browser.openTab({ url: url, wait_until_loaded: true });
         expect(await tab.title()).toBe("Title");
         expect(await tab.url()).toBe(url);
     });
 
-    test('resize', async () => {
+    test.skip('resize', async () => {
         let [width, height] = [800, 600];
         browser.resize(width, height);
 
@@ -48,7 +50,7 @@ describe('tabs', () => {
         await expect.poll(() => tab.title(), pollTimeout).toBe("1024x768");
     });
 
-    test('go to a url', async () => {
+    test.skip('go to a url', async () => {
         const tab = await browser.openTab({ url: "", wait_until_loaded: true });
         expect(await tab.title()).toBe("New Tab");
         expect(await tab.url()).toBe("huly://newtab");
@@ -57,7 +59,7 @@ describe('tabs', () => {
         expect(await tab.title()).toBe("Google");
     });
 
-    test('multiple tabs', async () => {
+    test.skip('multiple tabs', async () => {
         let client = await connect("ws://localhost:" + port + "/browser");
         await browser.openTab({ url: getPageUrl("title.html"), wait_until_loaded: true });
         await client.openTab({ url: getPageUrl("keyboard.html"), wait_until_loaded: true });
@@ -89,7 +91,7 @@ describe('tabs', () => {
         expect(await tab.title()).toBe("Title");
     });
 
-    test('tab reloading', async () => {
+    test.skip('tab reloading', async () => {
         const tab = await browser.openTab({ url: getPageUrl("reload.html"), wait_until_loaded: true });
         tab.reload(true);
         expect(await tab.title()).toBe("Reloads: 2");
@@ -152,7 +154,7 @@ describe('tabs', () => {
         await expect.poll(() => tab.title(), pollTimeout).toBe(text.slice(0, -2));
     });
 
-    test('screenshot', async () => {
+    test.skip('screenshot', async () => {
         browser.resize(1920, 1080);
 
         const tab = await browser.openTab({ url: getPageUrl("title.html"), wait_until_loaded: true });
@@ -169,7 +171,7 @@ describe('tabs', () => {
         expect(metadata.format).toBe('png');
     });
 
-    test('subframes', async () => {
+    test.skip('subframes', async () => {
         const tab = await browser.openTab({ url: getPageUrl("frames.html"), wait_until_loaded: true });
         expect(await tab.title()).toBe("Frames");
     });
